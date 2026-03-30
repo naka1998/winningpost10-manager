@@ -152,6 +152,7 @@ CREATE TABLE plan_generations (
   CHECK (line_type IN ('sire', 'dam')),
   CHECK (generation BETWEEN 1 AND 5),
   CHECK (status IN ('planned', 'in_progress', 'completed'))
+  -- 不変条件: (plan_id, line_type, generation) の一意性はアプリケーション層で保証
 );
 ```
 
@@ -188,6 +189,7 @@ CREATE TABLE plan_yearly_breeding (
   notes           TEXT,
   created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+  -- 不変条件: (plan_id, year, mare_id) の一意性はアプリケーション層で保証
 );
 ```
 
