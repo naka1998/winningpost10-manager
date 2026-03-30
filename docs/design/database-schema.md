@@ -29,7 +29,8 @@ CREATE TABLE horses (
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT    NOT NULL DEFAULT (datetime('now')),
 
-  CHECK (status IN ('現役','繁殖牝馬','種牡馬','引退','売却済','ancestor'))
+  CHECK (status IN ('現役','繁殖牝馬','種牡馬','引退','売却済','ancestor')),
+  UNIQUE (name, birth_year)            -- インポート時の照合キー（馬名+生年で一意識別）
 );
 ```
 
