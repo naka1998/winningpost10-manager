@@ -17,6 +17,13 @@ File     → Blob → SQLite（リストア）
 
 ### 2.1 HorseRepository
 
+#### インポート時の同一判定ルール
+
+馬の同一性は `UNIQUE(name, birth_year)` で判定する（database-schema.md の DDL 制約と一致）。
+
+- **所有馬（読専txt由来）:** `name` + `birth_year` の組み合わせで一意識別。同一の組み合わせが既に存在すれば update、なければ create。
+- **祖先馬（父馬・母馬の自動作成）:** `birth_year` が不明のため `NULL` で登録。SQLite の `UNIQUE` 制約は `NULL` を重複とみなさないため、同名の祖先馬が複数登録される可能性がある。祖先馬の照合は `findAncestorByName` で `name` のみで行い、最初にヒットした1件を使用する。
+
 ```typescript
 interface HorseRepository {
   // 取得
