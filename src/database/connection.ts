@@ -10,6 +10,7 @@ export interface DatabaseConnection {
   get<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | undefined>;
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
   exec(sql: string): Promise<void>;
+  transaction<T>(fn: (db: DatabaseConnection) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -112,6 +113,18 @@ function createWaSqliteConnection(
 
     async exec(sql: string) {
       await sqlite3.exec(db, sql);
+    },
+
+    async transaction<T>(fn: (conn: DatabaseConnection) => Promise<T>): Promise<T> {
+      await sqlite3.exec(db, 'BEGIN');
+      try {
+        const result = await fn(instance!);
+        await sqlite3.exec(db, 'COMMIT');
+        return result;
+      } catch (err) {
+        await sqlite3.exec(db, 'ROLLBACK');
+        throw err;
+      }
     },
 
     async close() {

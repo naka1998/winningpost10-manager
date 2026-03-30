@@ -96,10 +96,12 @@ export function createLineageRepository(db: DatabaseConnection): LineageReposito
       const columns = lineageToColumns(data);
       if (Object.keys(columns).length === 0) {
         const lineage = await this.findById(id);
-        return lineage!;
+        if (!lineage) throw new Error(`Lineage not found: id=${id}`);
+        return lineage;
       }
       const { sql, params } = buildUpdate('lineages', id, columns);
-      await db.run(sql, params);
+      const result = await db.run(sql, params);
+      if (result.changes === 0) throw new Error(`Lineage not found: id=${id}`);
       const lineage = await this.findById(id);
       return lineage!;
     },

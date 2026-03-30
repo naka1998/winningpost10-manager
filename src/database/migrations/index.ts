@@ -32,8 +32,10 @@ export async function runMigrations(db: DatabaseConnection): Promise<void> {
 
   for (const migration of migrations) {
     if (migration.version > currentVersion) {
-      await migration.up(db);
-      await setVersion(db, migration.version);
+      await db.transaction(async (tx) => {
+        await migration.up(tx);
+        await setVersion(tx, migration.version);
+      });
     }
   }
 }

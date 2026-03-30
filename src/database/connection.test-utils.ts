@@ -6,7 +6,7 @@ export function createTestDatabase(): DatabaseConnection {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  return {
+  const connection: DatabaseConnection = {
     async run(sql: string, params?: unknown[]) {
       const stmt = db.prepare(sql);
       const result = stmt.run(...(params ?? []));
@@ -30,8 +30,22 @@ export function createTestDatabase(): DatabaseConnection {
       db.exec(sql);
     },
 
+    async transaction<T>(fn: (conn: DatabaseConnection) => Promise<T>): Promise<T> {
+      db.exec('BEGIN');
+      try {
+        const result = await fn(connection);
+        db.exec('COMMIT');
+        return result;
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    },
+
     async close() {
       db.close();
     },
   };
+
+  return connection;
 }

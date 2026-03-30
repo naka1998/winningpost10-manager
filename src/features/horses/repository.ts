@@ -96,9 +96,16 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-      const sortBy = filter?.sortBy ?? 'name';
-      const sortOrder = filter?.sortOrder ?? 'asc';
-      const sql = `SELECT * FROM horses ${whereClause} ORDER BY ${sortBy} ${sortOrder}`;
+
+      // Whitelist sort columns and order to prevent SQL injection
+      const sortColumnMap: Record<string, string> = {
+        name: 'name',
+        birth_year: 'birth_year',
+        status: 'status',
+      };
+      const sortColumn = sortColumnMap[filter?.sortBy ?? 'name'] ?? 'name';
+      const sortOrder = filter?.sortOrder === 'desc' ? 'DESC' : 'ASC';
+      const sql = `SELECT * FROM horses ${whereClause} ORDER BY ${sortColumn} ${sortOrder}`;
 
       const rows = await db.all<Record<string, unknown>>(sql, params);
       return rows.map(mapHorseRow);
@@ -116,10 +123,12 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
       const columns = horseToColumns(data);
       if (Object.keys(columns).length === 0) {
         const horse = await this.findById(id);
-        return horse!;
+        if (!horse) throw new Error(`Horse not found: id=${id}`);
+        return horse;
       }
       const { sql, params } = buildUpdate('horses', id, columns);
-      await db.run(sql, params);
+      const result = await db.run(sql, params);
+      if (result.changes === 0) throw new Error(`Horse not found: id=${id}`);
       const horse = await this.findById(id);
       return horse!;
     },
