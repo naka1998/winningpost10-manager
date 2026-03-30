@@ -86,7 +86,7 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
-  basepath: '/winningpost10-manager',
+  basepath: '/',
 });
 
 declare module '@tanstack/react-router' {

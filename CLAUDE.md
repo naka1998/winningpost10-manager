@@ -62,7 +62,7 @@ TanStack Router（コードベース）。ルート定義は `src/app/router.tsx
 
 ## デプロイ
 
-GitHub Pages（`base: '/winningpost10-manager/'`）。Vite config と TanStack Router の basepath の両方に設定済み。
+Cloudflare Pages。Vite config の `base` と TanStack Router の `basepath` は `/` に設定。
 
 ## テスト
 
