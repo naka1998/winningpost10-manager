@@ -99,10 +99,6 @@ CREATE TABLE lineages (
 );
 ```
 
-<!-- F03（〆配合プランナー）関連テーブル（breeding_plans, plan_system_requirements,
-     plan_generations, plan_mare_readiness, plan_yearly_breeding）は
-     外部ツール（WP配合ビルダー）で代替するため削除 -->
-
 ### 1.4 breeding_records — 配合記録
 
 種牡馬×繁殖牝馬の配合実績。
