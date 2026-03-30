@@ -17,6 +17,9 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
+  optimizeDeps: {
+    exclude: ['wa-sqlite'],
+  },
   build: {
     target: 'esnext',
   },
