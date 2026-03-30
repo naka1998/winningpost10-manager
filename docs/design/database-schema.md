@@ -99,101 +99,11 @@ CREATE TABLE lineages (
 );
 ```
 
-### 1.4 breeding_plans — 〆配合プラン
+<!-- F03（〆配合プランナー）関連テーブル（breeding_plans, plan_system_requirements,
+     plan_generations, plan_mare_readiness, plan_yearly_breeding）は
+     外部ツール（WP配合ビルダー）で代替するため削除 -->
 
-```sql
-CREATE TABLE breeding_plans (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  name                TEXT    NOT NULL,             -- プラン名
-  target_pedigree_json TEXT,                        -- 目標4代血統表（JSON: 各世代の馬IDマッピング）
-  theories_json       TEXT,                         -- 成立理論リスト（JSON配列: [{name, points}]）
-  total_power         INTEGER,                      -- 合計爆発力
-  memo                TEXT,                         -- メモ・参考URL
-  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
-);
-```
-
-### 1.5 plan_system_requirements — 系統確立チェックリスト
-
-〆配合の成立に必要な系統確立の進捗管理。
-
-```sql
-CREATE TABLE plan_system_requirements (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  plan_id       INTEGER NOT NULL REFERENCES breeding_plans(id) ON DELETE CASCADE,
-  lineage_id    INTEGER NOT NULL REFERENCES lineages(id),
-  status        TEXT    NOT NULL DEFAULT 'not_started', -- not_started/in_progress/established
-  target_year   INTEGER,                               -- 目標確立年度
-  actual_year   INTEGER,                               -- 確立年度（実績）
-  memo          TEXT,
-  created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-
-  CHECK (status IN ('not_started', 'in_progress', 'established'))
-);
-```
-
-### 1.6 plan_generations — 世代進行マップ
-
-〆父・〆母ラインの各世代の進行状況。
-
-```sql
-CREATE TABLE plan_generations (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  plan_id     INTEGER NOT NULL REFERENCES breeding_plans(id) ON DELETE CASCADE,
-  line_type   TEXT    NOT NULL,   -- sire(〆父ライン) / dam(〆母ライン)
-  generation  INTEGER NOT NULL,   -- 世代番号（1=1代前, 2=2代前, 3=3代前, 4=4代前）
-  horse_id    INTEGER REFERENCES horses(id), -- 実際に配置された馬（未定の場合NULL）
-  status      TEXT    NOT NULL DEFAULT 'planned', -- planned/in_progress/completed
-  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-
-  CHECK (line_type IN ('sire', 'dam')),
-  CHECK (generation BETWEEN 1 AND 5),
-  CHECK (status IN ('planned', 'in_progress', 'completed'))
-  -- 不変条件: (plan_id, line_type, generation) の一意性はアプリケーション層で保証
-);
-```
-
-### 1.7 plan_mare_readiness — 繁殖牝馬準備チェック
-
-```sql
-CREATE TABLE plan_mare_readiness (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  plan_id         INTEGER NOT NULL REFERENCES breeding_plans(id) ON DELETE CASCADE,
-  mare_id         INTEGER NOT NULL REFERENCES horses(id),
-  planned_sire_id INTEGER REFERENCES horses(id),  -- 予定種付け相手
-  status          TEXT    NOT NULL DEFAULT 'not_ready', -- not_ready/racing/ready/bred
-  memo            TEXT,                            -- 引退予定年度等のメモ
-  created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-
-  CHECK (status IN ('not_ready', 'racing', 'ready', 'bred'))
-);
-```
-
-### 1.8 plan_yearly_breeding — 年度配合計画
-
-各年度でどの牝馬にどの種牡馬を付けるかの計画。
-
-```sql
-CREATE TABLE plan_yearly_breeding (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  plan_id         INTEGER NOT NULL REFERENCES breeding_plans(id) ON DELETE CASCADE,
-  year            INTEGER NOT NULL,
-  mare_id         INTEGER NOT NULL REFERENCES horses(id),
-  sire_id         INTEGER NOT NULL REFERENCES horses(id),
-  evaluation      TEXT,                          -- 配合評価（A/B/C等）
-  explosion_power INTEGER,                       -- 爆発力
-  notes           TEXT,
-  created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
-  -- 不変条件: (plan_id, year, mare_id) の一意性はアプリケーション層で保証
-);
-```
-
-### 1.9 breeding_records — 配合記録
+### 1.4 breeding_records — 配合記録
 
 種牡馬×繁殖牝馬の配合実績。
 
@@ -213,7 +123,7 @@ CREATE TABLE breeding_records (
 );
 ```
 
-### 1.10 race_plans — レース計画
+### 1.5 race_plans — レース計画
 
 年度ごとの馬のレース路線計画。
 
@@ -231,7 +141,7 @@ CREATE TABLE race_plans (
 );
 ```
 
-### 1.11 game_settings — ゲーム設定
+### 1.6 game_settings — ゲーム設定
 
 Key-Value形式の設定テーブル。
 
@@ -249,7 +159,7 @@ CREATE TABLE game_settings (
 -- INSERT INTO game_settings (key, value) VALUES ('db_version', '1');
 ```
 
-### 1.12 import_logs — インポート履歴
+### 1.7 import_logs — インポート履歴
 
 ```sql
 CREATE TABLE import_logs (
@@ -293,12 +203,6 @@ CREATE INDEX idx_yearly_statuses_year ON yearly_statuses(year);
 
 -- 系統マスタの親系統検索
 CREATE INDEX idx_lineages_parent ON lineages(parent_lineage_id);
-
--- プラン関連
-CREATE INDEX idx_plan_system_req_plan ON plan_system_requirements(plan_id);
-CREATE INDEX idx_plan_generations_plan ON plan_generations(plan_id);
-CREATE INDEX idx_plan_mare_readiness_plan ON plan_mare_readiness(plan_id);
-CREATE INDEX idx_plan_yearly_breeding_plan_year ON plan_yearly_breeding(plan_id, year);
 
 -- 配合記録の検索
 CREATE INDEX idx_breeding_records_mare ON breeding_records(mare_id);
@@ -361,38 +265,7 @@ CREATE INDEX idx_race_plans_year ON race_plans(year);
        │           │ total_power, offspring_id
        │           └──────────────────
        │
-       └── N:1 ──→ plan_mare_readiness (as mare)
-
-┌──────────────────────┐
-│   breeding_plans      │
-│──────────────────────│
-│ id (PK)               │
-│ name                  │
-│ target_pedigree_json  │
-│ theories_json         │
-│ total_power, memo     │
-└──────┬───────────────┘
-       │
-       ├── 1:N ──→ plan_system_requirements
-       │           │ id, plan_id, lineage_id
-       │           │ status, target_year, actual_year
-       │           └──────────────────
-       │
-       ├── 1:N ──→ plan_generations
-       │           │ id, plan_id, line_type
-       │           │ generation, horse_id, status
-       │           └──────────────────
-       │
-       ├── 1:N ──→ plan_mare_readiness
-       │           │ id, plan_id, mare_id
-       │           │ planned_sire_id, status
-       │           └──────────────────
-       │
-       └── 1:N ──→ plan_yearly_breeding
-                   │ id, plan_id, year
-                   │ mare_id, sire_id
-                   │ evaluation, explosion_power
-                   └──────────────────
+       └── N:1 ──→ lineages
 
 ┌─────────────────┐
 │  import_logs     │
@@ -662,6 +535,6 @@ export async function importDatabase(
 マルチプロファイル対応（F10, P3）の実装時には、以下の方針で拡張する:
 
 1. **`profiles` テーブルを新設** — プロファイル名・ゲームバージョン・作成日時を管理
-2. **主要テーブルに `profile_id` カラムを追加** — `horses`, `breeding_plans`, `game_settings` 等のルートエンティティに `profile_id` FKを追加し、プロファイルごとにデータ空間を分離
+2. **主要テーブルに `profile_id` カラムを追加** — `horses`, `game_settings` 等のルートエンティティに `profile_id` FKを追加し、プロファイルごとにデータ空間を分離
 3. **DBファイル分離は行わない** — 単一DBファイル内でプロファイルを分離する（バックアップ・リストアの単位はDB全体のまま）
 4. **マイグレーションで対応** — v1→v2マイグレーションで既存データにデフォルトプロファイルを割り当て

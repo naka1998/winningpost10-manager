@@ -22,6 +22,7 @@ interface HorseRepository {
   // 取得
   findById(id: number): Promise<Horse | null>;
   findByNameAndBirthYear(name: string, birthYear: number): Promise<Horse | null>;
+  findAncestorByName(name: string): Promise<Horse | null>; // 祖先馬照合用（birthYear不明時）
   findAll(filter?: HorseFilter): Promise<Horse[]>;
   search(query: string): Promise<Horse[]>;
 
@@ -72,30 +73,7 @@ interface LineageRepository {
 }
 ```
 
-### 2.4 BreedingPlanRepository
-
-```typescript
-interface BreedingPlanRepository {
-  findById(id: number): Promise<BreedingPlan | null>;
-  findAll(): Promise<BreedingPlan[]>;
-  create(data: BreedingPlanCreateInput): Promise<BreedingPlan>;
-  update(id: number, data: BreedingPlanUpdateInput): Promise<BreedingPlan>;
-  delete(id: number): Promise<void>;
-
-  // 4軸サブデータ
-  getSystemRequirements(planId: number): Promise<PlanSystemRequirement[]>;
-  getGenerations(planId: number): Promise<PlanGeneration[]>;
-  getMareReadiness(planId: number): Promise<PlanMareReadiness[]>;
-  getYearlyBreeding(planId: number): Promise<PlanYearlyBreeding[]>;
-
-  setSystemRequirement(data: PlanSystemRequirementInput): Promise<PlanSystemRequirement>;
-  setGeneration(data: PlanGenerationInput): Promise<PlanGeneration>;
-  setMareReadiness(data: PlanMareReadinessInput): Promise<PlanMareReadiness>;
-  setYearlyBreeding(data: PlanYearlyBreedingInput): Promise<PlanYearlyBreeding>;
-}
-```
-
-### 2.5 BreedingRecordRepository
+### 2.4 BreedingRecordRepository
 
 ```typescript
 interface BreedingRecordRepository {
@@ -107,7 +85,7 @@ interface BreedingRecordRepository {
 }
 ```
 
-### 2.6 ImportLogRepository
+### 2.5 ImportLogRepository
 
 ```typescript
 interface ImportLogRepository {
@@ -138,7 +116,7 @@ interface ParsedHorseRow {
   // D1: 馬基本情報
   name: string;
   sex: string | null;          // 牡/牝/セン
-  birthYear: number | null;    // 「年」列から算出（年齢→生年変換はインポート年度を使用）
+  birthYear: number | null;    // 「年」列から算出（年齢→生年変換はインポート年度を使用）。nullの場合エラー扱い
   country: string | null;      // 日/米/欧
   sireName: string | null;     // 父馬名（horse照合に使用）
   damName: string | null;      // 母馬名（horse照合に使用）
@@ -227,10 +205,14 @@ interface ImportError {
 ```
 execute() のフロー:
   BEGIN TRANSACTION
+  ├─ 0. バリデーション:
+  │    └─ birthYear が null の行はエラー（読専txtの行は所有馬データのため生年は必須）
   ├─ 1. 各行について:
   │    ├─ 馬名+生年で horses を照合 (findByNameAndBirthYear)
   │    ├─ create の場合:
   │    │    ├─ 父馬・母馬が未登録なら ancestor として自動作成
+  │    │    │   （祖先馬は birthYear 不明のため name のみで照合。
+  │    │    │    UNIQUE(name, birth_year) は NULL を重複とみなさないため問題なし）
   │    │    ├─ 系統が未登録なら lineages に自動作成
   │    │    └─ horses INSERT + yearly_statuses INSERT
   │    └─ update の場合:
@@ -242,6 +224,7 @@ execute() のフロー:
 ```
 
 **ロールバック条件:**
+- birthYear が算出できなかった行が存在する場合
 - SQL実行エラー（制約違反、型不整合など）
 - 全行が処理される前に例外が発生した場合
 
@@ -257,7 +240,6 @@ execute() のフロー:
 |--------|------|--------|
 | `useHorseStore` | 馬マスタCRUD、検索・フィルタ結果のキャッシュ | SQLite経由 |
 | `useLineageStore` | 系統マスタCRUD、階層ツリーのキャッシュ | SQLite経由 |
-| `usePlanStore` | 〆配合プランCRUD、4軸進捗の取得・更新 | SQLite経由 |
 | `useSettingsStore` | ゲーム設定（現在年度等）の取得・更新 | SQLite経由 |
 | `useUIStore` | サイドバー開閉、ビューモード、選択状態 | メモリのみ |
 

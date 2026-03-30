@@ -76,23 +76,6 @@ winningpost10-manager/
 │   │   │   │   └── useInbreedingDetection.ts
 │   │   │   └── types.ts
 │   │   │
-│   │   ├── plans/             # F03: 〆配合プランナー
-│   │   │   ├── components/
-│   │   │   │   ├── PlanDashboard.tsx
-│   │   │   │   ├── SystemRequirementChecklist.tsx
-│   │   │   │   ├── GenerationMap.tsx
-│   │   │   │   ├── MareReadinessCheck.tsx
-│   │   │   │   ├── GanttTimeline.tsx
-│   │   │   │   ├── YearlyBreedingPlan.tsx
-│   │   │   │   └── StepProgress.tsx
-│   │   │   ├── pages/
-│   │   │   │   ├── PlanListPage.tsx
-│   │   │   │   ├── PlanDetailPage.tsx
-│   │   │   │   └── YearlyBreedingPage.tsx
-│   │   │   ├── store.ts       # usePlanStore
-│   │   │   ├── repository.ts
-│   │   │   └── types.ts
-│   │   │
 │   │   ├── growth/            # F04: 成長トラッキング
 │   │   │   ├── components/
 │   │   │   │   └── GrowthChart.tsx
@@ -383,7 +366,7 @@ export async function initDatabase(): Promise<void> {
 #### ルーティング戦略
 
 - **コードベースルーティング**を採用（ファイルベースではなく明示的なルート定義）
-- 型安全なパラメータ: `$horseId`, `$planId`, `$year` はすべて型付き
+- 型安全なパラメータ: `$horseId`, `$year` はすべて型付き
 - レイアウトのネスト: `RootLayout` → `SidebarLayout` → 各ページ
 
 ```typescript
@@ -448,7 +431,7 @@ const horseDetailRoute = createRoute({
 │         ▼                  ▼                              │
 │  ┌──────────────────────────────────────────────────┐    │
 │  │              Zustand Store層                       │    │
-│  │  useHorseStore / useLineageStore / usePlanStore   │    │
+│  │  useHorseStore / useLineageStore                   │    │
 │  │  useSettingsStore / useUIStore                     │    │
 │  └──────────────────────┬───────────────────────────┘    │
 │                          │                                │
@@ -457,7 +440,7 @@ const horseDetailRoute = createRoute({
 │  ┌──────────────────────────────────────────────────┐    │
 │  │              Repository層                          │    │
 │  │  HorseRepository / LineageRepository              │    │
-│  │  PlanRepository / BreedingRecordRepository        │    │
+│  │  BreedingRecordRepository                          │    │
 │  │  SettingsRepository / ImportLogRepository         │    │
 │  └──────────────────────┬───────────────────────────┘    │
 │                          │                                │
