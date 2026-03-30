@@ -36,6 +36,27 @@ type YearParams = { year: string };
 type PlanYearParams = PlanParams & YearParams;
 ```
 
+### パラメータのバリデーション方針
+
+ルートパラメータ（`horseId`, `planId`, `year`）はURLから取得するため文字列型だが、コンポーネントでは数値として扱う。型変換と不正値処理はルート定義の `params` バリデーション（TanStack Router の `params.parse`）で一元的に行い、各コンポーネントには変換済みの `number` 型で渡す。
+
+```typescript
+// ルート定義でのパラメータバリデーション（共通パターン）
+const parseIntParam = (key: string) => (params: Record<string, string>) => {
+  const value = Number(params[key]);
+  if (Number.isNaN(value)) throw notFound();
+  return { ...params, [key]: value };
+};
+
+// 使用例: /horses/$horseId のルート定義
+export const Route = createFileRoute('/horses/$horseId')({
+  params: { parse: parseIntParam('horseId') },
+});
+```
+
+- **変換場所**: ルート定義の `params.parse` に集約（ページごとにロジックを散在させない）
+- **不正値処理**: 数値変換に失敗した場合は `notFound()` を投げて404画面へ遷移
+
 ### 検索パラメータ（クエリストリング）
 
 | 画面 | パラメータ | 用途 |
