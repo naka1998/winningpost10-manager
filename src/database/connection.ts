@@ -23,6 +23,9 @@ export async function initDatabase(): Promise<DatabaseConnection> {
   const sqlite3 = SQLite.Factory(module);
 
   // VFS selection: OPFS preferred, IndexedDB fallback
+  // OriginPrivateFileSystemVFS uses createSyncAccessHandle() which only works
+  // in Web Workers, so we must catch open_v2 failures and fall back to IndexedDB.
+  let db: number;
   try {
     if (typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
       const vfs = new OriginPrivateFileSystemVFS(DB_NAME);
@@ -30,12 +33,12 @@ export async function initDatabase(): Promise<DatabaseConnection> {
     } else {
       throw new Error('OPFS not available');
     }
+    db = await sqlite3.open_v2(DB_NAME);
   } catch {
     const vfs = new IDBBatchAtomicVFS(DB_NAME);
     await sqlite3.vfs_register(vfs, true);
+    db = await sqlite3.open_v2(DB_NAME);
   }
-
-  const db = await sqlite3.open_v2(DB_NAME);
 
   // Enable WAL mode and foreign keys
   await sqlite3.exec(db, 'PRAGMA journal_mode=WAL;');
