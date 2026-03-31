@@ -6,7 +6,9 @@
     <title>WP ブリーディングマネージャー</title>
     <script>
       (function () {
-        var t = localStorage.getItem('wp-theme');
+        try {
+          var t = localStorage.getItem('wp-theme');
+        } catch (e) {}
         if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches))
           document.documentElement.classList.add('dark');
       })();

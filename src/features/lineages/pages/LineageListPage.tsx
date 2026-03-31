@@ -27,8 +27,8 @@ function SpStBadge({ spStType }: { spStType: 'SP' | 'ST' | null }) {
     <Badge
       className={
         spStType === 'SP'
-          ? 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-900'
-          : 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-900'
+          ? 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-900'
+          : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-900'
       }
     >
       {spStType}
