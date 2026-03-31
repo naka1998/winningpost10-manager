@@ -33,9 +33,9 @@ export function SidebarLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 flex-col border-r bg-sidebar p-4">
+      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r bg-sidebar p-4">
         <h1 className="mb-6 text-lg font-bold">WP ブリーディング</h1>
-        <nav className="flex-1 space-y-4">
+        <nav className="flex-1 space-y-4 overflow-y-auto">
           {groups.map((group) => (
             <div key={group}>
               <p className="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
