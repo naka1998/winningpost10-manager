@@ -127,7 +127,7 @@ function LineageFormDialog({
             <Label htmlFor="lineage-type">系統タイプ</Label>
             <select
               id="lineage-type"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               value={lineageType}
               onChange={(e) => setLineageType(e.target.value as 'parent' | 'child')}
               disabled={isParentWithChildren}
@@ -146,7 +146,7 @@ function LineageFormDialog({
               <Label htmlFor="parent-lineage">親系統</Label>
               <select
                 id="parent-lineage"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground"
                 value={parentLineageId}
                 onChange={(e) => setParentLineageId(e.target.value)}
                 required
@@ -164,7 +164,7 @@ function LineageFormDialog({
             <Label htmlFor="sp-st-type">SP/ST</Label>
             <select
               id="sp-st-type"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground"
               value={spStType}
               onChange={(e) => setSpStType(e.target.value)}
             >
