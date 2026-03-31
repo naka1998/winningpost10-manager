@@ -22,6 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { useHorseStore } from '../store';
 import type {
   Horse,
   HorseUpdateInput,
@@ -745,12 +746,17 @@ export function HorseDetailPage() {
   const { horseId } = useParams({ strict: false });
   const { horseRepository, yearlyStatusRepository, lineageRepository } = useRepositoryContext();
 
-  const [horse, setHorse] = useState<Horse | null>(null);
+  const id = Number(horseId);
+
+  // 一覧ストアにキャッシュがあれば初期値として使い、ローディング表示をスキップ
+  const cachedHorse = useHorseStore((s) => s.horses.find((h) => h.id === id) ?? null);
+
+  const [horse, setHorse] = useState<Horse | null>(cachedHorse);
   const [yearlyStatuses, setYearlyStatuses] = useState<YearlyStatus[]>([]);
   const [sire, setSire] = useState<Horse | null>(null);
   const [dam, setDam] = useState<Horse | null>(null);
   const [lineage, setLineage] = useState<Lineage | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(!cachedHorse);
   const [error, setError] = useState<string | null>(null);
 
   // Dialog state
@@ -758,8 +764,6 @@ export function HorseDetailPage() {
   const [ysDialogOpen, setYsDialogOpen] = useState(false);
   const [ysEditTarget, setYsEditTarget] = useState<YearlyStatus | null>(null);
   const [ysDeleteTarget, setYsDeleteTarget] = useState<YearlyStatus | null>(null);
-
-  const id = Number(horseId);
 
   const loadData = useCallback(async () => {
     setError(null);
