@@ -8,6 +8,7 @@ import {
   type YearlyStatusRepository,
 } from '@/features/horses/yearly-status-repository';
 import { createLineageRepository, type LineageRepository } from '@/features/lineages/repository';
+import { createSettingsRepository, type SettingsRepository } from '@/features/settings/repository';
 import { DatabaseContext } from '@/app/database-context';
 import { RepositoryContext, type RepositoryContextValue } from '@/app/repository-context';
 
@@ -38,6 +39,9 @@ export async function renderWithProviders(
     lineageRepository:
       (options?.repositoryOverrides?.lineageRepository as LineageRepository) ??
       createLineageRepository(db),
+    settingsRepository:
+      (options?.repositoryOverrides?.settingsRepository as SettingsRepository) ??
+      createSettingsRepository(db),
   };
 
   const { repositoryOverrides: _, ...renderOptions } = options ?? {};
