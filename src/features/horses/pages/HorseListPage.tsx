@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRepositoryContext } from '@/app/repository-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -264,17 +264,19 @@ export function HorseListPage() {
     return map;
   }, [allLineages]);
 
-  const loadData = useCallback(() => {
+  const isInitialMount = useRef(true);
+
+  useEffect(() => {
     useHorseStore.getState().loadHorses(horseRepository);
     useLineageStore.getState().loadHierarchy(lineageRepository);
   }, [horseRepository, lineageRepository]);
 
+  // Reload when filter changes (skip initial mount to avoid double fetch)
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Reload when filter changes
-  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     useHorseStore.getState().loadHorses(horseRepository);
   }, [filter, horseRepository]);
 
