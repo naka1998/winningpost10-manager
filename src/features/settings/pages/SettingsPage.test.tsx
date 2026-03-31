@@ -55,6 +55,16 @@ vi.mock('@/components/ui/select', () => {
   return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
 });
 
+const mockSeedTestHorses = vi.fn<() => Promise<number>>();
+
+vi.mock('@/database/seed/test-horses', () => ({
+  seedTestHorses: (...args: unknown[]) => mockSeedTestHorses(...(args as [])),
+}));
+
+vi.mock('@/app/database-context', () => ({
+  useDatabaseContext: () => ({ db: {} }),
+}));
+
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({
     horseRepository: {},
@@ -83,6 +93,7 @@ describe('SettingsPage', () => {
     vi.clearAllMocks();
     mockGetAll.mockResolvedValue({ ...defaultRaw });
     mockSet.mockResolvedValue(undefined);
+    mockSeedTestHorses.mockResolvedValue(10);
     useSettingsStore.setState({
       settings: null,
       isLoading: false,
@@ -151,6 +162,31 @@ describe('SettingsPage', () => {
     await user.click(resetButton);
 
     expect(screen.getByText('本当にリセットしますか？')).toBeInTheDocument();
+  });
+
+  it('テストデータ投入ボタンが表示される', async () => {
+    await renderAndWait();
+    expect(screen.getByRole('button', { name: 'テストデータ投入' })).toBeInTheDocument();
+  });
+
+  it('テストデータ投入ボタンをクリックすると結果が表示される', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: 'テストデータ投入' }));
+
+    await screen.findByText('10頭のテストデータを投入しました');
+    expect(mockSeedTestHorses).toHaveBeenCalledTimes(1);
+  });
+
+  it('テストデータ投入でエラー時にエラーメッセージが表示される', async () => {
+    mockSeedTestHorses.mockRejectedValue(new Error('UNIQUE constraint failed'));
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: 'テストデータ投入' }));
+
+    await screen.findByText('エラー: UNIQUE constraint failed');
   });
 
   it('ローディング中は読み込み中メッセージが表示される', async () => {

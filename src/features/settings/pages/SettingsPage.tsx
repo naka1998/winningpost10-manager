@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useDatabaseContext } from '@/app/database-context';
 import { useRepositoryContext } from '@/app/repository-context';
+import { seedTestHorses } from '@/database/seed/test-horses';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,12 +24,15 @@ import {
 import { useSettingsStore } from '../store';
 
 export function SettingsPage() {
+  const { db } = useDatabaseContext();
   const { settingsRepository } = useRepositoryContext();
   const { settings, isLoading, error, loadSettings, updateCurrentYear, updatePedigreeDepth } =
     useSettingsStore();
 
   const [yearInput, setYearInput] = useState('');
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings(settingsRepository);
@@ -141,6 +146,40 @@ export function SettingsPage() {
               データベースリセット
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>テストデータ</CardTitle>
+          <CardDescription>開発・テスト用のサンプルデータを投入します</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Button
+            variant="outline"
+            disabled={seeding}
+            onClick={async () => {
+              setSeeding(true);
+              setSeedResult(null);
+              try {
+                const count = await seedTestHorses(db);
+                setSeedResult(`${count}頭のテストデータを投入しました`);
+              } catch (err) {
+                setSeedResult(`エラー: ${err instanceof Error ? err.message : String(err)}`);
+              } finally {
+                setSeeding(false);
+              }
+            }}
+          >
+            {seeding ? '投入中...' : 'テストデータ投入'}
+          </Button>
+          {seedResult && (
+            <p
+              className={`text-sm ${seedResult.startsWith('エラー') ? 'text-destructive' : 'text-muted-foreground'}`}
+            >
+              {seedResult}
+            </p>
+          )}
         </CardContent>
       </Card>
 
