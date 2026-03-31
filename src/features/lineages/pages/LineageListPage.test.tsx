@@ -1,6 +1,20 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Radix UI polyfills for jsdom
+beforeAll(() => {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+  Element.prototype.scrollIntoView = () => {};
+
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
 import { filterHierarchy, useLineageStore } from '../store';
 import type { LineageNode } from '../types';
 
@@ -211,18 +225,19 @@ describe('LineageListPage', () => {
     await user.click(screen.getByRole('button', { name: '新規登録' }));
     const dialog = screen.getByRole('dialog');
 
-    // 系統タイプを子系統に変更
-    await user.selectOptions(within(dialog).getByLabelText('系統タイプ'), 'child');
+    // 系統タイプを子系統に変更（Radix Select: キーボード操作）
+    const typeTrigger = within(dialog).getByRole('combobox', { name: '系統タイプ' });
+    await user.click(typeTrigger);
+    await user.keyboard('{ArrowDown}{Enter}');
 
-    // 親系統selectが required であること
-    const parentSelect = within(dialog).getByLabelText('親系統');
-    expect(parentSelect).toBeRequired();
+    // 親系統セレクトが表示されること
+    await within(dialog).findByRole('combobox', { name: '親系統' });
 
     // 系統名を入力して、親系統を選択せずに送信を試みる
     await user.type(within(dialog).getByLabelText('系統名'), 'テスト子系統');
     await user.click(within(dialog).getByRole('button', { name: '登録' }));
 
-    // ダイアログは閉じず、create は呼ばれない（required による native validation）
+    // ダイアログは閉じず、create は呼ばれない
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(mockCreate).not.toHaveBeenCalled();
   });
@@ -236,7 +251,7 @@ describe('LineageListPage', () => {
     await user.click(editButtons[0]);
 
     const dialog = screen.getByRole('dialog');
-    const typeSelect = within(dialog).getByLabelText('系統タイプ');
+    const typeSelect = within(dialog).getByRole('combobox', { name: '系統タイプ' });
 
     // disabled であること
     expect(typeSelect).toBeDisabled();

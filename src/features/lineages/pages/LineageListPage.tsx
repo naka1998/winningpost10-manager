@@ -11,6 +11,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { filterHierarchy, useLineageStore } from '../store';
 import type { Lineage, LineageCreateInput, LineageNode, LineageUpdateInput } from '../types';
 
@@ -125,16 +132,19 @@ function LineageFormDialog({
           </div>
           <div>
             <Label htmlFor="lineage-type">系統タイプ</Label>
-            <select
-              id="lineage-type"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            <Select
               value={lineageType}
-              onChange={(e) => setLineageType(e.target.value as 'parent' | 'child')}
+              onValueChange={(v) => setLineageType(v as 'parent' | 'child')}
               disabled={isParentWithChildren}
             >
-              <option value="parent">親系統</option>
-              <option value="child">子系統</option>
-            </select>
+              <SelectTrigger id="lineage-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="parent">親系統</SelectItem>
+                <SelectItem value="child">子系統</SelectItem>
+              </SelectContent>
+            </Select>
             {isParentWithChildren && (
               <p className="mt-1 text-xs text-muted-foreground">
                 子系統を持つ親系統のタイプは変更できません
@@ -144,34 +154,35 @@ function LineageFormDialog({
           {lineageType === 'child' && (
             <div>
               <Label htmlFor="parent-lineage">親系統</Label>
-              <select
-                id="parent-lineage"
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground"
-                value={parentLineageId}
-                onChange={(e) => setParentLineageId(e.target.value)}
-                required
-              >
-                <option value="">選択してください</option>
-                {parentLineages.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <Select value={parentLineageId} onValueChange={(v) => setParentLineageId(v)} required>
+                <SelectTrigger id="parent-lineage">
+                  <SelectValue placeholder="選択してください" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parentLineages.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
           <div>
             <Label htmlFor="sp-st-type">SP/ST</Label>
-            <select
-              id="sp-st-type"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground"
-              value={spStType}
-              onChange={(e) => setSpStType(e.target.value)}
+            <Select
+              value={spStType || 'none'}
+              onValueChange={(v) => setSpStType(v === 'none' ? '' : v)}
             >
-              <option value="">なし</option>
-              <option value="SP">SP</option>
-              <option value="ST">ST</option>
-            </select>
+              <SelectTrigger id="sp-st-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">なし</SelectItem>
+                <SelectItem value="SP">SP</SelectItem>
+                <SelectItem value="ST">ST</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
