@@ -23,19 +23,34 @@ export async function initDatabase(): Promise<DatabaseConnection> {
   const sqlite3 = SQLite.Factory(module);
 
   // VFS selection: OPFS preferred, IndexedDB fallback
-  try {
-    if (typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
-      const vfs = new OriginPrivateFileSystemVFS(DB_NAME);
-      await sqlite3.vfs_register(vfs, true);
-    } else {
-      throw new Error('OPFS not available');
+  // OriginPrivateFileSystemVFS uses createSyncAccessHandle() which only works
+  // in Web Workers. On the main thread it fails during read/write operations,
+  // not during open, so we must test with a real OPFS access handle first.
+  let db: number;
+  let useOPFS = false;
+  if (typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const testFile = await root.getFileHandle('.opfs-test', { create: true });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handle = await (testFile as any).createSyncAccessHandle();
+      handle.close();
+      await root.removeEntry('.opfs-test');
+      useOPFS = true;
+    } catch {
+      // createSyncAccessHandle not available (main thread) — fall back to IDB
     }
-  } catch {
+  }
+
+  if (useOPFS) {
+    const vfs = new OriginPrivateFileSystemVFS(DB_NAME);
+    await sqlite3.vfs_register(vfs, true);
+  } else {
     const vfs = new IDBBatchAtomicVFS(DB_NAME);
     await sqlite3.vfs_register(vfs, true);
   }
 
-  const db = await sqlite3.open_v2(DB_NAME);
+  db = await sqlite3.open_v2(DB_NAME);
 
   // Enable WAL mode and foreign keys
   await sqlite3.exec(db, 'PRAGMA journal_mode=WAL;');
