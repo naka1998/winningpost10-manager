@@ -306,7 +306,7 @@ export function HorseListPage() {
 
   const handleFilterChange = (key: string, value: string) => {
     const store = useHorseStore.getState();
-    if (key === 'birthYearFrom' || key === 'birthYearTo') {
+    if (key === 'birthYearFrom' || key === 'birthYearTo' || key === 'lineageId') {
       store.setFilter({ [key]: value ? Number(value) : undefined });
     } else if (key === 'sortBy') {
       store.setFilter({
@@ -373,6 +373,42 @@ export function HorseListPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <Label htmlFor="filter-lineage">系統フィルタ</Label>
+          <select
+            id="filter-lineage"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            value={filter.lineageId?.toString() ?? ''}
+            onChange={(e) => handleFilterChange('lineageId', e.target.value)}
+          >
+            <option value="">すべて</option>
+            {allLineages.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="filter-birth-year-from">生年（から）</Label>
+          <Input
+            id="filter-birth-year-from"
+            type="number"
+            placeholder="例: 2000"
+            value={filter.birthYearFrom?.toString() ?? ''}
+            onChange={(e) => handleFilterChange('birthYearFrom', e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="filter-birth-year-to">生年（まで）</Label>
+          <Input
+            id="filter-birth-year-to"
+            type="number"
+            placeholder="例: 2025"
+            value={filter.birthYearTo?.toString() ?? ''}
+            onChange={(e) => handleFilterChange('birthYearTo', e.target.value)}
+          />
         </div>
         <div>
           <Label htmlFor="filter-sort">ソート</Label>

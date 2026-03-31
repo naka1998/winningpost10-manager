@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHorseStore } from '../store';
@@ -255,6 +255,28 @@ describe('HorseListPage', () => {
 
     await user.selectOptions(screen.getByLabelText('性別フィルタ'), '牡');
     expect(useHorseStore.getState().filter.sex).toBe('牡');
+  });
+
+  it('フィルタで系統絞り込みができる', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.selectOptions(screen.getByLabelText('系統フィルタ'), '10');
+    expect(useHorseStore.getState().filter.lineageId).toBe(10);
+  });
+
+  it('フィルタで生年範囲（から）絞り込みができる', async () => {
+    await renderAndWait();
+
+    fireEvent.change(screen.getByLabelText('生年（から）'), { target: { value: '2010' } });
+    expect(useHorseStore.getState().filter.birthYearFrom).toBe(2010);
+  });
+
+  it('フィルタで生年範囲（まで）絞り込みができる', async () => {
+    await renderAndWait();
+
+    fireEvent.change(screen.getByLabelText('生年（まで）'), { target: { value: '2020' } });
+    expect(useHorseStore.getState().filter.birthYearTo).toBe(2020);
   });
 
   it('ソート切り替えができる', async () => {
