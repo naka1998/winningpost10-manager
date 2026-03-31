@@ -64,7 +64,7 @@ TanStack Router（コードベース）。ルート定義は `src/app/router.tsx
 
 ## デプロイ
 
-Cloudflare Pages。Vite config の `base` と TanStack Router の `basepath` は `/` に設定。
+Cloudflare Workers（静的アセット配信）。`base` と `basepath` は `/` に設定。`pnpm deploy` で Wrangler 経由でデプロイ。
 
 ## テスト
 

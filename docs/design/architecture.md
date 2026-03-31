@@ -11,15 +11,17 @@
 | ---------------- | -------------------------------------- | -------------- | -------------------------------------------------------------------------- |
 | UIフレームワーク | **React**                              | 19.x           | コンポーネントベースのUI構築。エコシステムが豊富で長期サポートが期待できる |
 | 言語             | **TypeScript**                         | 5.x            | 型安全によるバグ防止。IDEサポートの強化                                    |
-| ビルドツール     | **Vite**                               | 6.x            | 高速なHMRとビルド。React+TSのゼロコンフィグに近い立ち上げ                  |
+| ビルドツール     | **Vite 8**（Rolldown）                 | 8.x            | Rolldown バンドラー内蔵。高速なHMRとビルド                                 |
 | ルーティング     | **TanStack Router**                    | 1.x            | 型安全なルートパラメータ。ファイルベースルーティング対応                   |
 | UIコンポーネント | **shadcn/ui** (Tailwind CSS)           | —              | コピー&ペースト型でカスタマイズ自由。Tailwind CSSベースで一貫したデザイン  |
 | チャート         | **Recharts**                           | 2.x            | React向けの宣言的チャートライブラリ。成長チャート・ガントチャートに使用    |
 | 状態管理         | **Zustand**                            | 5.x            | 軽量で直感的なAPI。ボイラープレートが少なくStoreの分割が容易               |
 | データベース     | **wa-sqlite** + **IndexedDB/OPFS**     | —              | ブラウザ内SQLite。サーバー不要のローカルファーストアーキテクチャを実現     |
-| テスト           | **Vitest** + **React Testing Library** | —              | Viteネイティブで高速。コンポーネントテストとユニットテストを統一           |
+| リンター         | **Oxlint**                             | 1.x            | Rust製の高速リンター。React/TypeScriptルール内蔵                           |
+| フォーマッター   | **Oxfmt**                              | 0.x            | Rust製の高速フォーマッター。Tailwind CSSクラスソート内蔵                   |
+| テスト           | **Vitest** + **React Testing Library** | 4.x            | Viteネイティブで高速。コンポーネントテストとユニットテストを統一           |
 | E2Eテスト        | **Playwright**                         | —              | 主要フロー（インポート→血統ツリー表示）の自動検証                          |
-| デプロイ         | **GitHub Pages** / **Vercel**          | —              | 静的サイトホスティング。CI/CDパイプライン連携が容易                        |
+| デプロイ         | **Cloudflare Workers**                 | —              | 静的アセット配信。COOP/COEPヘッダー設定可能                                |
 
 ---
 
@@ -207,20 +209,16 @@ winningpost10-manager/
 // vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tsconfigPaths from 'vite-tsconfig-paths';
+import tailwindcss from '@tailwindcss/vite';
+import { resolve } from 'path';
 
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
-  base: '/winningpost10-manager/', // GitHub Pages用
-  build: {
-    target: 'esnext', // WASM対応ブラウザ
-    outDir: 'dist',
-  },
-  optimizeDeps: {
-    exclude: ['@aspect-build/aspect-wa-sqlite'], // wa-sqlite はWASMなので除外
-  },
-  worker: {
-    format: 'es', // Service Worker / Web Worker用
+  base: '/',
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
   },
   server: {
     headers: {
@@ -229,78 +227,86 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
+  optimizeDeps: {
+    exclude: ['wa-sqlite'], // wa-sqlite はWASMなので除外
+  },
+  build: {
+    target: 'esnext', // WASM対応ブラウザ
+  },
 });
 ```
 
+Vite 8 は Rolldown をデフォルトバンドラーとして内蔵しており、別途インストール不要。
+
 ### 3.2 デプロイ先
 
-| 環境             | 用途                 | 設定                                                                        |
-| ---------------- | -------------------- | --------------------------------------------------------------------------- |
-| **GitHub Pages** | メインのデプロイ先   | `gh-pages` ブランチに `dist/` をデプロイ。`base: '/winningpost10-manager/'` |
-| **Vercel**       | 代替・プレビュー環境 | リポジトリ連携で自動デプロイ。`base: '/'` に変更                            |
+| 環境                   | 用途               | 設定                                                                              |
+| ---------------------- | ------------------ | --------------------------------------------------------------------------------- |
+| **Cloudflare Workers** | メインのデプロイ先 | `wrangler deploy` で静的アセット配信。COOP/COEPヘッダーを Worker スクリプトで設定 |
 
-> **注意:** OPFS利用時は `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` ヘッダーが必要。GitHub Pagesではカスタムヘッダーを設定できないため、OPFSが利用不可の場合はIndexedDB VFSにフォールバックする。Vercelでは `vercel.json` でヘッダー設定可能。
+> **OPFS対応:** Cloudflare Workers では `worker/index.ts` でレスポンスヘッダー（`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`）を付与し、OPFS VFS を有効化している。OPFSが利用不可の場合はIndexedDB VFSにフォールバック。
 
 ### 3.3 CI/CD（GitHub Actions）
 
 ```yaml
-# .github/workflows/deploy.yml
-name: Deploy
+# .github/workflows/ci.yml
+name: CI
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build-and-deploy:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
 ```
 
 ---
 
 ## 4. 開発環境設定方針
 
-### 4.1 ESLint
+### 4.1 Oxlint（リンター）
 
-- `eslint.config.js`（Flat Config形式）
-- `@typescript-eslint/recommended` + `eslint-plugin-react-hooks` + `eslint-plugin-react-refresh`
-- `import/order` でインポート順を統一
+- `.oxlintrc.json`
+- プラグイン: `react`, `typescript`, `import`
+- `react/rules-of-hooks`, `react/exhaustive-deps`, `react/only-export-components`
 - 未使用変数はエラー（`_` プレフィックスのみ許可）
 
-### 4.2 Prettier
+### 4.2 Oxfmt（フォーマッター）
 
-- `prettier.config.js`
+- `.oxfmtrc.json`
 - セミコロンあり、シングルクォート、末尾カンマ（all）
 - printWidth: 100
-- Tailwind CSS用の `prettier-plugin-tailwindcss` でクラス順を自動整列
+- `experimentalTailwindcss` で Tailwind CSS クラス順を自動整列（プラグイン不要）
 
 ### 4.3 Vitest
 
 - `vitest.config.ts`（Vite設定を継承）
 - テスト対象: `src/**/*.test.ts`, `src/**/*.test.tsx`
-- カバレッジ: `@vitest/coverage-v8`
 - インメモリSQLiteでリポジトリ層のテストを実行
 - React Testing Libraryと組み合わせてコンポーネントテスト
 
 ### 4.4 その他
 
 - **TypeScript**: `strict: true`、パスエイリアス `@/` → `src/`
-- **husky + lint-staged**: コミット時にESLint + Prettierを自動実行
-- **Node.js**: 20 LTS
+- **husky + lint-staged**: コミット時にOxlint + Oxfmtを自動実行
+- **Node.js**: 22+
 
 ---
 

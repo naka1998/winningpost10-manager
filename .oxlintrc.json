@@ -11,7 +11,8 @@
       }
     ],
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "warn"
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
   },
   "ignorePatterns": ["dist"]
 }
