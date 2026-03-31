@@ -30,10 +30,7 @@ export function createImportService(deps: {
           continue;
         }
 
-        const existing = await deps.horseRepo.findByNameAndBirthYear(
-          parsed.name,
-          parsed.birthYear,
-        );
+        const existing = await deps.horseRepo.findByNameAndBirthYear(parsed.name, parsed.birthYear);
 
         if (!existing) {
           previewRows.push({ parsed, action: 'create' });

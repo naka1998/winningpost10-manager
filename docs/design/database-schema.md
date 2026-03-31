@@ -401,9 +401,9 @@ ORDER BY appearance_count DESC;
 
 **出力例:**
 
-| id | name | appearance_count | cross_notation | paths |
-|----|------|-----------------|----------------|-------|
-| 42 | ノーザンダンサー | 2 | 3代×4代 | SSS, DSDS |
+| id  | name             | appearance_count | cross_notation | paths     |
+| --- | ---------------- | ---------------- | -------------- | --------- |
+| 42  | ノーザンダンサー | 2                | 3代×4代        | SSS, DSDS |
 
 ---
 
@@ -507,11 +507,7 @@ export async function exportDatabase(sqlite3: SQLiteAPI, db: number): Promise<Bl
 }
 
 // リストア（インポート）
-export async function importDatabase(
-  sqlite3: SQLiteAPI,
-  db: number,
-  file: File
-): Promise<void> {
+export async function importDatabase(sqlite3: SQLiteAPI, db: number, file: File): Promise<void> {
   const buffer = await file.arrayBuffer();
   const data = new Uint8Array(buffer);
   sqlite3.deserialize(db, data);

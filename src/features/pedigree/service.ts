@@ -15,9 +15,7 @@ export interface PedigreeService {
   detectInbreeding(tree: PedigreeNode): InbreedingResult[];
 }
 
-export function createPedigreeService(deps: {
-  horseRepo: HorseRepository;
-}): PedigreeService {
+export function createPedigreeService(deps: { horseRepo: HorseRepository }): PedigreeService {
   return {
     async getPedigreeTree(horseId: number, depth: number = 4) {
       const rows = await deps.horseRepo.getAncestorRows(horseId, depth);

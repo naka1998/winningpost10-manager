@@ -9,25 +9,25 @@
 
 TanStack Router によるルート定義。型安全なパラメータを活用する。
 
-| パス | 画面名 | 機能参照 | 優先度 | 説明 |
-|------|--------|---------|--------|------|
-| `/` | ホーム | F08 | P2 | ダッシュボード。MVP時は `/horses` へリダイレクト |
-| `/horses` | 馬一覧 | F01 | P0 | 全馬の検索・フィルタ付きデータテーブル |
-| `/horses/import` | 読専txtインポート | F01 | P0 | ステップ形式のインポートウィザード |
-| `/horses/$horseId` | 馬詳細 | F01 | P0 | 基本情報・年度別ステータス・配合履歴のタブ表示 |
-| `/horses/$horseId/pedigree` | 血統ツリー | F02 | P0 | 3ビュー切替の血統表。4世代デフォルト/5世代切替 |
-| `/horses/$horseId/growth` | 成長チャート | F04 | P1 | 能力値推移の折れ線グラフ **※Phase 2で実装** |
-| `/lineages` | 系統マスタ一覧 | F06 | P0 | 親系統・子系統の階層表示 |
-| `/breeding-records` | 配合記録 | F05 | P1 | 配合実績の検索・一覧 **※Phase 2で実装** |
-| `/race-plans/$year` | レース計画 | F11 | P1 | 国×距離帯×グレードのマトリクス表示 **※Phase 2で実装** |
-| `/broodmares` | 繁殖牝馬評価 | F12 | P1 | 個別評価 + 血統バランスの2タブ **※Phase 2で実装** |
-| `/settings` | 設定・バックアップ | F07 | P1 | ゲーム設定、DB入出力、プリセット投入 |
+| パス                        | 画面名             | 機能参照 | 優先度 | 説明                                                  |
+| --------------------------- | ------------------ | -------- | ------ | ----------------------------------------------------- |
+| `/`                         | ホーム             | F08      | P2     | ダッシュボード。MVP時は `/horses` へリダイレクト      |
+| `/horses`                   | 馬一覧             | F01      | P0     | 全馬の検索・フィルタ付きデータテーブル                |
+| `/horses/import`            | 読専txtインポート  | F01      | P0     | ステップ形式のインポートウィザード                    |
+| `/horses/$horseId`          | 馬詳細             | F01      | P0     | 基本情報・年度別ステータス・配合履歴のタブ表示        |
+| `/horses/$horseId/pedigree` | 血統ツリー         | F02      | P0     | 3ビュー切替の血統表。4世代デフォルト/5世代切替        |
+| `/horses/$horseId/growth`   | 成長チャート       | F04      | P1     | 能力値推移の折れ線グラフ **※Phase 2で実装**           |
+| `/lineages`                 | 系統マスタ一覧     | F06      | P0     | 親系統・子系統の階層表示                              |
+| `/breeding-records`         | 配合記録           | F05      | P1     | 配合実績の検索・一覧 **※Phase 2で実装**               |
+| `/race-plans/$year`         | レース計画         | F11      | P1     | 国×距離帯×グレードのマトリクス表示 **※Phase 2で実装** |
+| `/broodmares`               | 繁殖牝馬評価       | F12      | P1     | 個別評価 + 血統バランスの2タブ **※Phase 2で実装**     |
+| `/settings`                 | 設定・バックアップ | F07      | P1     | ゲーム設定、DB入出力、プリセット投入                  |
 
 ### ルートパラメータの型定義
 
 ```typescript
 // 型安全なパラメータ
-type HorseParams = { horseId: string };  // 実際はID（数値文字列）
+type HorseParams = { horseId: string }; // 実際はID（数値文字列）
 type YearParams = { year: string };
 ```
 
@@ -54,11 +54,11 @@ export const Route = createFileRoute('/horses/$horseId')({
 
 ### 検索パラメータ（クエリストリング）
 
-| 画面 | パラメータ | 用途 |
-|------|-----------|------|
-| `/horses` | `?status=現役&lineage=5&sort=name&q=ジュピター` | フィルタ・ソート・検索の永続化 |
-| `/breeding-records` | `?mare_id=10&year=2025` | 特定牝馬・年度での絞り込み |
-| `/race-plans/$year` | `?country=日` | 国での絞り込み |
+| 画面                | パラメータ                                      | 用途                           |
+| ------------------- | ----------------------------------------------- | ------------------------------ |
+| `/horses`           | `?status=現役&lineage=5&sort=name&q=ジュピター` | フィルタ・ソート・検索の永続化 |
+| `/breeding-records` | `?mare_id=10&year=2025`                         | 特定牝馬・年度での絞り込み     |
+| `/race-plans/$year` | `?country=日`                                   | 国での絞り込み                 |
 
 ---
 
@@ -163,15 +163,17 @@ function RootLayout() {
 **配置先:** `/horses/$horseId/pedigree`
 
 **Props:**
+
 ```typescript
 interface PedigreeTreeProps {
-  horseId: number;           // 起点となる馬のID
-  depth?: 4 | 5;            // 表示世代数（デフォルト: 4）
-  viewMode?: 'name' | 'lineage' | 'factor';  // 表示モード
+  horseId: number; // 起点となる馬のID
+  depth?: 4 | 5; // 表示世代数（デフォルト: 4）
+  viewMode?: 'name' | 'lineage' | 'factor'; // 表示モード
 }
 ```
 
 **機能:**
+
 - **CSS Grid レイアウト**: 4世代 = 5列 × 16行（起点1 + 父母2 + 祖父母4 + 曽祖父母8 + 4代前16）。5世代はさらに1列追加
 - **3ビュー切替**: ツリー上部のトグルボタンで馬名/系統/因子ビューを切替
   - **馬名ビュー**: 馬名、国旗アイコン
@@ -182,6 +184,7 @@ interface PedigreeTreeProps {
 - **祖先馬クリック**: クリックでその馬の詳細画面へ遷移
 
 **CSS Grid構造（4世代の場合）:**
+
 ```
        1代前    2代前    3代前    4代前
       ┌──────┬──────┬──────┬──────┐
@@ -212,6 +215,7 @@ interface PedigreeTreeProps {
 **配置先:** `/horses`
 
 **Props:**
+
 ```typescript
 interface HorseTableProps {
   initialFilters?: HorseFilters; // URLパラメータからの初期フィルタ
@@ -219,6 +223,7 @@ interface HorseTableProps {
 ```
 
 **機能:**
+
 - **カラム**: 馬名 / 性別 / 生年 / 国 / ステータス / 所属系統 / SP / 戦績
 - **フィルタバー**: ステータス（ドロップダウン）、系統（ドロップダウン）、テキスト検索
 - **ソート**: 各カラムヘッダーでの昇順/降順切替
@@ -248,6 +253,7 @@ interface HorseTableProps {
 4. **実行結果**: インポート完了サマリー。import_logsへの記録結果
 
 **Props:**
+
 ```typescript
 interface ImportWizardProps {
   onComplete: (result: ImportResult) => void;
@@ -261,18 +267,20 @@ interface ImportWizardProps {
 **配置先:** `/breeding-records`
 
 **Props:**
+
 ```typescript
 interface BreedingEvalCardProps {
-  evaluation: string;          // A/B/C等
+  evaluation: string; // A/B/C等
   theories: Array<{
-    name: string;              // 理論名
-    points: number;            // 爆発力ポイント
+    name: string; // 理論名
+    points: number; // 爆発力ポイント
   }>;
-  totalPower: number;          // 合計爆発力
+  totalPower: number; // 合計爆発力
 }
 ```
 
 **機能:**
+
 - 配合評価ランクを大きく表示
 - 成立理論をリスト表示（理論名 + ポイント）
 - 合計爆発力をハイライト表示
@@ -284,6 +292,7 @@ interface BreedingEvalCardProps {
 **配置先:** `/race-plans/$year`
 
 **Props:**
+
 ```typescript
 interface RacePlanMatrixProps {
   year: number;
@@ -291,6 +300,7 @@ interface RacePlanMatrixProps {
 ```
 
 **機能:**
+
 - **行**: 距離帯（短距離/マイル/中距離/中長距離/長距離）
 - **列**: 国（日/米/欧）× グレード（G1/G2/G3/OP）
 - **セル**: 割り当てられた馬名を表示。馬の適性に合致するセルを薄くハイライト
@@ -303,11 +313,11 @@ interface RacePlanMatrixProps {
 
 デスクトップファーストで設計する。モバイル対応は必須ではないが、最低限のレイアウト崩れ防止は行う。
 
-| ブレークポイント | 対応 |
-|----------------|------|
-| `>= 1024px`（デスクトップ） | フルレイアウト。サイドバー常時表示 |
-| `768px - 1023px`（タブレット） | サイドバーをオーバーレイに変更 |
-| `< 768px`（モバイル） | サイドバー非表示。ハンバーガーメニューで開閉。テーブルは横スクロール |
+| ブレークポイント               | 対応                                                                 |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `>= 1024px`（デスクトップ）    | フルレイアウト。サイドバー常時表示                                   |
+| `768px - 1023px`（タブレット） | サイドバーをオーバーレイに変更                                       |
+| `< 768px`（モバイル）          | サイドバー非表示。ハンバーガーメニューで開閉。テーブルは横スクロール |
 
 - 血統ツリーは横スクロール対応（4世代で最低800px幅を確保）
 - データテーブルは固定列（馬名）+ スクロール列で対応

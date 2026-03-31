@@ -18,9 +18,7 @@ function buildRow(overrides: Partial<PedigreeRow>): PedigreeRow {
   };
 }
 
-function createMockHorseRepo(
-  overrides?: Partial<HorseRepository>,
-): HorseRepository {
+function createMockHorseRepo(overrides?: Partial<HorseRepository>): HorseRepository {
   return {
     findById: vi.fn(),
     findByNameAndBirthYear: vi.fn(),
@@ -78,9 +76,7 @@ describe('buildPedigreeTree', () => {
   });
 
   it('parses factors JSON string into array', () => {
-    const rows = [
-      buildRow({ id: 1, name: '本馬', path: '', factors: '["スピード","パワー"]' }),
-    ];
+    const rows = [buildRow({ id: 1, name: '本馬', path: '', factors: '["スピード","パワー"]' })];
     const tree = buildPedigreeTree(rows);
     expect(tree.factors).toEqual(['スピード', 'パワー']);
   });
@@ -113,11 +109,13 @@ describe('PedigreeService', () => {
   describe('getPedigreeTree', () => {
     it('returns a pedigree tree from ancestor rows', async () => {
       const mockRepo = createMockHorseRepo({
-        getAncestorRows: vi.fn().mockResolvedValue([
-          buildRow({ id: 1, name: '本馬', generation: 0, path: '' }),
-          buildRow({ id: 2, name: '父', generation: 1, path: 'S' }),
-          buildRow({ id: 3, name: '母', generation: 1, path: 'D' }),
-        ]),
+        getAncestorRows: vi
+          .fn()
+          .mockResolvedValue([
+            buildRow({ id: 1, name: '本馬', generation: 0, path: '' }),
+            buildRow({ id: 2, name: '父', generation: 1, path: 'S' }),
+            buildRow({ id: 3, name: '母', generation: 1, path: 'D' }),
+          ]),
       });
       const service = createPedigreeService({ horseRepo: mockRepo });
 
@@ -141,9 +139,9 @@ describe('PedigreeService', () => {
 
     it('passes custom depth to repository', async () => {
       const mockRepo = createMockHorseRepo({
-        getAncestorRows: vi.fn().mockResolvedValue([
-          buildRow({ id: 1, name: '本馬', generation: 0, path: '' }),
-        ]),
+        getAncestorRows: vi
+          .fn()
+          .mockResolvedValue([buildRow({ id: 1, name: '本馬', generation: 0, path: '' })]),
       });
       const service = createPedigreeService({ horseRepo: mockRepo });
 

@@ -38,11 +38,21 @@ export const presetLineages: PresetLineage[] = [
   { name: 'ボールドルーラー系', lineageType: 'child', parentName: 'ナスルーラ系', spStType: 'SP' },
   { name: 'レッドゴッド系', lineageType: 'child', parentName: 'ナスルーラ系', spStType: 'SP' },
   { name: 'ネヴァーベンド系', lineageType: 'child', parentName: 'ナスルーラ系', spStType: 'ST' },
-  { name: 'プリンスリーギフト系', lineageType: 'child', parentName: 'ナスルーラ系', spStType: 'SP' },
+  {
+    name: 'プリンスリーギフト系',
+    lineageType: 'child',
+    parentName: 'ナスルーラ系',
+    spStType: 'SP',
+  },
 
   // ===== 子系統: ターントゥ系 =====
   { name: 'ターントゥ直系', lineageType: 'child', parentName: 'ターントゥ系', spStType: null },
-  { name: 'ヘイルトゥリーズン系', lineageType: 'child', parentName: 'ターントゥ系', spStType: 'SP' },
+  {
+    name: 'ヘイルトゥリーズン系',
+    lineageType: 'child',
+    parentName: 'ターントゥ系',
+    spStType: 'SP',
+  },
   { name: 'ロベルト系', lineageType: 'child', parentName: 'ターントゥ系', spStType: 'ST' },
 
   // ===== 子系統: ノーザンダンサー系 =====

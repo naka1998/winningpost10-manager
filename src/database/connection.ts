@@ -66,10 +66,7 @@ export function getDatabase(): DatabaseConnection {
   return instance;
 }
 
-function createWaSqliteConnection(
-  sqlite3: SQLiteAPI,
-  db: number,
-): DatabaseConnection {
+function createWaSqliteConnection(sqlite3: SQLiteAPI, db: number): DatabaseConnection {
   async function execRows<T>(
     sql: string,
     params?: unknown[],
