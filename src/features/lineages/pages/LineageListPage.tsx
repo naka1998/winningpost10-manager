@@ -11,6 +11,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { filterHierarchy, useLineageStore } from '../store';
 import type { Lineage, LineageCreateInput, LineageNode, LineageUpdateInput } from '../types';
 
@@ -20,8 +27,8 @@ function SpStBadge({ spStType }: { spStType: 'SP' | 'ST' | null }) {
     <Badge
       className={
         spStType === 'SP'
-          ? 'bg-red-100 text-red-800 hover:bg-red-100'
-          : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
+          ? 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-900'
+          : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-50 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-900'
       }
     >
       {spStType}
@@ -125,16 +132,19 @@ function LineageFormDialog({
           </div>
           <div>
             <Label htmlFor="lineage-type">系統タイプ</Label>
-            <select
-              id="lineage-type"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+            <Select
               value={lineageType}
-              onChange={(e) => setLineageType(e.target.value as 'parent' | 'child')}
+              onValueChange={(v) => setLineageType(v as 'parent' | 'child')}
               disabled={isParentWithChildren}
             >
-              <option value="parent">親系統</option>
-              <option value="child">子系統</option>
-            </select>
+              <SelectTrigger id="lineage-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="parent">親系統</SelectItem>
+                <SelectItem value="child">子系統</SelectItem>
+              </SelectContent>
+            </Select>
             {isParentWithChildren && (
               <p className="mt-1 text-xs text-muted-foreground">
                 子系統を持つ親系統のタイプは変更できません
@@ -144,36 +154,37 @@ function LineageFormDialog({
           {lineageType === 'child' && (
             <div>
               <Label htmlFor="parent-lineage">親系統</Label>
-              <select
-                id="parent-lineage"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={parentLineageId}
-                onChange={(e) => setParentLineageId(e.target.value)}
-                required
-              >
-                <option value="">選択してください</option>
-                {parentLineages.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <Select value={parentLineageId} onValueChange={(v) => setParentLineageId(v)} required>
+                <SelectTrigger id="parent-lineage">
+                  <SelectValue placeholder="選択してください" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parentLineages.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
           <div>
             <Label htmlFor="sp-st-type">SP/ST</Label>
-            <select
-              id="sp-st-type"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              value={spStType}
-              onChange={(e) => setSpStType(e.target.value)}
+            <Select
+              value={spStType || 'none'}
+              onValueChange={(v) => setSpStType(v === 'none' ? '' : v)}
             >
-              <option value="">なし</option>
-              <option value="SP">SP</option>
-              <option value="ST">ST</option>
-            </select>
+              <SelectTrigger id="sp-st-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">なし</SelectItem>
+                <SelectItem value="SP">SP</SelectItem>
+                <SelectItem value="ST">ST</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
@@ -305,7 +316,7 @@ export function LineageListPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">系統マスタ</h1>
-        <p className="mt-4 text-red-600">{error}</p>
+        <p className="mt-4 text-destructive">{error}</p>
       </div>
     );
   }

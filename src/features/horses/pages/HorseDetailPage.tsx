@@ -433,7 +433,7 @@ function YearlyStatusFormDialog({
             <Label htmlFor="ys-notes">備考</Label>
             <Input id="ys-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
@@ -592,7 +592,7 @@ function HorseEditDialog({
             <Label htmlFor="edit-horse-notes">備考</Label>
             <Input id="edit-horse-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
@@ -736,15 +736,15 @@ function formatRankValue(rank: string | null, value: number | null): string {
 function statusBadgeClass(status: string): string {
   switch (status) {
     case '現役':
-      return 'bg-green-100 text-green-800 hover:bg-green-100';
+      return 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-900';
     case '種牡馬':
-      return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
+      return 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-900';
     case '繁殖牝馬':
-      return 'bg-pink-100 text-pink-800 hover:bg-pink-100';
+      return 'bg-pink-100 text-pink-800 hover:bg-pink-100 dark:bg-pink-900 dark:text-pink-200 dark:hover:bg-pink-900';
     case '引退':
-      return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+      return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800';
     case '売却済':
-      return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
+      return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-900';
     default:
       return '';
   }
@@ -852,7 +852,7 @@ export function HorseDetailPage() {
   if (error) {
     return (
       <div className="p-6">
-        <p className="text-red-600">{error}</p>
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }
@@ -861,7 +861,10 @@ export function HorseDetailPage() {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">馬が見つかりません</p>
-        <Link to="/horses" className="mt-2 inline-block text-blue-600 hover:underline">
+        <Link
+          to="/horses"
+          className="mt-2 inline-block text-blue-600 hover:underline dark:text-blue-400"
+        >
           馬一覧に戻る
         </Link>
       </div>
@@ -873,7 +876,7 @@ export function HorseDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link to="/horses" className="text-sm text-blue-600 hover:underline">
+          <Link to="/horses" className="text-sm text-blue-600 hover:underline dark:text-blue-400">
             ← 馬一覧
           </Link>
           <h1 className="mt-1 text-2xl font-bold">{horse.name}</h1>
@@ -964,7 +967,7 @@ export function HorseDetailPage() {
                   <Link
                     to="/horses/$horseId"
                     params={{ horseId: sire.id }}
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-600 hover:underline dark:text-blue-400"
                   >
                     {sire.name}
                   </Link>
@@ -980,7 +983,7 @@ export function HorseDetailPage() {
                   <Link
                     to="/horses/$horseId"
                     params={{ horseId: dam.id }}
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-600 hover:underline dark:text-blue-400"
                   >
                     {dam.name}
                   </Link>
@@ -1008,7 +1011,7 @@ export function HorseDetailPage() {
             <Link
               to="/horses/$horseId/pedigree"
               params={{ horseId: horse.id }}
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:underline dark:text-blue-400"
             >
               血統ツリーを見る →
             </Link>

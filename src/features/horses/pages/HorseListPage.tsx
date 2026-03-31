@@ -44,15 +44,15 @@ const SORT_OPTIONS = [
 function statusBadgeClass(status: string): string {
   switch (status) {
     case '現役':
-      return 'bg-green-100 text-green-800 hover:bg-green-100';
+      return 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-900';
     case '種牡馬':
-      return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
+      return 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-900';
     case '繁殖牝馬':
-      return 'bg-pink-100 text-pink-800 hover:bg-pink-100';
+      return 'bg-pink-100 text-pink-800 hover:bg-pink-100 dark:bg-pink-900 dark:text-pink-200 dark:hover:bg-pink-900';
     case '引退':
-      return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+      return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800';
     case '売却済':
-      return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
+      return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-900';
     default:
       return '';
   }
@@ -209,7 +209,7 @@ function HorseFormDialog({
             <Label htmlFor="horse-notes">備考</Label>
             <Input id="horse-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
@@ -330,7 +330,7 @@ export function HorseListPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">馬一覧</h1>
-        <p className="mt-4 text-red-600">{error}</p>
+        <p className="mt-4 text-destructive">{error}</p>
       </div>
     );
   }
@@ -457,7 +457,7 @@ export function HorseListPage() {
                   <Link
                     to="/horses/$horseId"
                     params={{ horseId: horse.id }}
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-600 hover:underline dark:text-blue-400"
                   >
                     {horse.name}
                   </Link>
