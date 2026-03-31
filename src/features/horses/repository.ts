@@ -1,6 +1,6 @@
 import type { DatabaseConnection } from '@/database/connection';
 import { buildInsert, buildUpdate, mapRow } from '@/database/base-repository';
-import type { Horse, HorseCreateInput, HorseFilter, HorseUpdateInput, PedigreeNode } from './types';
+import type { Horse, HorseCreateInput, HorseFilter, HorseUpdateInput, PedigreeRow } from './types';
 
 export interface HorseRepository {
   findById(id: number): Promise<Horse | null>;
@@ -10,7 +10,7 @@ export interface HorseRepository {
   create(data: HorseCreateInput): Promise<Horse>;
   update(id: number, data: HorseUpdateInput): Promise<Horse>;
   delete(id: number): Promise<void>;
-  getAncestors(id: number, depth?: number): Promise<PedigreeNode | null>;
+  getAncestorRows(id: number, depth?: number): Promise<PedigreeRow[]>;
 }
 
 function mapHorseRow(row: Record<string, unknown>): Horse {
@@ -137,7 +137,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
       await db.run('DELETE FROM horses WHERE id = ?', [id]);
     },
 
-    async getAncestors(id: number, depth: number = 4) {
+    async getAncestorRows(id: number, depth: number = 4) {
       const sql = `
         WITH RECURSIVE pedigree AS (
           SELECT
@@ -205,62 +205,8 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
         ORDER BY pe.generation, pe.path;
       `;
 
-      const rows = await db.all<Record<string, unknown>>(sql, [id, depth, depth]);
-      if (rows.length === 0) return null;
-
-      return buildPedigreeTree(rows);
+      const rows = await db.all<PedigreeRow>(sql, [id, depth, depth]);
+      return rows;
     },
   };
-}
-
-interface PedigreeRow {
-  id: number;
-  name: string;
-  generation: number;
-  position: string;
-  path: string;
-  factors: string | null;
-  lineage_name: string | null;
-  sp_st_type: string | null;
-  parent_lineage_name: string | null;
-}
-
-function buildPedigreeTree(rows: Record<string, unknown>[]): PedigreeNode {
-  const nodeMap = new Map<string, PedigreeNode>();
-
-  for (const raw of rows) {
-    const row = raw as unknown as PedigreeRow;
-    let factors: string[] | null = null;
-    if (row.factors) {
-      try {
-        factors = JSON.parse(row.factors);
-      } catch {
-        factors = null;
-      }
-    }
-
-    const node: PedigreeNode = {
-      id: row.id,
-      name: row.name,
-      generation: row.generation,
-      position: row.position,
-      path: row.path,
-      factors,
-      lineageName: row.lineage_name,
-      spStType: row.sp_st_type,
-      parentLineageName: row.parent_lineage_name,
-    };
-
-    nodeMap.set(row.path, node);
-  }
-
-  // Build tree: link sire/dam references
-  for (const [path, node] of nodeMap) {
-    const sireNode = nodeMap.get(path + 'S');
-    const damNode = nodeMap.get(path + 'D');
-    if (sireNode) node.sire = sireNode;
-    if (damNode) node.dam = damNode;
-  }
-
-  return nodeMap.get('')!;
 }

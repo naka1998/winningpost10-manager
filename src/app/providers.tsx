@@ -1,7 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { initDatabase, type DatabaseConnection } from '@/database/connection';
 import { runMigrations } from '@/database/migrations';
+import { createHorseRepository } from '@/features/horses/repository';
+import { createLineageRepository } from '@/features/lineages/repository';
 import { DatabaseContext } from './database-context';
+import { RepositoryContext, type RepositoryContextValue } from './repository-context';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -9,6 +12,7 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   const [db, setDb] = useState<DatabaseConnection | null>(null);
+  const [repos, setRepos] = useState<RepositoryContextValue | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,6 +23,10 @@ export function Providers({ children }: ProvidersProps) {
         await runMigrations(connection);
         if (!cancelled) {
           setDb(connection);
+          setRepos({
+            horseRepository: createHorseRepository(connection),
+            lineageRepository: createLineageRepository(connection),
+          });
         }
       })
       .catch((err: unknown) => {
@@ -43,7 +51,7 @@ export function Providers({ children }: ProvidersProps) {
     );
   }
 
-  if (!db) {
+  if (!db || !repos) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -53,5 +61,9 @@ export function Providers({ children }: ProvidersProps) {
     );
   }
 
-  return <DatabaseContext.Provider value={{ db }}>{children}</DatabaseContext.Provider>;
+  return (
+    <DatabaseContext.Provider value={{ db }}>
+      <RepositoryContext.Provider value={repos}>{children}</RepositoryContext.Provider>
+    </DatabaseContext.Provider>
+  );
 }

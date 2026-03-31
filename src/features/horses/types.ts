@@ -56,6 +56,19 @@ export interface HorseFilter {
   sortOrder?: 'asc' | 'desc';
 }
 
+/** Flat row returned by the ancestor recursive CTE query (snake_case DB columns). */
+export interface PedigreeRow {
+  id: number;
+  name: string;
+  generation: number;
+  position: string;
+  path: string;
+  factors: string | null;
+  lineage_name: string | null;
+  sp_st_type: string | null;
+  parent_lineage_name: string | null;
+}
+
 export interface PedigreeNode {
   id: number;
   name: string;

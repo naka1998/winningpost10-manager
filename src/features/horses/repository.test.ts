@@ -129,8 +129,8 @@ describe('HorseRepository', () => {
     });
   });
 
-  describe('getAncestors', () => {
-    it('returns pedigree tree for a horse with parents', async () => {
+  describe('getAncestorRows', () => {
+    it('returns flat ancestor rows for a horse with parents', async () => {
       // Create a 3-generation pedigree: horse -> sire -> grandsire
       const grandsire = await repo.create({ name: '祖父馬', status: 'ancestor' });
       const sire = await repo.create({
@@ -147,28 +147,33 @@ describe('HorseRepository', () => {
         damId: dam.id,
       });
 
-      const pedigree = await repo.getAncestors(horse.id, 4);
-      expect(pedigree).not.toBeNull();
-      expect(pedigree!.name).toBe('対象馬');
-      expect(pedigree!.generation).toBe(0);
+      const rows = await repo.getAncestorRows(horse.id, 4);
+      expect(rows.length).toBeGreaterThanOrEqual(4);
 
-      expect(pedigree!.sire).not.toBeUndefined();
-      expect(pedigree!.sire!.name).toBe('父馬');
-      expect(pedigree!.sire!.generation).toBe(1);
+      const self = rows.find((r) => r.path === '');
+      expect(self).not.toBeUndefined();
+      expect(self!.name).toBe('対象馬');
+      expect(self!.generation).toBe(0);
 
-      expect(pedigree!.dam).not.toBeUndefined();
-      expect(pedigree!.dam!.name).toBe('母馬');
-      expect(pedigree!.dam!.generation).toBe(1);
+      const sireRow = rows.find((r) => r.path === 'S');
+      expect(sireRow).not.toBeUndefined();
+      expect(sireRow!.name).toBe('父馬');
+      expect(sireRow!.generation).toBe(1);
 
-      // Grandsire should be connected through sire
-      expect(pedigree!.sire!.sire).not.toBeUndefined();
-      expect(pedigree!.sire!.sire!.name).toBe('祖父馬');
-      expect(pedigree!.sire!.sire!.generation).toBe(2);
+      const damRow = rows.find((r) => r.path === 'D');
+      expect(damRow).not.toBeUndefined();
+      expect(damRow!.name).toBe('母馬');
+      expect(damRow!.generation).toBe(1);
+
+      const grandsireRow = rows.find((r) => r.path === 'SS');
+      expect(grandsireRow).not.toBeUndefined();
+      expect(grandsireRow!.name).toBe('祖父馬');
+      expect(grandsireRow!.generation).toBe(2);
     });
 
-    it('returns null for non-existent horse', async () => {
-      const pedigree = await repo.getAncestors(9999);
-      expect(pedigree).toBeNull();
+    it('returns empty array for non-existent horse', async () => {
+      const rows = await repo.getAncestorRows(9999);
+      expect(rows).toEqual([]);
     });
   });
 });
