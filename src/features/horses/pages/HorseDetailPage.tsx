@@ -772,12 +772,11 @@ export function HorseDetailPage() {
         return;
       }
 
-      const [statuses, s, d, l] = await Promise.all([
-        yearlyStatusRepository.findByHorseId(id),
-        h.sireId ? horseRepository.findById(h.sireId) : Promise.resolve(null),
-        h.damId ? horseRepository.findById(h.damId) : Promise.resolve(null),
-        h.lineageId ? lineageRepository.findById(h.lineageId) : Promise.resolve(null),
-      ]);
+      // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
+      const statuses = await yearlyStatusRepository.findByHorseId(id);
+      const s = h.sireId ? await horseRepository.findById(h.sireId) : null;
+      const d = h.damId ? await horseRepository.findById(h.damId) : null;
+      const l = h.lineageId ? await lineageRepository.findById(h.lineageId) : null;
 
       setYearlyStatuses(statuses);
       setSire(s);
