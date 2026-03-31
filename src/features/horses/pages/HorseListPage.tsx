@@ -85,9 +85,9 @@ function HorseFormDialog({
       setNotes(editTarget.notes ?? '');
     } else {
       setName('');
-      setSex('');
+      setSex('牡');
       setBirthYear('');
-      setCountry('');
+      setCountry('日');
       setStatus('現役');
       setLineageId('');
       setNotes('');
