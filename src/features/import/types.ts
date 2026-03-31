@@ -46,15 +46,21 @@ export interface ParseResult {
 
 export interface ImportPreviewRow {
   parsed: ParsedHorseRow;
-  action: 'create' | 'update' | 'skip';
+  action: 'create' | 'update' | 'skip' | 'invalid';
   existingHorse?: Horse;
   changes?: Record<string, { old: unknown; new: unknown }>;
+  skipReason?: string;
 }
 
 export interface ImportPreview {
   importYear: number;
   rows: ImportPreviewRow[];
-  summary: { newCount: number; updateCount: number; skipCount: number };
+  summary: {
+    newCount: number;
+    updateCount: number;
+    skipCount: number;
+    invalidCount: number;
+  };
 }
 
 export interface ImportError {

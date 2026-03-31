@@ -17,12 +17,16 @@ export function createImportService(deps: {
       let newCount = 0;
       let updateCount = 0;
       let skipCount = 0;
+      let invalidCount = 0;
 
       for (const parsed of rows) {
         if (parsed.birthYear === null) {
-          // birthYear is required for owned horses; mark as skip with warning
-          previewRows.push({ parsed, action: 'skip' });
-          skipCount++;
+          previewRows.push({
+            parsed,
+            action: 'invalid',
+            skipReason: '生年（birthYear）が取得できません',
+          });
+          invalidCount++;
           continue;
         }
 
@@ -49,7 +53,7 @@ export function createImportService(deps: {
       return {
         importYear,
         rows: previewRows,
-        summary: { newCount, updateCount, skipCount },
+        summary: { newCount, updateCount, skipCount, invalidCount },
       };
     },
 

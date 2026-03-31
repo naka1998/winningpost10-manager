@@ -146,7 +146,7 @@ describe('ImportService', () => {
       expect(preview.summary.skipCount).toBe(1);
     });
 
-    it('marks row as "skip" when birthYear is null', async () => {
+    it('marks row as "invalid" when birthYear is null', async () => {
       const service = createImportService({
         horseRepo: createMockHorseRepo(),
         lineageRepo: createMockLineageRepo(),
@@ -155,8 +155,10 @@ describe('ImportService', () => {
       const rows = [buildParsedRow({ name: '生年不明馬', birthYear: null })];
       const preview = await service.preview(rows, 2025);
 
-      expect(preview.rows[0].action).toBe('skip');
-      expect(preview.summary.skipCount).toBe(1);
+      expect(preview.rows[0].action).toBe('invalid');
+      expect(preview.rows[0].skipReason).toBeDefined();
+      expect(preview.summary.invalidCount).toBe(1);
+      expect(preview.summary.skipCount).toBe(0);
     });
 
     it('handles multiple rows with mixed actions', async () => {
@@ -180,7 +182,8 @@ describe('ImportService', () => {
       const preview = await service.preview(rows, 2025);
 
       expect(preview.summary.newCount).toBe(1);
-      expect(preview.summary.skipCount).toBe(2);
+      expect(preview.summary.skipCount).toBe(1);
+      expect(preview.summary.invalidCount).toBe(1);
       expect(preview.importYear).toBe(2025);
     });
 

@@ -1,17 +1,7 @@
 import type { HorseRepository } from '@/features/horses/repository';
-import type { PedigreeNode } from '@/features/horses/types';
+import type { PedigreeNode, PedigreeRow } from '@/features/horses/types';
 
-export interface PedigreeRow {
-  id: number;
-  name: string;
-  generation: number;
-  position: string;
-  path: string;
-  factors: string | null;
-  lineage_name: string | null;
-  sp_st_type: string | null;
-  parent_lineage_name: string | null;
-}
+export type { PedigreeRow };
 
 export interface InbreedingResult {
   ancestorName: string;

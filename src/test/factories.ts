@@ -1,6 +1,6 @@
 import type { HorseCreateInput } from '@/features/horses/types';
 import type { LineageCreateInput } from '@/features/lineages/types';
-import type { PedigreeRow } from '@/features/pedigree/service';
+import type { PedigreeRow } from '@/features/horses/types';
 import type { ParsedHorseRow } from '@/features/import/types';
 
 export function buildHorse(overrides?: Partial<HorseCreateInput>): HorseCreateInput {

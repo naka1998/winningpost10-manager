@@ -1,7 +1,6 @@
 import type { DatabaseConnection } from '@/database/connection';
 import { buildInsert, buildUpdate, mapRow } from '@/database/base-repository';
-import type { PedigreeRow } from '@/features/pedigree/service';
-import type { Horse, HorseCreateInput, HorseFilter, HorseUpdateInput } from './types';
+import type { Horse, HorseCreateInput, HorseFilter, HorseUpdateInput, PedigreeRow } from './types';
 
 export interface HorseRepository {
   findById(id: number): Promise<Horse | null>;
