@@ -267,8 +267,12 @@ export function HorseListPage() {
   const isInitialMount = useRef(true);
 
   useEffect(() => {
-    useHorseStore.getState().loadHorses(horseRepository);
-    useLineageStore.getState().loadHierarchy(lineageRepository);
+    // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
+    async function loadData() {
+      await useLineageStore.getState().loadHierarchy(lineageRepository);
+      await useHorseStore.getState().loadHorses(horseRepository);
+    }
+    loadData();
   }, [horseRepository, lineageRepository]);
 
   // Reload when filter changes (skip initial mount to avoid double fetch)
