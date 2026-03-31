@@ -202,6 +202,67 @@ describe('LineageListPage', () => {
     await screen.findByText('データ取得に失敗しました');
   });
 
+  it('子系統で親系統未選択のまま送信できない', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    // 新規登録ダイアログを開く
+    await user.click(screen.getByRole('button', { name: '新規登録' }));
+    const dialog = screen.getByRole('dialog');
+
+    // 系統タイプを子系統に変更
+    await user.selectOptions(within(dialog).getByLabelText('系統タイプ'), 'child');
+
+    // 親系統selectが required であること
+    const parentSelect = within(dialog).getByLabelText('親系統');
+    expect(parentSelect).toBeRequired();
+
+    // 系統名を入力して、親系統を選択せずに送信を試みる
+    await user.type(within(dialog).getByLabelText('系統名'), 'テスト子系統');
+    await user.click(within(dialog).getByRole('button', { name: '登録' }));
+
+    // ダイアログは閉じず、create は呼ばれない（required による native validation）
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('子を持つ親系統は系統タイプを変更できない', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    // ノーザンダンサー系（子を3つ持つ親系統）の編集ボタンをクリック
+    const editButtons = screen.getAllByRole('button', { name: '編集' });
+    await user.click(editButtons[0]);
+
+    const dialog = screen.getByRole('dialog');
+    const typeSelect = within(dialog).getByLabelText('系統タイプ');
+
+    // disabled であること
+    expect(typeSelect).toBeDisabled();
+    // 説明テキストが表示されること
+    expect(screen.getByText('子系統を持つ親系統のタイプは変更できません')).toBeInTheDocument();
+  });
+
+  it('保存失敗時にダイアログが閉じずエラーが表示される', async () => {
+    const user = userEvent.setup();
+    mockCreate.mockRejectedValue(new Error('UNIQUE constraint failed'));
+    // mockGetHierarchy needs to return data for the reload after create
+    mockGetHierarchy.mockResolvedValue(hierarchy);
+    await renderAndWait();
+
+    // 新規登録ダイアログを開く
+    await user.click(screen.getByRole('button', { name: '新規登録' }));
+    const dialog = screen.getByRole('dialog');
+
+    // 親系統として送信
+    await user.type(within(dialog).getByLabelText('系統名'), 'テスト系統');
+    await user.click(within(dialog).getByRole('button', { name: '登録' }));
+
+    // エラーメッセージが表示され、ダイアログは閉じない
+    await screen.findByText('UNIQUE constraint failed');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('filterHierarchy で検索フィルタが動作する', () => {
     const filtered = filterHierarchy(hierarchy, 'ディープ');
     expect(filtered).toHaveLength(1);

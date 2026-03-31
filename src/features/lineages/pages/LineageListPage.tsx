@@ -34,18 +34,27 @@ function LineageFormDialog({
   onOpenChange,
   editTarget,
   parentLineages,
+  hierarchy,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editTarget: Lineage | null;
   parentLineages: Lineage[];
-  onSubmit: (data: LineageCreateInput | (LineageUpdateInput & { id: number })) => void;
+  hierarchy: LineageNode[];
+  onSubmit: (data: LineageCreateInput | (LineageUpdateInput & { id: number })) => Promise<void>;
 }) {
   const [name, setName] = useState('');
   const [lineageType, setLineageType] = useState<'parent' | 'child'>('parent');
   const [parentLineageId, setParentLineageId] = useState<string>('');
   const [spStType, setSpStType] = useState<string>('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // 編集対象が子を持つ親系統かどうか
+  const isParentWithChildren =
+    editTarget?.lineageType === 'parent' &&
+    hierarchy.some((h) => h.id === editTarget.id && h.children.length > 0);
 
   useEffect(() => {
     if (editTarget) {
@@ -59,28 +68,43 @@ function LineageFormDialog({
       setParentLineageId('');
       setSpStType('');
     }
+    setFormError(null);
   }, [editTarget, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const spSt = spStType === 'SP' || spStType === 'ST' ? spStType : null;
-    if (editTarget) {
-      onSubmit({
-        id: editTarget.id,
-        name,
-        lineageType,
-        parentLineageId: parentLineageId ? Number(parentLineageId) : null,
-        spStType: spSt,
-      });
-    } else {
-      onSubmit({
-        name,
-        lineageType,
-        parentLineageId: parentLineageId ? Number(parentLineageId) : null,
-        spStType: spSt,
-      });
+    setFormError(null);
+
+    if (lineageType === 'child' && !parentLineageId) {
+      setFormError('子系統の場合は親系統を選択してください');
+      return;
     }
-    onOpenChange(false);
+
+    const spSt = spStType === 'SP' || spStType === 'ST' ? spStType : null;
+    setIsSaving(true);
+    try {
+      if (editTarget) {
+        await onSubmit({
+          id: editTarget.id,
+          name,
+          lineageType,
+          parentLineageId: parentLineageId ? Number(parentLineageId) : null,
+          spStType: spSt,
+        });
+      } else {
+        await onSubmit({
+          name,
+          lineageType,
+          parentLineageId: parentLineageId ? Number(parentLineageId) : null,
+          spStType: spSt,
+        });
+      }
+      onOpenChange(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : '保存に失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -103,13 +127,19 @@ function LineageFormDialog({
             <Label htmlFor="lineage-type">系統タイプ</Label>
             <select
               id="lineage-type"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               value={lineageType}
               onChange={(e) => setLineageType(e.target.value as 'parent' | 'child')}
+              disabled={isParentWithChildren}
             >
               <option value="parent">親系統</option>
               <option value="child">子系統</option>
             </select>
+            {isParentWithChildren && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                子系統を持つ親系統のタイプは変更できません
+              </p>
+            )}
           </div>
           {lineageType === 'child' && (
             <div>
@@ -119,6 +149,7 @@ function LineageFormDialog({
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                 value={parentLineageId}
                 onChange={(e) => setParentLineageId(e.target.value)}
+                required
               >
                 <option value="">選択してください</option>
                 {parentLineages.map((p) => (
@@ -142,11 +173,14 @@ function LineageFormDialog({
               <option value="ST">ST</option>
             </select>
           </div>
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
-            <Button type="submit">{editTarget ? '更新' : '登録'}</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? '保存中...' : editTarget ? '更新' : '登録'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -305,6 +339,7 @@ export function LineageListPage() {
         onOpenChange={setDialogOpen}
         editTarget={editTarget}
         parentLineages={parentLineages}
+        hierarchy={hierarchy}
         onSubmit={handleSubmit}
       />
     </div>
