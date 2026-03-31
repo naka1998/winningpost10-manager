@@ -34,7 +34,6 @@ import type { Horse, HorseCreateInput, HorseUpdateInput } from '../types';
 import type { Lineage } from '@/features/lineages/types';
 
 const STATUS_OPTIONS = ['', '現役', '繁殖牝馬', '種牡馬', '引退', '売却済'] as const;
-const SEX_OPTIONS = ['', '牡', '牝', 'セン'] as const;
 const SORT_OPTIONS = [
   { value: 'name', label: '馬名' },
   { value: 'birth_year', label: '生年' },
@@ -150,16 +149,26 @@ function HorseFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>性別</Label>
-              <Select value={sex} onValueChange={setSex}>
-                <SelectTrigger>
-                  <SelectValue placeholder="未設定" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="牡">牡</SelectItem>
-                  <SelectItem value="牝">牝</SelectItem>
-                  <SelectItem value="セン">セン</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={sex === '牡' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSex('牡')}
+                >
+                  牡
+                </Button>
+                <Button
+                  type="button"
+                  variant={sex === '牝' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSex('牝')}
+                >
+                  牝
+                </Button>
+              </div>
             </div>
             <div>
               <Label htmlFor="horse-birth-year">生年</Label>
@@ -376,22 +385,19 @@ export function HorseListPage() {
         </div>
         <div>
           <Label>性別フィルタ</Label>
-          <Select
-            value={filter.sex ?? 'all'}
-            onValueChange={(v) => handleFilterChange('sex', v === 'all' ? '' : v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">すべて</SelectItem>
-              {SEX_OPTIONS.filter(Boolean).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-1">
+            {['', '牡', '牝'].map((s) => (
+              <Button
+                key={s}
+                type="button"
+                variant={(filter.sex ?? '') === s ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleFilterChange('sex', s)}
+              >
+                {s || 'すべて'}
+              </Button>
+            ))}
+          </div>
         </div>
         <div>
           <Label>系統フィルタ</Label>

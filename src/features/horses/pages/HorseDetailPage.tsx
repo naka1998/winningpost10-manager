@@ -218,7 +218,6 @@ function YearlyStatusFormDialog({
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 required
-                disabled={!!editTarget}
               />
             </div>
           </div>
@@ -527,16 +526,26 @@ function HorseEditDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>性別</Label>
-              <Select value={sex} onValueChange={setSex}>
-                <SelectTrigger>
-                  <SelectValue placeholder="未設定" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="牡">牡</SelectItem>
-                  <SelectItem value="牝">牝</SelectItem>
-                  <SelectItem value="セン">セン</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={sex === '牡' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSex('牡')}
+                >
+                  牡
+                </Button>
+                <Button
+                  type="button"
+                  variant={sex === '牝' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSex('牝')}
+                >
+                  牝
+                </Button>
+              </div>
             </div>
             <div>
               <Label htmlFor="edit-horse-birth-year">生年</Label>

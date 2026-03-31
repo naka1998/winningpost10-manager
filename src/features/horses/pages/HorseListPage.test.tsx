@@ -322,13 +322,13 @@ describe('HorseListPage', () => {
   });
 
   it('フィルタで性別絞り込みができる', async () => {
+    const user = userEvent.setup();
     await renderAndWait();
 
-    const selects = screen.getAllByRole('combobox');
-    const sexSelect = selects.find(
-      (s) => s.querySelector('option[value="牡"]') && s.querySelector('option[value="セン"]'),
-    );
-    fireEvent.change(sexSelect!, { target: { value: '牡' } });
+    // 性別フィルタはボタン形式
+    const sexButtons = screen.getAllByRole('button', { name: '牡' });
+    // フィルタバー内の「牡」ボタン（ダイアログ外）をクリック
+    await user.click(sexButtons[0]);
     expect(useHorseStore.getState().filter.sex).toBe('牡');
   });
 
