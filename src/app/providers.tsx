@@ -46,8 +46,8 @@ export function Providers({ children }: ProvidersProps) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="mb-2 text-xl font-bold text-red-600">データベース初期化エラー</h1>
-          <p className="text-gray-600">{error}</p>
+          <h1 className="mb-2 text-xl font-bold text-destructive">データベース初期化エラー</h1>
+          <p className="text-muted-foreground">{error}</p>
         </div>
       </div>
     );
@@ -57,7 +57,7 @@ export function Providers({ children }: ProvidersProps) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">データベースを初期化中...</p>
+          <p className="text-muted-foreground">データベースを初期化中...</p>
         </div>
       </div>
     );

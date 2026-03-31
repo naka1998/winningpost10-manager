@@ -20,8 +20,8 @@ function SpStBadge({ spStType }: { spStType: 'SP' | 'ST' | null }) {
     <Badge
       className={
         spStType === 'SP'
-          ? 'bg-red-100 text-red-800 hover:bg-red-100'
-          : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
+          ? 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-900'
+          : 'bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-900'
       }
     >
       {spStType}
@@ -173,7 +173,7 @@ function LineageFormDialog({
               <option value="ST">ST</option>
             </select>
           </div>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
@@ -305,7 +305,7 @@ export function LineageListPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">系統マスタ</h1>
-        <p className="mt-4 text-red-600">{error}</p>
+        <p className="mt-4 text-destructive">{error}</p>
       </div>
     );
   }
