@@ -26,7 +26,6 @@ export async function initDatabase(): Promise<DatabaseConnection> {
   // OriginPrivateFileSystemVFS uses createSyncAccessHandle() which only works
   // in Web Workers. On the main thread it fails during read/write operations,
   // not during open, so we must test with a real OPFS access handle first.
-  let db: number;
   let useOPFS = false;
   if (typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
     try {
@@ -50,7 +49,7 @@ export async function initDatabase(): Promise<DatabaseConnection> {
     await sqlite3.vfs_register(vfs, true);
   }
 
-  db = await sqlite3.open_v2(DB_NAME);
+  const db = await sqlite3.open_v2(DB_NAME);
 
   // Enable WAL mode and foreign keys
   await sqlite3.exec(db, 'PRAGMA journal_mode=WAL;');
