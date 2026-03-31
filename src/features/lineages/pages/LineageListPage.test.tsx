@@ -94,6 +94,7 @@ const mockLineageRepo = {
 const mockRepoContext = {
   lineageRepository: mockLineageRepo,
   horseRepository: {},
+  yearlyStatusRepository: {},
 };
 
 vi.mock('@/app/repository-context', () => ({

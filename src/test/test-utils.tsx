@@ -3,6 +3,10 @@ import type { ReactElement } from 'react';
 import { createTestDatabase } from '@/database/connection.test-utils';
 import { runMigrations } from '@/database/migrations';
 import { createHorseRepository, type HorseRepository } from '@/features/horses/repository';
+import {
+  createYearlyStatusRepository,
+  type YearlyStatusRepository,
+} from '@/features/horses/yearly-status-repository';
 import { createLineageRepository, type LineageRepository } from '@/features/lineages/repository';
 import { DatabaseContext } from '@/app/database-context';
 import { RepositoryContext, type RepositoryContextValue } from '@/app/repository-context';
@@ -28,6 +32,9 @@ export async function renderWithProviders(
     horseRepository:
       (options?.repositoryOverrides?.horseRepository as HorseRepository) ??
       createHorseRepository(db),
+    yearlyStatusRepository:
+      (options?.repositoryOverrides?.yearlyStatusRepository as YearlyStatusRepository) ??
+      createYearlyStatusRepository(db),
     lineageRepository:
       (options?.repositoryOverrides?.lineageRepository as LineageRepository) ??
       createLineageRepository(db),

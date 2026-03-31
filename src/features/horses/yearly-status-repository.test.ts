@@ -1,0 +1,150 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createTestDatabase } from '@/database/connection.test-utils';
+import type { DatabaseConnection } from '@/database/connection';
+import { runMigrations } from '@/database/migrations';
+import { createHorseRepository, type HorseRepository } from './repository';
+import {
+  createYearlyStatusRepository,
+  type YearlyStatusRepository,
+} from './yearly-status-repository';
+
+describe('YearlyStatusRepository', () => {
+  let db: DatabaseConnection;
+  let horseRepo: HorseRepository;
+  let repo: YearlyStatusRepository;
+  let horseId: number;
+
+  beforeEach(async () => {
+    db = createTestDatabase();
+    await runMigrations(db);
+    horseRepo = createHorseRepository(db);
+    repo = createYearlyStatusRepository(db);
+
+    // Create a test horse for yearly statuses
+    const horse = await horseRepo.create({
+      name: 'テスト馬',
+      sex: '牡',
+      birthYear: 2020,
+      status: '現役',
+    });
+    horseId = horse.id;
+  });
+
+  describe('create and findById', () => {
+    it('creates a yearly status and retrieves it by id', async () => {
+      const status = await repo.create({
+        horseId,
+        year: 2023,
+        spRank: 'A',
+        spValue: 75,
+        powerRank: 'B+',
+        turfAptitude: '◎',
+        dirtAptitude: '○',
+        distanceMin: 1600,
+        distanceMax: 2400,
+        growthType: '普通',
+        raceRecord: '10戦7勝',
+      });
+
+      expect(status.id).toBeGreaterThan(0);
+      expect(status.horseId).toBe(horseId);
+      expect(status.year).toBe(2023);
+      expect(status.spRank).toBe('A');
+      expect(status.spValue).toBe(75);
+      expect(status.powerRank).toBe('B+');
+      expect(status.turfAptitude).toBe('◎');
+      expect(status.dirtAptitude).toBe('○');
+      expect(status.distanceMin).toBe(1600);
+      expect(status.distanceMax).toBe(2400);
+      expect(status.growthType).toBe('普通');
+      expect(status.raceRecord).toBe('10戦7勝');
+
+      const found = await repo.findById(status.id);
+      expect(found).not.toBeNull();
+      expect(found!.year).toBe(2023);
+      expect(found!.spRank).toBe('A');
+    });
+
+    it('returns null for non-existent id', async () => {
+      const found = await repo.findById(9999);
+      expect(found).toBeNull();
+    });
+
+    it('stores and retrieves JSON fields (runningStyle, traits)', async () => {
+      const status = await repo.create({
+        horseId,
+        year: 2023,
+        runningStyle: ['先', '差'],
+        traits: ['大舞台', '鉄砲'],
+      });
+
+      const found = await repo.findById(status.id);
+      expect(found!.runningStyle).toEqual(['先', '差']);
+      expect(found!.traits).toEqual(['大舞台', '鉄砲']);
+    });
+  });
+
+  describe('findByHorseId', () => {
+    it('returns statuses for a horse sorted by year DESC', async () => {
+      await repo.create({ horseId, year: 2022, spRank: 'B' });
+      await repo.create({ horseId, year: 2024, spRank: 'A' });
+      await repo.create({ horseId, year: 2023, spRank: 'B+' });
+
+      const statuses = await repo.findByHorseId(horseId);
+      expect(statuses).toHaveLength(3);
+      expect(statuses[0].year).toBe(2024);
+      expect(statuses[1].year).toBe(2023);
+      expect(statuses[2].year).toBe(2022);
+    });
+
+    it('returns empty array for horse with no statuses', async () => {
+      const statuses = await repo.findByHorseId(horseId);
+      expect(statuses).toEqual([]);
+    });
+  });
+
+  describe('update', () => {
+    it('updates yearly status fields', async () => {
+      const status = await repo.create({
+        horseId,
+        year: 2023,
+        spRank: 'B',
+        spValue: 65,
+      });
+
+      const updated = await repo.update(status.id, {
+        spRank: 'A',
+        spValue: 78,
+        jockey: 'ルメール',
+      });
+
+      expect(updated.spRank).toBe('A');
+      expect(updated.spValue).toBe(78);
+      expect(updated.jockey).toBe('ルメール');
+      expect(updated.year).toBe(2023);
+    });
+
+    it('throws error for non-existent id', async () => {
+      await expect(repo.update(9999, { spRank: 'A' })).rejects.toThrow(
+        'YearlyStatus not found: id=9999',
+      );
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes a yearly status', async () => {
+      const status = await repo.create({ horseId, year: 2023 });
+      await repo.delete(status.id);
+
+      const found = await repo.findById(status.id);
+      expect(found).toBeNull();
+    });
+  });
+
+  describe('UNIQUE constraint', () => {
+    it('rejects duplicate horse_id + year combination', async () => {
+      await repo.create({ horseId, year: 2023 });
+      await expect(repo.create({ horseId, year: 2023 })).rejects.toThrow();
+    });
+  });
+});

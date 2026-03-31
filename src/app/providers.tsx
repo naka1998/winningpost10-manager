@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { initDatabase, type DatabaseConnection } from '@/database/connection';
 import { runMigrations } from '@/database/migrations';
 import { createHorseRepository } from '@/features/horses/repository';
+import { createYearlyStatusRepository } from '@/features/horses/yearly-status-repository';
 import { createLineageRepository } from '@/features/lineages/repository';
 import { DatabaseContext } from './database-context';
 import { RepositoryContext, type RepositoryContextValue } from './repository-context';
@@ -25,6 +26,7 @@ export function Providers({ children }: ProvidersProps) {
           setDb(connection);
           setRepos({
             horseRepository: createHorseRepository(connection),
+            yearlyStatusRepository: createYearlyStatusRepository(connection),
             lineageRepository: createLineageRepository(connection),
           });
         }
