@@ -99,6 +99,50 @@ const mockLineageRepo = {
   update: vi.fn(),
 };
 
+vi.mock('@/components/ui/toggle-group', () => {
+  function ToggleGroup({
+    value,
+    onValueChange,
+    children,
+  }: {
+    type: string;
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <div role="group" data-value={value}>
+        {React.Children.map(children, (child) => {
+          if (!React.isValidElement(child)) return child;
+          const childEl = child as React.ReactElement<{ value: string }>;
+          return React.cloneElement(childEl as React.ReactElement<Record<string, unknown>>, {
+            'data-state': childEl.props.value === value ? 'on' : 'off',
+            onClick: () => onValueChange?.(childEl.props.value),
+          });
+        })}
+      </div>
+    );
+  }
+  function ToggleGroupItem({
+    value,
+    children,
+    onClick,
+    ...props
+  }: {
+    value: string;
+    children: React.ReactNode;
+    onClick?: () => void;
+    [key: string]: unknown;
+  }) {
+    return (
+      <button type="button" data-value={value} onClick={onClick} {...props}>
+        {children}
+      </button>
+    );
+  }
+  return { ToggleGroup, ToggleGroupItem };
+});
+
 vi.mock('@/components/ui/select', () => {
   function Select({
     value,

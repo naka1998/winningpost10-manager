@@ -109,6 +109,50 @@ vi.mock('@tanstack/react-router', () => ({
   },
 }));
 
+vi.mock('@/components/ui/toggle-group', () => {
+  function ToggleGroup({
+    value,
+    onValueChange,
+    children,
+  }: {
+    type: string;
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <div role="group" data-value={value}>
+        {React.Children.map(children, (child) => {
+          if (!React.isValidElement(child)) return child;
+          const childEl = child as React.ReactElement<{ value: string }>;
+          return React.cloneElement(childEl as React.ReactElement<Record<string, unknown>>, {
+            'data-state': childEl.props.value === value ? 'on' : 'off',
+            onClick: () => onValueChange?.(childEl.props.value),
+          });
+        })}
+      </div>
+    );
+  }
+  function ToggleGroupItem({
+    value,
+    children,
+    onClick,
+    ...props
+  }: {
+    value: string;
+    children: React.ReactNode;
+    onClick?: () => void;
+    [key: string]: unknown;
+  }) {
+    return (
+      <button type="button" data-value={value} onClick={onClick} {...props}>
+        {children}
+      </button>
+    );
+  }
+  return { ToggleGroup, ToggleGroupItem };
+});
+
 vi.mock('@/components/ui/select', () => {
   function Select({
     value,
@@ -325,10 +369,11 @@ describe('HorseListPage', () => {
     const user = userEvent.setup();
     await renderAndWait();
 
-    // 性別フィルタはボタン形式
-    const sexButtons = screen.getAllByRole('button', { name: '牡' });
-    // フィルタバー内の「牡」ボタン（ダイアログ外）をクリック
-    await user.click(sexButtons[0]);
+    // 性別フィルタはToggleGroup形式 — フィルタバー内の「牡」ボタンをクリック
+    const groups = screen.getAllByRole('group');
+    const sexGroup = groups.find((g) => g.querySelector('[data-value="牡"]'));
+    const maleButton = within(sexGroup!).getByText('牡');
+    await user.click(maleButton);
     expect(useHorseStore.getState().filter.sex).toBe('牡');
   });
 

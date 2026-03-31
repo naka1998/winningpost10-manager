@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Dialog,
   DialogContent,
@@ -149,26 +150,10 @@ function HorseFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>性別</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={sex === '牡' ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setSex('牡')}
-                >
-                  牡
-                </Button>
-                <Button
-                  type="button"
-                  variant={sex === '牝' ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setSex('牝')}
-                >
-                  牝
-                </Button>
-              </div>
+              <ToggleGroup type="single" value={sex} onValueChange={(v) => v && setSex(v)}>
+                <ToggleGroupItem value="牡">牡</ToggleGroupItem>
+                <ToggleGroupItem value="牝">牝</ToggleGroupItem>
+              </ToggleGroup>
             </div>
             <div>
               <Label htmlFor="horse-birth-year">生年</Label>
@@ -183,16 +168,11 @@ function HorseFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>国</Label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger>
-                  <SelectValue placeholder="未設定" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="日">日</SelectItem>
-                  <SelectItem value="米">米</SelectItem>
-                  <SelectItem value="欧">欧</SelectItem>
-                </SelectContent>
-              </Select>
+              <ToggleGroup type="single" value={country} onValueChange={(v) => v && setCountry(v)}>
+                <ToggleGroupItem value="日">日</ToggleGroupItem>
+                <ToggleGroupItem value="米">米</ToggleGroupItem>
+                <ToggleGroupItem value="欧">欧</ToggleGroupItem>
+              </ToggleGroup>
             </div>
             <div>
               <Label>ステータス</Label>
@@ -385,19 +365,15 @@ export function HorseListPage() {
         </div>
         <div>
           <Label>性別フィルタ</Label>
-          <div className="flex gap-1">
-            {['', '牡', '牝'].map((s) => (
-              <Button
-                key={s}
-                type="button"
-                variant={(filter.sex ?? '') === s ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => handleFilterChange('sex', s)}
-              >
-                {s || 'すべて'}
-              </Button>
-            ))}
-          </div>
+          <ToggleGroup
+            type="single"
+            value={filter.sex ?? 'all'}
+            onValueChange={(v) => handleFilterChange('sex', v === 'all' ? '' : v)}
+          >
+            <ToggleGroupItem value="all">すべて</ToggleGroupItem>
+            <ToggleGroupItem value="牡">牡</ToggleGroupItem>
+            <ToggleGroupItem value="牝">牝</ToggleGroupItem>
+          </ToggleGroup>
         </div>
         <div>
           <Label>系統フィルタ</Label>
