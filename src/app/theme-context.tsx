@@ -20,14 +20,28 @@ function resolveTheme(theme: Theme): 'light' | 'dark' {
   return theme === 'system' ? getSystemTheme() : theme;
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
+function readStoredTheme(): Theme {
+  try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
       return stored;
     }
-    return 'system';
-  });
+  } catch {
+    // localStorage unavailable (e.g. private browsing)
+  }
+  return 'system';
+}
+
+function writeStoredTheme(theme: Theme): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>(readStoredTheme);
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => resolveTheme(theme));
 
@@ -38,7 +52,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle('dark', resolved === 'dark');
 
-    localStorage.setItem(STORAGE_KEY, theme);
+    writeStoredTheme(theme);
 
     if (theme === 'system') {
       const mql = window.matchMedia('(prefers-color-scheme: dark)');

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ThemeProvider, useTheme } from './theme-context';
@@ -30,6 +30,39 @@ function mockMatchMedia(matches = false) {
       dispatchEvent: vi.fn(),
     })),
   });
+}
+
+function mockMatchMediaWithListener(initialMatches = false) {
+  const listeners: Array<(e: { matches: boolean }) => void> = [];
+  const addListener = vi.fn((_, handler) => listeners.push(handler));
+  const removeListener = vi.fn((_, handler) => {
+    const idx = listeners.indexOf(handler);
+    if (idx >= 0) listeners.splice(idx, 1);
+  });
+
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn((query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)' ? initialMatches : false,
+      media: query,
+      addEventListener: addListener,
+      removeEventListener: removeListener,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+
+  return {
+    addListener,
+    removeListener,
+    simulateChange(matches: boolean) {
+      for (const fn of [...listeners]) {
+        fn({ matches });
+      }
+    },
+  };
 }
 
 describe('ThemeProvider', () => {
@@ -113,6 +146,46 @@ describe('ThemeProvider', () => {
 
     expect(screen.getByTestId('resolved')).toHaveTextContent('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  it('reacts to OS theme change when theme is system', () => {
+    const mql = mockMatchMediaWithListener(false);
+
+    render(
+      <ThemeProvider>
+        <TestConsumer />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId('resolved')).toHaveTextContent('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+    act(() => mql.simulateChange(true));
+
+    expect(screen.getByTestId('resolved')).toHaveTextContent('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    act(() => mql.simulateChange(false));
+
+    expect(screen.getByTestId('resolved')).toHaveTextContent('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('removes matchMedia listener when switching away from system', async () => {
+    const mql = mockMatchMediaWithListener(false);
+    const user = userEvent.setup();
+
+    render(
+      <ThemeProvider>
+        <TestConsumer />
+      </ThemeProvider>,
+    );
+
+    expect(mql.addListener).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByText('dark'));
+
+    expect(mql.removeListener).toHaveBeenCalledTimes(1);
   });
 
   it('throws when useTheme is used outside ThemeProvider', () => {
