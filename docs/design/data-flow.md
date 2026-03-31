@@ -116,22 +116,22 @@ interface TxtParser {
 
 interface ParseResult {
   rows: ParsedHorseRow[];
-  warnings: ParseWarning[];    // スキップした列、変換できなかった値など
+  warnings: ParseWarning[]; // スキップした列、変換できなかった値など
 }
 
 interface ParsedHorseRow {
   // D1: 馬基本情報
   name: string;
-  sex: string | null;          // 牡/牝/セン
-  birthYear: number | null;    // 「年」列から算出（年齢→生年変換はインポート年度を使用）。nullの場合エラー扱い
-  country: string | null;      // 日/米/欧
-  sireName: string | null;     // 父馬名（horse照合に使用）
-  damName: string | null;      // 母馬名（horse照合に使用）
+  sex: string | null; // 牡/牝/セン
+  birthYear: number | null; // 「年」列から算出（年齢→生年変換はインポート年度を使用）。nullの場合エラー扱い
+  country: string | null; // 日/米/欧
+  sireName: string | null; // 父馬名（horse照合に使用）
+  damName: string | null; // 母馬名（horse照合に使用）
   sireLineageName: string | null; // 父系名（lineage照合に使用）
   mareLineName: string | null; // 牝系名
   // D2: 年度別ステータス
   spRank: string | null;
-  spValue: number | null;      // 「S+(0)」→ 0
+  spValue: number | null; // 「S+(0)」→ 0
   powerRank: string | null;
   powerValue: number | null;
   instantRank: string | null;
@@ -186,8 +186,8 @@ interface ImportPreview {
 
 interface ImportPreviewRow {
   parsed: ParsedHorseRow;
-  action: 'create' | 'update' | 'skip';  // 馬名+生年で照合した結果
-  existingHorse?: Horse;                   // update時の既存データ（差分表示用）
+  action: 'create' | 'update' | 'skip'; // 馬名+生年で照合した結果
+  existingHorse?: Horse; // update時の既存データ（差分表示用）
   changes?: Record<string, { old: unknown; new: unknown }>; // 変更フィールドと差分
 }
 
@@ -196,7 +196,7 @@ interface ImportResult {
   created: number;
   updated: number;
   skipped: number;
-  logId: number;            // import_logsのID
+  logId: number; // import_logsのID
   errors: ImportError[];
 }
 
@@ -231,6 +231,7 @@ execute() のフロー:
 ```
 
 **ロールバック条件:**
+
 - birthYear が算出できなかった行が存在する場合
 - SQL実行エラー（制約違反、型不整合など）
 - 全行が処理される前に例外が発生した場合
@@ -243,12 +244,12 @@ execute() のフロー:
 
 ### 4.1 ストア一覧
 
-| ストア | 責務 | 永続化 |
-|--------|------|--------|
-| `useHorseStore` | 馬マスタCRUD、検索・フィルタ結果のキャッシュ | SQLite経由 |
-| `useLineageStore` | 系統マスタCRUD、階層ツリーのキャッシュ | SQLite経由 |
-| `useSettingsStore` | ゲーム設定（現在年度等）の取得・更新 | SQLite経由 |
-| `useUIStore` | サイドバー開閉、ビューモード、選択状態 | メモリのみ |
+| ストア             | 責務                                         | 永続化     |
+| ------------------ | -------------------------------------------- | ---------- |
+| `useHorseStore`    | 馬マスタCRUD、検索・フィルタ結果のキャッシュ | SQLite経由 |
+| `useLineageStore`  | 系統マスタCRUD、階層ツリーのキャッシュ       | SQLite経由 |
+| `useSettingsStore` | ゲーム設定（現在年度等）の取得・更新         | SQLite経由 |
+| `useUIStore`       | サイドバー開閉、ビューモード、選択状態       | メモリのみ |
 
 ### 4.2 Store → Repository 通信パターン
 
@@ -291,11 +292,7 @@ export async function exportDatabase(sqlite3: SQLiteAPI, db: number): Promise<Bl
 }
 
 // リストア: ファイル → Blob → SQLite（既存DBを完全に置換）
-export async function importDatabase(
-  sqlite3: SQLiteAPI,
-  db: number,
-  file: File
-): Promise<void> {
+export async function importDatabase(sqlite3: SQLiteAPI, db: number, file: File): Promise<void> {
   const buffer = await file.arrayBuffer();
   const data = new Uint8Array(buffer);
   sqlite3.deserialize(db, data);

@@ -5,10 +5,7 @@ import { runMigrations } from '@/database/migrations';
 import { createHorseRepository, type HorseRepository } from '@/features/horses/repository';
 import { createLineageRepository, type LineageRepository } from '@/features/lineages/repository';
 import { DatabaseContext } from '@/app/database-context';
-import {
-  RepositoryContext,
-  type RepositoryContextValue,
-} from '@/app/repository-context';
+import { RepositoryContext, type RepositoryContextValue } from '@/app/repository-context';
 
 interface ProvidersOptions {
   repositoryOverrides?: Partial<RepositoryContextValue>;

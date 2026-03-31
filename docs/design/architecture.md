@@ -7,19 +7,19 @@
 
 ## 1. 技術スタック一覧
 
-| カテゴリ | ライブラリ / ツール | バージョン目安 | 役割・選定理由 |
-|---------|-------------------|--------------|-------------|
-| UIフレームワーク | **React** | 19.x | コンポーネントベースのUI構築。エコシステムが豊富で長期サポートが期待できる |
-| 言語 | **TypeScript** | 5.x | 型安全によるバグ防止。IDEサポートの強化 |
-| ビルドツール | **Vite** | 6.x | 高速なHMRとビルド。React+TSのゼロコンフィグに近い立ち上げ |
-| ルーティング | **TanStack Router** | 1.x | 型安全なルートパラメータ。ファイルベースルーティング対応 |
-| UIコンポーネント | **shadcn/ui** (Tailwind CSS) | — | コピー&ペースト型でカスタマイズ自由。Tailwind CSSベースで一貫したデザイン |
-| チャート | **Recharts** | 2.x | React向けの宣言的チャートライブラリ。成長チャート・ガントチャートに使用 |
-| 状態管理 | **Zustand** | 5.x | 軽量で直感的なAPI。ボイラープレートが少なくStoreの分割が容易 |
-| データベース | **wa-sqlite** + **IndexedDB/OPFS** | — | ブラウザ内SQLite。サーバー不要のローカルファーストアーキテクチャを実現 |
-| テスト | **Vitest** + **React Testing Library** | — | Viteネイティブで高速。コンポーネントテストとユニットテストを統一 |
-| E2Eテスト | **Playwright** | — | 主要フロー（インポート→血統ツリー表示）の自動検証 |
-| デプロイ | **GitHub Pages** / **Vercel** | — | 静的サイトホスティング。CI/CDパイプライン連携が容易 |
+| カテゴリ         | ライブラリ / ツール                    | バージョン目安 | 役割・選定理由                                                             |
+| ---------------- | -------------------------------------- | -------------- | -------------------------------------------------------------------------- |
+| UIフレームワーク | **React**                              | 19.x           | コンポーネントベースのUI構築。エコシステムが豊富で長期サポートが期待できる |
+| 言語             | **TypeScript**                         | 5.x            | 型安全によるバグ防止。IDEサポートの強化                                    |
+| ビルドツール     | **Vite**                               | 6.x            | 高速なHMRとビルド。React+TSのゼロコンフィグに近い立ち上げ                  |
+| ルーティング     | **TanStack Router**                    | 1.x            | 型安全なルートパラメータ。ファイルベースルーティング対応                   |
+| UIコンポーネント | **shadcn/ui** (Tailwind CSS)           | —              | コピー&ペースト型でカスタマイズ自由。Tailwind CSSベースで一貫したデザイン  |
+| チャート         | **Recharts**                           | 2.x            | React向けの宣言的チャートライブラリ。成長チャート・ガントチャートに使用    |
+| 状態管理         | **Zustand**                            | 5.x            | 軽量で直感的なAPI。ボイラープレートが少なくStoreの分割が容易               |
+| データベース     | **wa-sqlite** + **IndexedDB/OPFS**     | —              | ブラウザ内SQLite。サーバー不要のローカルファーストアーキテクチャを実現     |
+| テスト           | **Vitest** + **React Testing Library** | —              | Viteネイティブで高速。コンポーネントテストとユニットテストを統一           |
+| E2Eテスト        | **Playwright**                         | —              | 主要フロー（インポート→血統ツリー表示）の自動検証                          |
+| デプロイ         | **GitHub Pages** / **Vercel**          | —              | 静的サイトホスティング。CI/CDパイプライン連携が容易                        |
 
 ---
 
@@ -211,16 +211,16 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
-  base: '/winningpost10-manager/',  // GitHub Pages用
+  base: '/winningpost10-manager/', // GitHub Pages用
   build: {
-    target: 'esnext',               // WASM対応ブラウザ
+    target: 'esnext', // WASM対応ブラウザ
     outDir: 'dist',
   },
   optimizeDeps: {
     exclude: ['@aspect-build/aspect-wa-sqlite'], // wa-sqlite はWASMなので除外
   },
   worker: {
-    format: 'es',                   // Service Worker / Web Worker用
+    format: 'es', // Service Worker / Web Worker用
   },
   server: {
     headers: {
@@ -234,10 +234,10 @@ export default defineConfig({
 
 ### 3.2 デプロイ先
 
-| 環境 | 用途 | 設定 |
-|------|------|------|
-| **GitHub Pages** | メインのデプロイ先 | `gh-pages` ブランチに `dist/` をデプロイ。`base: '/winningpost10-manager/'` |
-| **Vercel** | 代替・プレビュー環境 | リポジトリ連携で自動デプロイ。`base: '/'` に変更 |
+| 環境             | 用途                 | 設定                                                                        |
+| ---------------- | -------------------- | --------------------------------------------------------------------------- |
+| **GitHub Pages** | メインのデプロイ先   | `gh-pages` ブランチに `dist/` をデプロイ。`base: '/winningpost10-manager/'` |
+| **Vercel**       | 代替・プレビュー環境 | リポジトリ連携で自動デプロイ。`base: '/'` に変更                            |
 
 > **注意:** OPFS利用時は `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` ヘッダーが必要。GitHub Pagesではカスタムヘッダーを設定できないため、OPFSが利用不可の場合はIndexedDB VFSにフォールバックする。Vercelでは `vercel.json` でヘッダー設定可能。
 
