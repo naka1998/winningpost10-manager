@@ -44,20 +44,20 @@ export function SettingsPage() {
     }
   }, [settings]);
 
-  if (isLoading || !settings) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">設定</h1>
-        <p className="text-muted-foreground">読み込み中...</p>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">設定</h1>
         <p className="text-destructive">{error}</p>
+      </div>
+    );
+  }
+
+  if (isLoading || !settings) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">設定</h1>
+        <p className="text-muted-foreground">読み込み中...</p>
       </div>
     );
   }

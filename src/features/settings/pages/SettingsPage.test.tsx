@@ -189,6 +189,15 @@ describe('SettingsPage', () => {
     await screen.findByText('エラー: UNIQUE constraint failed');
   });
 
+  it('初回ロード失敗時にエラーメッセージが表示される（読み込み中のままにならない）', async () => {
+    mockGetAll.mockRejectedValue(new Error('DB connection failed'));
+    const { SettingsPage } = await import('./SettingsPage');
+    render(<SettingsPage />);
+
+    await screen.findByText('DB connection failed');
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+  });
+
   it('ローディング中は読み込み中メッセージが表示される', async () => {
     mockGetAll.mockImplementation(
       () => new Promise(() => {}), // never resolves
