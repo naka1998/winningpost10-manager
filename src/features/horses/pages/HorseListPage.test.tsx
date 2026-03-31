@@ -110,6 +110,10 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 vi.mock('@/components/ui/toggle-group', () => {
+  const ToggleGroupContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
   function ToggleGroup({
     value,
     onValueChange,
@@ -121,31 +125,22 @@ vi.mock('@/components/ui/toggle-group', () => {
     children: React.ReactNode;
   }) {
     return (
-      <div role="group" data-value={value}>
-        {React.Children.map(children, (child) => {
-          if (!React.isValidElement(child)) return child;
-          const childEl = child as React.ReactElement<{ value: string }>;
-          return React.cloneElement(childEl as React.ReactElement<Record<string, unknown>>, {
-            'data-state': childEl.props.value === value ? 'on' : 'off',
-            onClick: () => onValueChange?.(childEl.props.value),
-          });
-        })}
-      </div>
+      <ToggleGroupContext.Provider value={{ value, onValueChange }}>
+        <div role="group" data-value={value}>
+          {children}
+        </div>
+      </ToggleGroupContext.Provider>
     );
   }
-  function ToggleGroupItem({
-    value,
-    children,
-    onClick,
-    ...props
-  }: {
-    value: string;
-    children: React.ReactNode;
-    onClick?: () => void;
-    [key: string]: unknown;
-  }) {
+  function ToggleGroupItem({ value, children }: { value: string; children: React.ReactNode }) {
+    const ctx = React.useContext(ToggleGroupContext);
     return (
-      <button type="button" data-value={value} onClick={onClick} {...props}>
+      <button
+        type="button"
+        data-value={value}
+        data-state={ctx.value === value ? 'on' : 'off'}
+        onClick={() => ctx.onValueChange?.(value)}
+      >
         {children}
       </button>
     );

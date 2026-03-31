@@ -100,6 +100,10 @@ const mockLineageRepo = {
 };
 
 vi.mock('@/components/ui/toggle-group', () => {
+  const ToggleGroupContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
   function ToggleGroup({
     value,
     onValueChange,
@@ -111,31 +115,22 @@ vi.mock('@/components/ui/toggle-group', () => {
     children: React.ReactNode;
   }) {
     return (
-      <div role="group" data-value={value}>
-        {React.Children.map(children, (child) => {
-          if (!React.isValidElement(child)) return child;
-          const childEl = child as React.ReactElement<{ value: string }>;
-          return React.cloneElement(childEl as React.ReactElement<Record<string, unknown>>, {
-            'data-state': childEl.props.value === value ? 'on' : 'off',
-            onClick: () => onValueChange?.(childEl.props.value),
-          });
-        })}
-      </div>
+      <ToggleGroupContext.Provider value={{ value, onValueChange }}>
+        <div role="group" data-value={value}>
+          {children}
+        </div>
+      </ToggleGroupContext.Provider>
     );
   }
-  function ToggleGroupItem({
-    value,
-    children,
-    onClick,
-    ...props
-  }: {
-    value: string;
-    children: React.ReactNode;
-    onClick?: () => void;
-    [key: string]: unknown;
-  }) {
+  function ToggleGroupItem({ value, children }: { value: string; children: React.ReactNode }) {
+    const ctx = React.useContext(ToggleGroupContext);
     return (
-      <button type="button" data-value={value} onClick={onClick} {...props}>
+      <button
+        type="button"
+        data-value={value}
+        data-state={ctx.value === value ? 'on' : 'off'}
+        onClick={() => ctx.onValueChange?.(value)}
+      >
         {children}
       </button>
     );
@@ -193,8 +188,10 @@ vi.mock('@/app/repository-context', () => ({
   }),
 }));
 
+let mockHorseId = 1;
+
 vi.mock('@tanstack/react-router', () => ({
-  useParams: () => ({ horseId: 1 }),
+  useParams: () => ({ horseId: mockHorseId }),
   Link: ({
     children,
     to,
@@ -243,6 +240,7 @@ describe('HorseDetailPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHorseId = 1;
     mockFindById.mockImplementation(async (id: number) => {
       if (id === 1) return horse;
       if (id === 10) return sire;
@@ -445,5 +443,58 @@ describe('HorseDetailPage', () => {
     render(<HorseDetailPage />);
 
     await screen.findByText('馬が見つかりません');
+  });
+
+  // 区分（isHistorical）の編集
+  it('基本情報編集で区分（史実/自家生産）を変更できる', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: '基本情報を編集' }));
+    const dialog = screen.getByRole('dialog');
+
+    // 現在「史実馬」（historical）が選択されている → 「自家生産馬」に切り替え
+    const homebredButton = within(dialog).getByRole('button', { name: '自家生産馬' });
+    await user.click(homebredButton);
+    await user.click(within(dialog).getByRole('button', { name: '更新' }));
+
+    expect(mockUpdate).toHaveBeenCalledWith(1, expect.objectContaining({ isHistorical: false }));
+  });
+
+  // 詳細→詳細遷移（父馬リンクなど）
+  it('horseId が変わると新しい馬のデータに切り替わる', async () => {
+    const horse2 = createTestHorse({
+      id: 10,
+      name: 'サンデーサイレンス',
+      sex: '牡',
+      status: '種牡馬',
+      sireId: null,
+      damId: null,
+      lineageId: null,
+      factors: null,
+    });
+
+    mockFindById.mockImplementation(async (id: number) => {
+      if (id === 1) return horse;
+      if (id === 10) return horse2;
+      if (id === 20) return dam;
+      return null;
+    });
+    mockYsFindByHorseId.mockImplementation(async (horseId: number) => {
+      if (horseId === 1) return [yearlyStatus];
+      return [];
+    });
+
+    const { HorseDetailPage } = await import('./HorseDetailPage');
+    const { rerender } = render(<HorseDetailPage />);
+    await screen.findByText('ディープインパクト');
+
+    // horseId を変更して rerender
+    mockHorseId = 10;
+    rerender(<HorseDetailPage />);
+    await screen.findByText('サンデーサイレンス');
+
+    // 前の馬のデータが残っていないことを確認
+    expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
   });
 });

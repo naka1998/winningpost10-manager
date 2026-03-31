@@ -570,18 +570,14 @@ function HorseEditDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>区分</Label>
-              <Select
+              <ToggleGroup
+                type="single"
                 value={isHistorical ? 'historical' : 'homebred'}
-                onValueChange={(v) => setIsHistorical(v === 'historical')}
+                onValueChange={(v) => v && setIsHistorical(v === 'historical')}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="homebred">自家生産馬</SelectItem>
-                  <SelectItem value="historical">史実馬</SelectItem>
-                </SelectContent>
-              </Select>
+                <ToggleGroupItem value="homebred">自家生産馬</ToggleGroupItem>
+                <ToggleGroupItem value="historical">史実馬</ToggleGroupItem>
+              </ToggleGroup>
             </div>
             <div>
               <Label htmlFor="edit-horse-mare-line">牝系</Label>
