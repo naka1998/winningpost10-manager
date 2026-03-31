@@ -84,8 +84,8 @@ const defaultRaw: Record<string, string> = {
 async function renderAndWait() {
   const { SettingsPage } = await import('./SettingsPage');
   render(<SettingsPage />);
-  // Wait for settings to load
-  await screen.findByText('設定');
+  // Wait for settings to fully load (this element only appears after loading completes)
+  await screen.findByLabelText('現在の年度');
 }
 
 describe('SettingsPage', () => {
