@@ -750,7 +750,7 @@ export function HorseDetailPage() {
   const [sire, setSire] = useState<Horse | null>(null);
   const [dam, setDam] = useState<Horse | null>(null);
   const [lineage, setLineage] = useState<Lineage | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Dialog state
@@ -762,13 +762,12 @@ export function HorseDetailPage() {
   const id = Number(horseId);
 
   const loadData = useCallback(async () => {
-    setIsLoading(true);
     setError(null);
     try {
       const h = await horseRepository.findById(id);
       setHorse(h);
       if (!h) {
-        setIsLoading(false);
+        setIsInitialLoad(false);
         return;
       }
 
@@ -785,7 +784,7 @@ export function HorseDetailPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsLoading(false);
+      setIsInitialLoad(false);
     }
   }, [id, horseRepository, yearlyStatusRepository, lineageRepository]);
 
@@ -817,7 +816,7 @@ export function HorseDetailPage() {
     await loadData();
   };
 
-  if (isLoading) {
+  if (isInitialLoad) {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">読み込み中...</p>
