@@ -1,3 +1,4 @@
+import React from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -97,6 +98,48 @@ const mockLineageRepo = {
   create: vi.fn(),
   update: vi.fn(),
 };
+
+vi.mock('@/components/ui/select', () => {
+  function Select({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <SelectContext.Provider value={{ value, onValueChange }}>{children}</SelectContext.Provider>
+    );
+  }
+  const SelectContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
+  function SelectTrigger({ children }: { children: React.ReactNode }) {
+    return <>{children}</>;
+  }
+  function SelectValue({ placeholder }: { placeholder?: string }) {
+    const { value } = React.useContext(SelectContext);
+    return <span>{value || placeholder || ''}</span>;
+  }
+  function SelectContent({ children }: { children: React.ReactNode }) {
+    const { value, onValueChange } = React.useContext(SelectContext);
+    return (
+      <select
+        value={value}
+        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onValueChange?.(e.target.value)}
+      >
+        {children}
+      </select>
+    );
+  }
+  function SelectItem({ value, children }: { value: string; children: React.ReactNode }) {
+    return <option value={value}>{children}</option>;
+  }
+  return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
+});
 
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({

@@ -5,6 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -458,6 +465,7 @@ function HorseEditDialog({
   const [sex, setSex] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [country, setCountry] = useState('');
+  const [isHistorical, setIsHistorical] = useState(false);
   const [status, setStatus] = useState('');
   const [mareLine, setMareLine] = useState('');
   const [notes, setNotes] = useState('');
@@ -469,6 +477,7 @@ function HorseEditDialog({
     setSex(horse.sex ?? '');
     setBirthYear(horse.birthYear?.toString() ?? '');
     setCountry(horse.country ?? '');
+    setIsHistorical(horse.isHistorical);
     setStatus(horse.status);
     setMareLine(horse.mareLine ?? '');
     setNotes(horse.notes ?? '');
@@ -486,6 +495,7 @@ function HorseEditDialog({
         sex: sex || null,
         birthYear: birthYear ? Number(birthYear) : null,
         country: country || null,
+        isHistorical,
         status,
         mareLine: mareLine || null,
         notes: notes || null,
@@ -516,18 +526,17 @@ function HorseEditDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="edit-horse-sex">性別</Label>
-              <select
-                id="edit-horse-sex"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={sex}
-                onChange={(e) => setSex(e.target.value)}
-              >
-                <option value="">未設定</option>
-                <option value="牡">牡</option>
-                <option value="牝">牝</option>
-                <option value="セン">セン</option>
-              </select>
+              <Label>性別</Label>
+              <Select value={sex} onValueChange={setSex}>
+                <SelectTrigger>
+                  <SelectValue placeholder="未設定" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="牡">牡</SelectItem>
+                  <SelectItem value="牝">牝</SelectItem>
+                  <SelectItem value="セン">セン</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="edit-horse-birth-year">生年</Label>
@@ -541,42 +550,58 @@ function HorseEditDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="edit-horse-country">国</Label>
-              <select
-                id="edit-horse-country"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              >
-                <option value="">未設定</option>
-                <option value="日">日</option>
-                <option value="米">米</option>
-                <option value="欧">欧</option>
-              </select>
+              <Label>国</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger>
+                  <SelectValue placeholder="未設定" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="日">日</SelectItem>
+                  <SelectItem value="米">米</SelectItem>
+                  <SelectItem value="欧">欧</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label htmlFor="edit-horse-status">ステータス</Label>
-              <select
-                id="edit-horse-status"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="現役">現役</option>
-                <option value="繁殖牝馬">繁殖牝馬</option>
-                <option value="種牡馬">種牡馬</option>
-                <option value="引退">引退</option>
-                <option value="売却済">売却済</option>
-              </select>
+              <Label>ステータス</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="現役">現役</SelectItem>
+                  <SelectItem value="繁殖牝馬">繁殖牝馬</SelectItem>
+                  <SelectItem value="種牡馬">種牡馬</SelectItem>
+                  <SelectItem value="引退">引退</SelectItem>
+                  <SelectItem value="売却済">売却済</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <div>
-            <Label htmlFor="edit-horse-mare-line">牝系</Label>
-            <Input
-              id="edit-horse-mare-line"
-              value={mareLine}
-              onChange={(e) => setMareLine(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>区分</Label>
+              <Select
+                value={isHistorical ? 'historical' : 'homebred'}
+                onValueChange={(v) => setIsHistorical(v === 'historical')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="homebred">自家生産馬</SelectItem>
+                  <SelectItem value="historical">史実馬</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-horse-mare-line">牝系</Label>
+              <Input
+                id="edit-horse-mare-line"
+                value={mareLine}
+                onChange={(e) => setMareLine(e.target.value)}
+              />
+            </div>
           </div>
           <div>
             <Label htmlFor="edit-horse-notes">備考</Label>
@@ -758,6 +783,17 @@ export function HorseDetailPage() {
   const [lineage, setLineage] = useState<Lineage | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(!cachedHorse);
   const [error, setError] = useState<string | null>(null);
+
+  // 同一ルート内のパラメータ変更遷移（詳細→詳細）でステートをリセット
+  useEffect(() => {
+    setHorse(cachedHorse);
+    setYearlyStatuses([]);
+    setSire(null);
+    setDam(null);
+    setLineage(null);
+    setIsInitialLoad(!cachedHorse);
+    setError(null);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
