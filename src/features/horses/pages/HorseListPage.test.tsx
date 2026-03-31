@@ -1,3 +1,4 @@
+import React from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,9 +83,117 @@ const mockLineageRepo = {
   update: vi.fn(),
 };
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+    ...props
+  }: {
+    children: React.ReactNode;
+    to: string;
+    params?: Record<string, unknown>;
+    [key: string]: unknown;
+  }) => {
+    let href = to;
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        href = href.replace(`$${key}`, String(value));
+      }
+    }
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  },
+}));
+
+vi.mock('@/components/ui/toggle-group', () => {
+  const ToggleGroupContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
+  function ToggleGroup({
+    value,
+    onValueChange,
+    children,
+  }: {
+    type: string;
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <ToggleGroupContext.Provider value={{ value, onValueChange }}>
+        <div role="group" data-value={value}>
+          {children}
+        </div>
+      </ToggleGroupContext.Provider>
+    );
+  }
+  function ToggleGroupItem({ value, children }: { value: string; children: React.ReactNode }) {
+    const ctx = React.useContext(ToggleGroupContext);
+    return (
+      <button
+        type="button"
+        data-value={value}
+        data-state={ctx.value === value ? 'on' : 'off'}
+        onClick={() => ctx.onValueChange?.(value)}
+      >
+        {children}
+      </button>
+    );
+  }
+  return { ToggleGroup, ToggleGroupItem };
+});
+
+vi.mock('@/components/ui/select', () => {
+  function Select({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <SelectContext.Provider value={{ value, onValueChange }}>{children}</SelectContext.Provider>
+    );
+  }
+  const SelectContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
+  function SelectTrigger({ children }: { children: React.ReactNode }) {
+    return <>{children}</>;
+  }
+  function SelectValue({ placeholder }: { placeholder?: string }) {
+    const { value } = React.useContext(SelectContext);
+    return <span>{value || placeholder || ''}</span>;
+  }
+  function SelectContent({ children }: { children: React.ReactNode }) {
+    const { value, onValueChange } = React.useContext(SelectContext);
+    return (
+      <select
+        value={value}
+        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onValueChange?.(e.target.value)}
+      >
+        {children}
+      </select>
+    );
+  }
+  function SelectItem({ value, children }: { value: string; children: React.ReactNode }) {
+    return <option value={value}>{children}</option>;
+  }
+  return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
+});
+
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({
     horseRepository: mockHorseRepo,
+    yearlyStatusRepository: {},
     lineageRepository: mockLineageRepo,
   }),
 }));
@@ -195,7 +304,7 @@ describe('HorseListPage', () => {
 
     const dialog = screen.getByRole('dialog');
     await user.type(within(dialog).getByLabelText('馬名'), '新しい馬');
-    await user.selectOptions(within(dialog).getByLabelText('性別'), '牡');
+    // 性別はデフォルト「牡」、国はデフォルト「日」
     await user.type(within(dialog).getByLabelText('生年'), '2023');
     await user.click(within(dialog).getByRole('button', { name: '登録' }));
 
@@ -240,10 +349,12 @@ describe('HorseListPage', () => {
   });
 
   it('フィルタでステータス絞り込みができる', async () => {
-    const user = userEvent.setup();
     await renderAndWait();
 
-    await user.selectOptions(screen.getByLabelText('ステータス'), '現役');
+    // フィルタバー内のステータスselect（初期値 'all'）を変更
+    const selects = screen.getAllByRole('combobox');
+    const statusSelect = selects.find((s) => s.querySelector('option[value="現役"]'));
+    fireEvent.change(statusSelect!, { target: { value: '現役' } });
     expect(useHorseStore.getState().filter.status).toBe('現役');
     // loadHorses がフィルタ変更後に再呼び出しされる（初回 loadData + filter effect + filter変更後）
     expect(mockFindAll.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -253,15 +364,20 @@ describe('HorseListPage', () => {
     const user = userEvent.setup();
     await renderAndWait();
 
-    await user.selectOptions(screen.getByLabelText('性別フィルタ'), '牡');
+    // 性別フィルタはToggleGroup形式 — フィルタバー内の「牡」ボタンをクリック
+    const groups = screen.getAllByRole('group');
+    const sexGroup = groups.find((g) => g.querySelector('[data-value="牡"]'));
+    const maleButton = within(sexGroup!).getByText('牡');
+    await user.click(maleButton);
     expect(useHorseStore.getState().filter.sex).toBe('牡');
   });
 
   it('フィルタで系統絞り込みができる', async () => {
-    const user = userEvent.setup();
     await renderAndWait();
 
-    await user.selectOptions(screen.getByLabelText('系統フィルタ'), '10');
+    const selects = screen.getAllByRole('combobox');
+    const lineageSelect = selects.find((s) => s.querySelector('option[value="10"]'));
+    fireEvent.change(lineageSelect!, { target: { value: '10' } });
     expect(useHorseStore.getState().filter.lineageId).toBe(10);
   });
 
@@ -280,10 +396,11 @@ describe('HorseListPage', () => {
   });
 
   it('ソート切り替えができる', async () => {
-    const user = userEvent.setup();
     await renderAndWait();
 
-    await user.selectOptions(screen.getByLabelText('ソート'), 'birth_year');
+    const selects = screen.getAllByRole('combobox');
+    const sortSelect = selects.find((s) => s.querySelector('option[value="birth_year"]'));
+    fireEvent.change(sortSelect!, { target: { value: 'birth_year' } });
     expect(useHorseStore.getState().filter.sortBy).toBe('birth_year');
   });
 

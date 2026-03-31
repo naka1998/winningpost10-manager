@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useRepositoryContext } from '@/app/repository-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Dialog,
   DialogContent,
@@ -26,7 +35,6 @@ import type { Horse, HorseCreateInput, HorseUpdateInput } from '../types';
 import type { Lineage } from '@/features/lineages/types';
 
 const STATUS_OPTIONS = ['', '現役', '繁殖牝馬', '種牡馬', '引退', '売却済'] as const;
-const SEX_OPTIONS = ['', '牡', '牝', 'セン'] as const;
 const SORT_OPTIONS = [
   { value: 'name', label: '馬名' },
   { value: 'birth_year', label: '生年' },
@@ -84,9 +92,9 @@ function HorseFormDialog({
       setNotes(editTarget.notes ?? '');
     } else {
       setName('');
-      setSex('');
+      setSex('牡');
       setBirthYear('');
-      setCountry('');
+      setCountry('日');
       setStatus('現役');
       setLineageId('');
       setNotes('');
@@ -141,18 +149,11 @@ function HorseFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="horse-sex">性別</Label>
-              <select
-                id="horse-sex"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={sex}
-                onChange={(e) => setSex(e.target.value)}
-              >
-                <option value="">未設定</option>
-                <option value="牡">牡</option>
-                <option value="牝">牝</option>
-                <option value="セン">セン</option>
-              </select>
+              <Label>性別</Label>
+              <ToggleGroup type="single" value={sex} onValueChange={(v) => v && setSex(v)}>
+                <ToggleGroupItem value="牡">牡</ToggleGroupItem>
+                <ToggleGroupItem value="牝">牝</ToggleGroupItem>
+              </ToggleGroup>
             </div>
             <div>
               <Label htmlFor="horse-birth-year">生年</Label>
@@ -166,50 +167,43 @@ function HorseFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="horse-country">国</Label>
-              <select
-                id="horse-country"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              >
-                <option value="">未設定</option>
-                <option value="日">日</option>
-                <option value="米">米</option>
-                <option value="欧">欧</option>
-              </select>
+              <Label>国</Label>
+              <ToggleGroup type="single" value={country} onValueChange={(v) => v && setCountry(v)}>
+                <ToggleGroupItem value="日">日</ToggleGroupItem>
+                <ToggleGroupItem value="米">米</ToggleGroupItem>
+                <ToggleGroupItem value="欧">欧</ToggleGroupItem>
+              </ToggleGroup>
             </div>
             <div>
-              <Label htmlFor="horse-status">ステータス</Label>
-              <select
-                id="horse-status"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="現役">現役</option>
-                <option value="繁殖牝馬">繁殖牝馬</option>
-                <option value="種牡馬">種牡馬</option>
-                <option value="引退">引退</option>
-                <option value="売却済">売却済</option>
-              </select>
+              <Label>ステータス</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="現役">現役</SelectItem>
+                  <SelectItem value="繁殖牝馬">繁殖牝馬</SelectItem>
+                  <SelectItem value="種牡馬">種牡馬</SelectItem>
+                  <SelectItem value="引退">引退</SelectItem>
+                  <SelectItem value="売却済">売却済</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div>
-            <Label htmlFor="horse-lineage">系統</Label>
-            <select
-              id="horse-lineage"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              value={lineageId}
-              onChange={(e) => setLineageId(e.target.value)}
-            >
-              <option value="">未設定</option>
-              {lineages.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+            <Label>系統</Label>
+            <Select value={lineageId} onValueChange={setLineageId}>
+              <SelectTrigger>
+                <SelectValue placeholder="未設定" />
+              </SelectTrigger>
+              <SelectContent>
+                {lineages.map((l) => (
+                  <SelectItem key={l.id} value={String(l.id)}>
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor="horse-notes">備考</Label>
@@ -351,50 +345,54 @@ export function HorseListPage() {
       {/* Filter Bar */}
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div>
-          <Label htmlFor="filter-status">ステータス</Label>
-          <select
-            id="filter-status"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            value={filter.status ?? ''}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
+          <Label>ステータス</Label>
+          <Select
+            value={filter.status ?? 'all'}
+            onValueChange={(v) => handleFilterChange('status', v === 'all' ? '' : v)}
           >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s || 'すべて'}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">すべて</SelectItem>
+              {STATUS_OPTIONS.filter(Boolean).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
-          <Label htmlFor="filter-sex">性別フィルタ</Label>
-          <select
-            id="filter-sex"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            value={filter.sex ?? ''}
-            onChange={(e) => handleFilterChange('sex', e.target.value)}
+          <Label>性別フィルタ</Label>
+          <ToggleGroup
+            type="single"
+            value={filter.sex ?? 'all'}
+            onValueChange={(v) => handleFilterChange('sex', v === 'all' ? '' : v)}
           >
-            {SEX_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s || 'すべて'}
-              </option>
-            ))}
-          </select>
+            <ToggleGroupItem value="all">すべて</ToggleGroupItem>
+            <ToggleGroupItem value="牡">牡</ToggleGroupItem>
+            <ToggleGroupItem value="牝">牝</ToggleGroupItem>
+          </ToggleGroup>
         </div>
         <div>
-          <Label htmlFor="filter-lineage">系統フィルタ</Label>
-          <select
-            id="filter-lineage"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            value={filter.lineageId?.toString() ?? ''}
-            onChange={(e) => handleFilterChange('lineageId', e.target.value)}
+          <Label>系統フィルタ</Label>
+          <Select
+            value={filter.lineageId?.toString() ?? 'all'}
+            onValueChange={(v) => handleFilterChange('lineageId', v === 'all' ? '' : v)}
           >
-            <option value="">すべて</option>
-            {allLineages.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">すべて</SelectItem>
+              {allLineages.map((l) => (
+                <SelectItem key={l.id} value={String(l.id)}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label htmlFor="filter-birth-year-from">生年（から）</Label>
@@ -417,19 +415,22 @@ export function HorseListPage() {
           />
         </div>
         <div>
-          <Label htmlFor="filter-sort">ソート</Label>
-          <select
-            id="filter-sort"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+          <Label>ソート</Label>
+          <Select
             value={filter.sortBy ?? 'name'}
-            onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+            onValueChange={(v) => handleFilterChange('sortBy', v)}
           >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -453,9 +454,13 @@ export function HorseListPage() {
             {horses.map((horse) => (
               <TableRow key={horse.id}>
                 <TableCell>
-                  <a href={`/horses/${horse.id}`} className="text-blue-600 hover:underline">
+                  <Link
+                    to="/horses/$horseId"
+                    params={{ horseId: horse.id }}
+                    className="text-blue-600 hover:underline"
+                  >
                     {horse.name}
-                  </a>
+                  </Link>
                 </TableCell>
                 <TableCell>{horse.sex ?? '-'}</TableCell>
                 <TableCell>{horse.birthYear ?? '-'}</TableCell>
