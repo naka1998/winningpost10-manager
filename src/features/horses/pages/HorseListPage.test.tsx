@@ -82,6 +82,32 @@ const mockLineageRepo = {
   update: vi.fn(),
 };
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    to,
+    params,
+    ...props
+  }: {
+    children: React.ReactNode;
+    to: string;
+    params?: Record<string, unknown>;
+    [key: string]: unknown;
+  }) => {
+    let href = to;
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        href = href.replace(`$${key}`, String(value));
+      }
+    }
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  },
+}));
+
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({
     horseRepository: mockHorseRepo,

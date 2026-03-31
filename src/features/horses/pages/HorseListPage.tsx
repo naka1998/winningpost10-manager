@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useRepositoryContext } from '@/app/repository-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -453,9 +454,13 @@ export function HorseListPage() {
             {horses.map((horse) => (
               <TableRow key={horse.id}>
                 <TableCell>
-                  <a href={`/horses/${horse.id}`} className="text-blue-600 hover:underline">
+                  <Link
+                    to="/horses/$horseId"
+                    params={{ horseId: horse.id }}
+                    className="text-blue-600 hover:underline"
+                  >
                     {horse.name}
-                  </a>
+                  </Link>
                 </TableCell>
                 <TableCell>{horse.sex ?? '-'}</TableCell>
                 <TableCell>{horse.birthYear ?? '-'}</TableCell>
