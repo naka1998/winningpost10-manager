@@ -28,6 +28,7 @@ export function buildPedigreeRow(overrides?: Partial<PedigreeRow>): PedigreeRow 
   return {
     id: 1,
     name: 'テスト馬',
+    country: null,
     generation: 0,
     position: 'self',
     path: '',

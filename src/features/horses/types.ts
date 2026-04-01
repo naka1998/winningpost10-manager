@@ -152,6 +152,7 @@ export interface YearlyStatusUpdateInput {
 export interface PedigreeRow {
   id: number;
   name: string;
+  country: string | null;
   generation: number;
   position: string;
   path: string;
@@ -164,6 +165,7 @@ export interface PedigreeRow {
 export interface PedigreeNode {
   id: number;
   name: string;
+  country: string | null;
   generation: number;
   position: string;
   path: string;

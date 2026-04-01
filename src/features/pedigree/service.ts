@@ -77,6 +77,7 @@ export function buildPedigreeTree(rows: PedigreeRow[]): PedigreeNode {
     const node: PedigreeNode = {
       id: row.id,
       name: row.name,
+      country: row.country,
       generation: row.generation,
       position: row.position,
       path: row.path,

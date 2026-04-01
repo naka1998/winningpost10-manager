@@ -143,6 +143,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
           SELECT
             h.id,
             h.name,
+            h.country,
             h.sire_id,
             h.dam_id,
             h.lineage_id,
@@ -158,6 +159,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
           SELECT
             parent.id,
             parent.name,
+            parent.country,
             parent.sire_id,
             parent.dam_id,
             parent.lineage_id,
@@ -176,6 +178,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
           SELECT
             parent.id,
             parent.name,
+            parent.country,
             parent.sire_id,
             parent.dam_id,
             parent.lineage_id,
@@ -192,6 +195,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
         SELECT
           pe.id,
           pe.name,
+          pe.country,
           pe.generation,
           pe.position,
           pe.path,
