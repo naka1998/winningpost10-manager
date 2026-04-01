@@ -98,6 +98,36 @@ describe('HorseRepository', () => {
       expect(active[0].name).toBe('馬A');
     });
 
+    it('filters by multiple statuses', async () => {
+      await repo.create({ name: '馬A', birthYear: 2020, status: '現役' });
+      await repo.create({ name: '馬B', birthYear: 2021, status: '引退' });
+      await repo.create({ name: '馬C', birthYear: 2022, status: '売却済' });
+      await repo.create({ name: '馬D', birthYear: 2023, status: '種牡馬' });
+
+      const retired = await repo.findAll({ statuses: ['引退', '売却済'] });
+      expect(retired).toHaveLength(2);
+      expect(retired.map((h) => h.name).sort()).toEqual(['馬B', '馬C']);
+    });
+
+    it('statuses filter takes precedence over status filter', async () => {
+      await repo.create({ name: '馬A', birthYear: 2020, status: '現役' });
+      await repo.create({ name: '馬B', birthYear: 2021, status: '引退' });
+
+      const result = await repo.findAll({ status: '現役', statuses: ['引退'] });
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('馬B');
+    });
+
+    it('statuses filter combines with other filters', async () => {
+      await repo.create({ name: '馬A', birthYear: 2020, sex: '牡', status: '引退' });
+      await repo.create({ name: '馬B', birthYear: 2021, sex: '牝', status: '引退' });
+      await repo.create({ name: '馬C', birthYear: 2022, sex: '牡', status: '売却済' });
+
+      const result = await repo.findAll({ statuses: ['引退', '売却済'], sex: '牡' });
+      expect(result).toHaveLength(2);
+      expect(result.map((h) => h.name).sort()).toEqual(['馬A', '馬C']);
+    });
+
     it('filters by birth year range', async () => {
       await repo.create({ name: '馬A', birthYear: 2020, status: '現役' });
       await repo.create({ name: '馬B', birthYear: 2023, status: '現役' });
