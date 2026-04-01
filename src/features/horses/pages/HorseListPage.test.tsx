@@ -492,6 +492,11 @@ describe('HorseListPage', () => {
     expect(useHorseStore.getState().filter.sortBy).toBe('birth_year');
   });
 
+  it('初回マウントで findAll が1回だけ呼ばれる（並行アクセス防止）', async () => {
+    await renderAndWait();
+    expect(mockFindAll).toHaveBeenCalledTimes(1);
+  });
+
   it('ローディング状態が表示される', async () => {
     useHorseStore.setState({ isLoading: true, horses: [] });
     const { HorseListPage } = await import('./HorseListPage');

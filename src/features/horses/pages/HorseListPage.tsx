@@ -279,8 +279,6 @@ export function HorseListPage() {
     // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
     async function loadData() {
       await useLineageStore.getState().loadHierarchy(lineageRepository);
-      // デフォルトタブ「現役」のフィルタを設定
-      useHorseStore.getState().setFilter({ status: '現役', statuses: undefined });
       await useHorseStore.getState().loadHorses(horseRepository);
     }
     loadData();

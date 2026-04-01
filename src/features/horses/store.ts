@@ -19,7 +19,7 @@ export const useHorseStore = create<HorseState>((set, get) => ({
   horses: [],
   isLoading: false,
   error: null,
-  filter: {},
+  filter: { status: '現役' },
 
   async loadHorses(repo: HorseRepository) {
     set({ isLoading: true, error: null });
