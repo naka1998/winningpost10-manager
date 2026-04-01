@@ -149,20 +149,42 @@ describe('PedigreeGrid', () => {
     await renderGrid({ tree, viewMode: 'name' });
 
     expect(screen.getByText('父父')).toBeInTheDocument();
-    // Country flags for 米 should render (父父 and 父母 both have country='米')
-    expect(screen.getAllByText('🇺🇸').length).toBeGreaterThanOrEqual(1);
+    // 米 country horses: 父父, 父母 → exactly 2 US flags
+    expect(screen.getAllByText('🇺🇸')).toHaveLength(2);
+    // 欧 country horse: 母父 → exactly 1 EU flag
+    expect(screen.getAllByText('🇪🇺')).toHaveLength(1);
+    // 日 country horse: 母母 → exactly 1 JP flag
+    expect(screen.getAllByText('🇯🇵')).toHaveLength(1);
   });
 
-  it('name view shows country flag for 日', async () => {
-    const tree = buildNode({ id: 1, name: '本馬', country: '日' });
-    await renderGrid({ tree, viewMode: 'name' });
-    expect(screen.getByText('🇯🇵')).toBeInTheDocument();
+  it('name view shows each country flag correctly', async () => {
+    // Test each flag individually with a single-node tree
+    for (const [country, flag] of [
+      ['日', '🇯🇵'],
+      ['米', '🇺🇸'],
+      ['欧', '🇪🇺'],
+    ] as const) {
+      cleanup();
+      const { PedigreeGrid } = await import('./PedigreeGrid');
+      render(
+        <PedigreeGrid
+          tree={buildNode({ id: 1, name: `${country}の馬`, country })}
+          depth={4}
+          viewMode="name"
+          inbreeding={[]}
+        />,
+      );
+      expect(screen.getByText(flag)).toBeInTheDocument();
+    }
   });
 
-  it('name view shows country flag for 欧', async () => {
-    const tree = buildNode({ id: 1, name: '本馬', country: '欧' });
+  it('name view does not show flag when country is null', async () => {
+    const tree = buildNode({ id: 1, name: '無国籍馬', country: null });
     await renderGrid({ tree, viewMode: 'name' });
-    expect(screen.getByText('🇪🇺')).toBeInTheDocument();
+    expect(screen.getByText('無国籍馬')).toBeInTheDocument();
+    expect(screen.queryByText('🇯🇵')).not.toBeInTheDocument();
+    expect(screen.queryByText('🇺🇸')).not.toBeInTheDocument();
+    expect(screen.queryByText('🇪🇺')).not.toBeInTheDocument();
   });
 
   // Lineage view
