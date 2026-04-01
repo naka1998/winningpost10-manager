@@ -267,6 +267,14 @@ describe('PedigreePage', () => {
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
   });
 
+  it('displays error when horseId is missing', async () => {
+    mockHorseId = undefined as unknown as number;
+    const { PedigreePage } = await import('./PedigreePage');
+    render(<PedigreePage />);
+
+    await screen.findByText('馬IDが指定されていません');
+  });
+
   it('displays error state', async () => {
     mockGetAncestorRows.mockRejectedValue(new Error('データ取得に失敗しました'));
     const { PedigreePage } = await import('./PedigreePage');

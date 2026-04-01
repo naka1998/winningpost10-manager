@@ -22,7 +22,11 @@ export function PedigreePage() {
 
   const loadPedigree = useCallback(
     async (currentDepth: 4 | 5) => {
-      if (!horseId) return;
+      if (!horseId) {
+        setIsLoading(false);
+        setError('馬IDが指定されていません');
+        return;
+      }
       setIsLoading(true);
       setError(null);
       try {
