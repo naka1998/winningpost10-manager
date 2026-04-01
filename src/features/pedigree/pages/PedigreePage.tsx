@@ -96,6 +96,7 @@ export function PedigreePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{tree.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">※ この機能はおまけです</p>
           <Link
             to="/horses/$horseId"
             params={{ horseId: Number(horseId) }}

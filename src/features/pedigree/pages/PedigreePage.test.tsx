@@ -209,6 +209,7 @@ describe('PedigreePage', () => {
     await renderAndWait();
 
     expect(screen.getByRole('heading', { name: '本馬' })).toBeInTheDocument();
+    expect(screen.getByText('※ この機能はおまけです')).toBeInTheDocument();
     expect(screen.getAllByText('父').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('母').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId('pedigree-grid')).toBeInTheDocument();
