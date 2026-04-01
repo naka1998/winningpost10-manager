@@ -504,6 +504,15 @@ describe('HorseListPage', () => {
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
   });
 
+  it('データがある状態でローディング中でも「読み込み中」が表示されない', async () => {
+    useHorseStore.setState({ isLoading: true, horses });
+    const { HorseListPage } = await import('./HorseListPage');
+    render(<HorseListPage />);
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    // 前のデータが表示され続ける
+    expect(screen.getByText('ディープインパクト')).toBeInTheDocument();
+  });
+
   it('エラー状態が表示される', async () => {
     mockFindAll.mockRejectedValue(new Error('データ取得に失敗しました'));
     const { HorseListPage } = await import('./HorseListPage');

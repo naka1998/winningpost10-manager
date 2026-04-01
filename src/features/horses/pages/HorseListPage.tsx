@@ -342,7 +342,7 @@ export function HorseListPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && horses.length === 0) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold">馬一覧</h1>
