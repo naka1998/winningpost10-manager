@@ -48,6 +48,7 @@ export interface HorseUpdateInput {
 
 export interface HorseFilter {
   status?: string;
+  statuses?: string[];
   lineageId?: number;
   sex?: string;
   birthYearFrom?: number;

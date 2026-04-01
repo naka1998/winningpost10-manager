@@ -190,6 +190,88 @@ vi.mock('@/components/ui/select', () => {
   return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
 });
 
+vi.mock('@/components/ui/tabs', () => {
+  const TabsContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
+  function Tabs({
+    defaultValue,
+    value,
+    onValueChange,
+    children,
+    ...props
+  }: {
+    defaultValue?: string;
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const [internalValue, setInternalValue] = React.useState(defaultValue ?? '');
+    const currentValue = value ?? internalValue;
+    const handleChange = (v: string) => {
+      if (!value) setInternalValue(v);
+      onValueChange?.(v);
+    };
+    return (
+      <TabsContext.Provider value={{ value: currentValue, onValueChange: handleChange }}>
+        <div data-testid="tabs" {...props}>
+          {children}
+        </div>
+      </TabsContext.Provider>
+    );
+  }
+  function TabsList({ children, ...props }: { children: React.ReactNode; className?: string }) {
+    return (
+      <div role="tablist" {...props}>
+        {children}
+      </div>
+    );
+  }
+  function TabsTrigger({
+    value,
+    children,
+    ...props
+  }: {
+    value: string;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const ctx = React.useContext(TabsContext);
+    return (
+      <button
+        type="button"
+        role="tab"
+        data-state={ctx.value === value ? 'active' : 'inactive'}
+        aria-selected={ctx.value === value}
+        onClick={() => ctx.onValueChange?.(value)}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+  function TabsContent({
+    value,
+    children,
+    ...props
+  }: {
+    value: string;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const ctx = React.useContext(TabsContext);
+    if (ctx.value !== value) return null;
+    return (
+      <div role="tabpanel" data-value={value} {...props}>
+        {children}
+      </div>
+    );
+  }
+  return { Tabs, TabsList, TabsTrigger, TabsContent };
+});
+
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({
     horseRepository: mockHorseRepo,
@@ -227,6 +309,24 @@ describe('HorseListPage', () => {
       status: '現役',
       lineageId: null,
     }),
+    createTestHorse({
+      id: 4,
+      name: 'オルフェーヴル',
+      sex: '牡',
+      birthYear: 2008,
+      country: '日',
+      status: '引退',
+      lineageId: 10,
+    }),
+    createTestHorse({
+      id: 5,
+      name: 'ジェンティルドンナ',
+      sex: '牝',
+      birthYear: 2009,
+      country: '日',
+      status: '売却済',
+      lineageId: null,
+    }),
   ];
   const hierarchy = createTestLineageHierarchy();
 
@@ -241,7 +341,7 @@ describe('HorseListPage', () => {
       horses: [],
       isLoading: false,
       error: null,
-      filter: {},
+      filter: { status: '現役' },
     });
     useLineageStore.setState({
       hierarchy: [],
@@ -348,18 +448,6 @@ describe('HorseListPage', () => {
     expect(mockDelete).toHaveBeenCalledWith(1);
   });
 
-  it('フィルタでステータス絞り込みができる', async () => {
-    await renderAndWait();
-
-    // フィルタバー内のステータスselect（初期値 'all'）を変更
-    const selects = screen.getAllByRole('combobox');
-    const statusSelect = selects.find((s) => s.querySelector('option[value="現役"]'));
-    fireEvent.change(statusSelect!, { target: { value: '現役' } });
-    expect(useHorseStore.getState().filter.status).toBe('現役');
-    // loadHorses がフィルタ変更後に再呼び出しされる（初回 loadData + filter effect + filter変更後）
-    expect(mockFindAll.mock.calls.length).toBeGreaterThanOrEqual(2);
-  });
-
   it('フィルタで性別絞り込みができる', async () => {
     const user = userEvent.setup();
     await renderAndWait();
@@ -437,5 +525,83 @@ describe('HorseListPage', () => {
 
     await screen.findByText('UNIQUE constraint failed');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  describe('タブ切り替え', () => {
+    it('4つのタブ（現役・引退・種牡馬・繁殖牝馬）が表示される', async () => {
+      await renderAndWait();
+
+      const tabs = screen.getAllByRole('tab');
+      const tabTexts = tabs.map((t) => t.textContent);
+      expect(tabTexts).toContain('現役');
+      expect(tabTexts).toContain('引退');
+      expect(tabTexts).toContain('種牡馬');
+      expect(tabTexts).toContain('繁殖牝馬');
+    });
+
+    it('デフォルトで「現役」タブがアクティブ', async () => {
+      await renderAndWait();
+
+      const activeTab = screen.getByRole('tab', { name: '現役' });
+      expect(activeTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('「引退」タブクリックで statuses フィルタが設定される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      await user.click(screen.getByRole('tab', { name: '引退' }));
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.statuses).toEqual(
+        expect.arrayContaining(['引退', '種牡馬', '繁殖牝馬', '売却済']),
+      );
+      expect(filter.status).toBeUndefined();
+    });
+
+    it('「種牡馬」タブクリックで status フィルタが設定される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      await user.click(screen.getByRole('tab', { name: '種牡馬' }));
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.status).toBe('種牡馬');
+      expect(filter.statuses).toBeUndefined();
+    });
+
+    it('「繁殖牝馬」タブクリックで status フィルタが設定される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      await user.click(screen.getByRole('tab', { name: '繁殖牝馬' }));
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.status).toBe('繁殖牝馬');
+      expect(filter.statuses).toBeUndefined();
+    });
+
+    it('「現役」タブクリックで status フィルタが設定される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      // まず別のタブに切替
+      await user.click(screen.getByRole('tab', { name: '種牡馬' }));
+      // 現役に戻る
+      await user.click(screen.getByRole('tab', { name: '現役' }));
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.status).toBe('現役');
+      expect(filter.statuses).toBeUndefined();
+    });
+
+    it('ステータスフィルタのドロップダウンが表示されない', async () => {
+      await renderAndWait();
+
+      // ステータスドロップダウンに存在していた「すべて」のoption(ステータス)は無い
+      const selects = screen.getAllByRole('combobox');
+      const statusSelect = selects.find((s) => s.querySelector('option[value="現役"]'));
+      expect(statusSelect).toBeUndefined();
+    });
   });
 });

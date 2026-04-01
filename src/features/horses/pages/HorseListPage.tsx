@@ -28,13 +28,28 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useHorseStore } from '../store';
 import { useLineageStore } from '@/features/lineages/store';
 import type { Horse, HorseCreateInput, HorseUpdateInput } from '../types';
 import type { Lineage } from '@/features/lineages/types';
 
-const STATUS_OPTIONS = ['', '現役', '繁殖牝馬', '種牡馬', '引退', '売却済'] as const;
+const TAB_DEFINITIONS = [
+  { value: 'active', label: '現役', filter: { status: '現役', statuses: undefined } },
+  {
+    value: 'retired',
+    label: '引退',
+    filter: { status: undefined, statuses: ['引退', '種牡馬', '繁殖牝馬', '売却済'] },
+  },
+  { value: 'stallion', label: '種牡馬', filter: { status: '種牡馬', statuses: undefined } },
+  {
+    value: 'broodmare',
+    label: '繁殖牝馬',
+    filter: { status: '繁殖牝馬', statuses: undefined },
+  },
+] as const;
+
 const SORT_OPTIONS = [
   { value: 'name', label: '馬名' },
   { value: 'birth_year', label: '生年' },
@@ -264,6 +279,8 @@ export function HorseListPage() {
     // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
     async function loadData() {
       await useLineageStore.getState().loadHierarchy(lineageRepository);
+      // デフォルトタブ「現役」のフィルタを設定
+      useHorseStore.getState().setFilter({ status: '現役', statuses: undefined });
       await useHorseStore.getState().loadHorses(horseRepository);
     }
     loadData();
@@ -304,6 +321,16 @@ export function HorseListPage() {
     setDeleteTarget(null);
   };
 
+  const handleTabChange = (tabValue: string) => {
+    const tab = TAB_DEFINITIONS.find((t) => t.value === tabValue);
+    if (!tab) return;
+    const store = useHorseStore.getState();
+    store.setFilter({
+      status: tab.filter.status,
+      statuses: tab.filter.statuses as string[] | undefined,
+    });
+  };
+
   const handleFilterChange = (key: string, value: string) => {
     const store = useHorseStore.getState();
     if (key === 'birthYearFrom' || key === 'birthYearTo' || key === 'lineageId') {
@@ -335,6 +362,142 @@ export function HorseListPage() {
     );
   }
 
+  // Determine current tab from filter state
+  const currentTab =
+    TAB_DEFINITIONS.find((t) => {
+      if (t.filter.statuses) {
+        return filter.statuses && filter.statuses.length > 0;
+      }
+      return filter.status === t.filter.status && !filter.statuses;
+    })?.value ?? 'active';
+
+  const filterBar = (
+    <div className="mb-4 flex flex-wrap items-end gap-4">
+      <div>
+        <Label>性別フィルタ</Label>
+        <ToggleGroup
+          type="single"
+          value={filter.sex ?? 'all'}
+          onValueChange={(v) => handleFilterChange('sex', v === 'all' ? '' : v)}
+        >
+          <ToggleGroupItem value="all">すべて</ToggleGroupItem>
+          <ToggleGroupItem value="牡">牡</ToggleGroupItem>
+          <ToggleGroupItem value="牝">牝</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+      <div>
+        <Label>系統フィルタ</Label>
+        <Select
+          value={filter.lineageId?.toString() ?? 'all'}
+          onValueChange={(v) => handleFilterChange('lineageId', v === 'all' ? '' : v)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">すべて</SelectItem>
+            {allLineages.map((l) => (
+              <SelectItem key={l.id} value={String(l.id)}>
+                {l.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="filter-birth-year-from">生年（から）</Label>
+        <Input
+          id="filter-birth-year-from"
+          type="number"
+          placeholder="例: 2000"
+          value={filter.birthYearFrom?.toString() ?? ''}
+          onChange={(e) => handleFilterChange('birthYearFrom', e.target.value)}
+        />
+      </div>
+      <div>
+        <Label htmlFor="filter-birth-year-to">生年（まで）</Label>
+        <Input
+          id="filter-birth-year-to"
+          type="number"
+          placeholder="例: 2025"
+          value={filter.birthYearTo?.toString() ?? ''}
+          onChange={(e) => handleFilterChange('birthYearTo', e.target.value)}
+        />
+      </div>
+      <div>
+        <Label>ソート</Label>
+        <Select
+          value={filter.sortBy ?? 'name'}
+          onValueChange={(v) => handleFilterChange('sortBy', v)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const horseTable =
+    horses.length === 0 ? (
+      <p className="py-8 text-center text-muted-foreground">馬が登録されていません</p>
+    ) : (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>馬名</TableHead>
+            <TableHead>性別</TableHead>
+            <TableHead>生年</TableHead>
+            <TableHead>国</TableHead>
+            <TableHead>系統</TableHead>
+            <TableHead>ステータス</TableHead>
+            <TableHead className="w-24">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {horses.map((horse) => (
+            <TableRow key={horse.id}>
+              <TableCell>
+                <Link
+                  to="/horses/$horseId"
+                  params={{ horseId: horse.id }}
+                  className="text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  {horse.name}
+                </Link>
+              </TableCell>
+              <TableCell>{horse.sex ?? '-'}</TableCell>
+              <TableCell>{horse.birthYear ?? '-'}</TableCell>
+              <TableCell>{horse.country ?? '-'}</TableCell>
+              <TableCell>
+                {horse.lineageId ? (lineageMap.get(horse.lineageId) ?? '-') : '-'}
+              </TableCell>
+              <TableCell>
+                <Badge className={statusBadgeClass(horse.status)}>{horse.status}</Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => handleEdit(horse)}>
+                    編集
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(horse)}>
+                    削除
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -342,150 +505,21 @@ export function HorseListPage() {
         <Button onClick={handleCreate}>新規登録</Button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        <div>
-          <Label>ステータス</Label>
-          <Select
-            value={filter.status ?? 'all'}
-            onValueChange={(v) => handleFilterChange('status', v === 'all' ? '' : v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">すべて</SelectItem>
-              {STATUS_OPTIONS.filter(Boolean).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>性別フィルタ</Label>
-          <ToggleGroup
-            type="single"
-            value={filter.sex ?? 'all'}
-            onValueChange={(v) => handleFilterChange('sex', v === 'all' ? '' : v)}
-          >
-            <ToggleGroupItem value="all">すべて</ToggleGroupItem>
-            <ToggleGroupItem value="牡">牡</ToggleGroupItem>
-            <ToggleGroupItem value="牝">牝</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        <div>
-          <Label>系統フィルタ</Label>
-          <Select
-            value={filter.lineageId?.toString() ?? 'all'}
-            onValueChange={(v) => handleFilterChange('lineageId', v === 'all' ? '' : v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">すべて</SelectItem>
-              {allLineages.map((l) => (
-                <SelectItem key={l.id} value={String(l.id)}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="filter-birth-year-from">生年（から）</Label>
-          <Input
-            id="filter-birth-year-from"
-            type="number"
-            placeholder="例: 2000"
-            value={filter.birthYearFrom?.toString() ?? ''}
-            onChange={(e) => handleFilterChange('birthYearFrom', e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="filter-birth-year-to">生年（まで）</Label>
-          <Input
-            id="filter-birth-year-to"
-            type="number"
-            placeholder="例: 2025"
-            value={filter.birthYearTo?.toString() ?? ''}
-            onChange={(e) => handleFilterChange('birthYearTo', e.target.value)}
-          />
-        </div>
-        <div>
-          <Label>ソート</Label>
-          <Select
-            value={filter.sortBy ?? 'name'}
-            onValueChange={(v) => handleFilterChange('sortBy', v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Table */}
-      {horses.length === 0 ? (
-        <p className="py-8 text-center text-muted-foreground">馬が登録されていません</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>馬名</TableHead>
-              <TableHead>性別</TableHead>
-              <TableHead>生年</TableHead>
-              <TableHead>国</TableHead>
-              <TableHead>系統</TableHead>
-              <TableHead>ステータス</TableHead>
-              <TableHead className="w-24">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {horses.map((horse) => (
-              <TableRow key={horse.id}>
-                <TableCell>
-                  <Link
-                    to="/horses/$horseId"
-                    params={{ horseId: horse.id }}
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    {horse.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{horse.sex ?? '-'}</TableCell>
-                <TableCell>{horse.birthYear ?? '-'}</TableCell>
-                <TableCell>{horse.country ?? '-'}</TableCell>
-                <TableCell>
-                  {horse.lineageId ? (lineageMap.get(horse.lineageId) ?? '-') : '-'}
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusBadgeClass(horse.status)}>{horse.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(horse)}>
-                      編集
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(horse)}>
-                      削除
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <Tabs value={currentTab} onValueChange={handleTabChange}>
+        <TabsList>
+          {TAB_DEFINITIONS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {TAB_DEFINITIONS.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value}>
+            {filterBar}
+            {horseTable}
+          </TabsContent>
+        ))}
+      </Tabs>
 
       <HorseFormDialog
         open={dialogOpen}

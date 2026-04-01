@@ -74,7 +74,11 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
       const conditions: string[] = [];
       const params: unknown[] = [];
 
-      if (filter?.status) {
+      if (filter?.statuses && filter.statuses.length > 0) {
+        const placeholders = filter.statuses.map(() => '?').join(', ');
+        conditions.push(`status IN (${placeholders})`);
+        params.push(...filter.statuses);
+      } else if (filter?.status) {
         conditions.push('status = ?');
         params.push(filter.status);
       }
