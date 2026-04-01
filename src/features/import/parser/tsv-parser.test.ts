@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTsv } from './tsv-parser';
+import { parseTsv, decodeWithAutoDetect } from './tsv-parser';
 
 // Real TSV data from the user (header + 3 representative rows)
 const HEADER =
@@ -174,6 +174,31 @@ describe('parseTsv', () => {
     it('returns no warnings for valid data', () => {
       const result = parseTsv(TEST_TSV, IMPORT_YEAR);
       expect(result.warnings).toHaveLength(0);
+    });
+  });
+
+  describe('decodeWithAutoDetect', () => {
+    it('decodes UTF-8 buffer correctly', () => {
+      const content = '馬名\t国\t年\nテスト馬\t日\t3';
+      const buffer = new TextEncoder().encode(content).buffer as ArrayBuffer;
+      const result = decodeWithAutoDetect(buffer);
+      expect(result).toContain('馬名');
+      expect(result).toContain('テスト馬');
+    });
+
+    it('decodes Shift-JIS buffer correctly', () => {
+      // "馬名\t国\n" in Shift-JIS
+      const sjisBytes = new Uint8Array([0x94, 0x6e, 0x96, 0xbc, 0x09, 0x8d, 0x91, 0x0a]);
+      const result = decodeWithAutoDetect(sjisBytes.buffer as ArrayBuffer);
+      expect(result).toContain('馬名');
+      expect(result).toContain('国');
+    });
+
+    it('falls back to UTF-8 for unknown encoding', () => {
+      const content = 'unknown\theader\ndata\tvalue';
+      const buffer = new TextEncoder().encode(content).buffer as ArrayBuffer;
+      const result = decodeWithAutoDetect(buffer);
+      expect(result).toBe(content);
     });
   });
 

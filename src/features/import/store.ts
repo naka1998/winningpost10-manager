@@ -55,8 +55,8 @@ export const useImportStore = create<ImportState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const content = await file.text();
-      const { parseTsv } = await import('./parser');
+      const { parseTsv, readFileAsText } = await import('./parser');
+      const content = await readFileAsText(file);
       const parseResult = parseTsv(content, importYear);
       set({ parseResult, importYear, isLoading: false });
     } catch (err) {

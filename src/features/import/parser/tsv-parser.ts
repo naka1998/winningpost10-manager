@@ -10,6 +10,46 @@ import {
   extractTraits,
 } from './value-extractor';
 
+const HEADER_MARKER = '馬名';
+
+/**
+ * Read a File as text, auto-detecting Shift-JIS vs UTF-8 encoding.
+ * 読専 outputs Shift-JIS; we try UTF-8 first, then fall back to Shift-JIS.
+ */
+export async function readFileAsText(file: File): Promise<string> {
+  const buffer = await readAsArrayBuffer(file);
+  return decodeWithAutoDetect(buffer);
+}
+
+/** Decode an ArrayBuffer, auto-detecting UTF-8 vs Shift-JIS. */
+export function decodeWithAutoDetect(buffer: ArrayBuffer): string {
+  // Try UTF-8 first
+  const utf8 = new TextDecoder('utf-8').decode(buffer);
+  const firstLine = utf8.split(/\r?\n/)[0];
+  if (firstLine.includes(HEADER_MARKER)) {
+    return utf8;
+  }
+
+  // Fall back to Shift-JIS
+  const sjis = new TextDecoder('shift_jis').decode(buffer);
+  const firstLineSjis = sjis.split(/\r?\n/)[0];
+  if (firstLineSjis.includes(HEADER_MARKER)) {
+    return sjis;
+  }
+
+  // Neither matched — return UTF-8 as default (parser will produce warnings)
+  return utf8;
+}
+
+function readAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 export function parseTsv(tsvContent: string, importYear: number): ParseResult {
   const rows: ParsedHorseRow[] = [];
   const warnings: ParseWarning[] = [];
