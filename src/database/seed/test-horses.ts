@@ -430,6 +430,299 @@ export async function seedTestHorses(db: DatabaseConnection): Promise<number> {
       },
     ];
 
+    // --- ドウデュース・アーバンシック 5世代血統データ ---
+    // ドウデュースの母を実データに修正（オリエンタルアート→ダストアンドダイヤモンズ）
+    // アーバンシックの父母を実データに修正（オルフェーヴル→スワーヴリチャード、ウインドインハーヘア→エッジースタイル）
+
+    async function insertAnc(
+      name: string,
+      sex: string,
+      country: string,
+      birthYear: number | null = null,
+      sireId: number | null = null,
+      damId: number | null = null,
+      lineageId: number | null = null,
+    ): Promise<number> {
+      const result = await conn.run(
+        "INSERT INTO horses (name, sex, country, birth_year, status, sire_id, dam_id, lineage_id, is_historical) VALUES (?, ?, ?, ?, 'ancestor', ?, ?, ?, 1)",
+        [name, sex, country, birthYear, sireId, damId, lineageId],
+      );
+      return result.lastInsertRowId;
+    }
+
+    // 系統ID取得
+    const ssLineage = await getLineageId('サンデーサイレンス直系');
+    const htrLineage = await getLineageId('ヘイルトゥリーズン系');
+    const gsLineage = await getLineageId('グレイソヴリン系');
+    const lyphardLineage = await getLineageId('リファール系');
+    const mrpLineage = await getLineageId('ミスタープロスペクター直系');
+    const gwLineage = await getLineageId('ゴーンウエスト系');
+    const brLineage = await getLineageId('ボールドルーラー系');
+    const danzigLineage = await getLineageId('ダンジグ系');
+    const fappianoLineage = await getLineageId('ファピアノ系');
+
+    // ===== 5代前（Gen 5）- 葉ノード =====
+    // ドウデュース父系
+    const hailToReasonId = await insertAnc('Hail To Reason', '牡', '米');
+    const cosmahId = await insertAnc('Cosmah', '牝', '米');
+    const understandingId = await insertAnc('Understanding', '牡', '米');
+    const mountainFlowerId = await insertAnc('Mountain Flower', '牝', '米');
+    const kamparaId = await insertAnc('カンパラ', '牡', '欧');
+    const severnBridgeId = await insertAnc('Severn Bridge', '牝', '欧');
+    const lyphardId = await insertAnc('Lyphard', '牡', '米', null, null, null, lyphardLineage);
+    const myBupersId = await insertAnc('My Bupers', '牝', '米');
+    // ドウデュース母系
+    const boldReasoningId = await insertAnc('Bold Reasoning', '牡', '米');
+    const myCharmerId = await insertAnc('My Charmer', '牝', '米');
+    const strawberryRoadId = await insertAnc('Strawberry Road', '牡', '米');
+    const prettyReasonId = await insertAnc('Pretty Reason', '牝', '米');
+    const mrProspectorId = await insertAnc(
+      'Mr. Prospector',
+      '牡',
+      '米',
+      null,
+      null,
+      null,
+      mrpLineage,
+    );
+    const secrettameId = await insertAnc('Secrettame', '牝', '米');
+    const darlingLadyId = await insertAnc('Darling Lady', '牝', '米');
+    // アーバンシック父母系
+    const unbridledId = await insertAnc('Unbridled', '牡', '米');
+    const trolleySongId = await insertAnc('Trolley Song', '牝', '米');
+    const generalMeetingId = await insertAnc('General Meeting', '牡', '米');
+    const riverOfStarsId = await insertAnc('River Of Stars', '牝', '米');
+    // アーバンシック母系
+    const deinhillId = await insertAnc('デインヒル', '牡', '欧', null, null, null, danzigLineage);
+    const hasiliId = await insertAnc('Hasili', '牝', '欧');
+    const beringId = await insertAnc('Bering', '牡', '欧');
+    const guapaId = await insertAnc('Guapa', '牝', '欧');
+    const dancingKeyId = await insertAnc('ダンシングキイ', '牝', '日');
+    const alzaoId = await insertAnc('Alzao', '牡', '欧');
+    const burghclereId = await insertAnc('Burghclere', '牝', '欧');
+
+    // ===== 4代前（Gen 4） =====
+    // ドウデュース父系
+    const haloId = await insertAnc('Halo', '牡', '米', 1969, hailToReasonId, cosmahId, htrLineage);
+    const wishingWellId = await insertAnc(
+      'Wishing Well',
+      '牝',
+      '米',
+      1975,
+      understandingId,
+      mountainFlowerId,
+    );
+    const tonyBinId = await insertAnc(
+      'トニービン',
+      '牡',
+      '欧',
+      1983,
+      kamparaId,
+      severnBridgeId,
+      gsLineage,
+    );
+    const beauperDanceId = await insertAnc(
+      'ビューパーダンス',
+      '牝',
+      '欧',
+      1983,
+      lyphardId,
+      myBupersId,
+    );
+    // ドウデュース母系
+    const seattleSlewId = await insertAnc(
+      'Seattle Slew',
+      '牡',
+      '米',
+      1974,
+      boldReasoningId,
+      myCharmerId,
+      brLineage,
+    );
+    const strawberryReasonId = await insertAnc(
+      'Strawberry Reason',
+      '牝',
+      '米',
+      1992,
+      strawberryRoadId,
+      prettyReasonId,
+    );
+    const goneWestId = await insertAnc(
+      'Gone West',
+      '牡',
+      '米',
+      1984,
+      mrProspectorId,
+      secrettameId,
+      gwLineage,
+    );
+    const darlingDameId = await insertAnc(
+      'Darling Dame',
+      '牝',
+      '米',
+      1989,
+      lyphardId,
+      darlingLadyId,
+    );
+    // アーバンシック父母系
+    const unbridledsSongId = await insertAnc(
+      "Unbridled's Song",
+      '牡',
+      '米',
+      1993,
+      unbridledId,
+      trolleySongId,
+      fappianoLineage,
+    );
+    const careerCollectionId = await insertAnc(
+      'キャリアコレクション',
+      '牝',
+      '米',
+      1995,
+      generalMeetingId,
+      riverOfStarsId,
+    );
+    // アーバンシック母系
+    const dansiliId = await insertAnc(
+      'Dansili',
+      '牡',
+      '欧',
+      1996,
+      deinhillId,
+      hasiliId,
+      danzigLineage,
+    );
+    const penangPearlId = await insertAnc('Penang Pearl', '牝', '欧', 1996, beringId, guapaId);
+
+    // ===== 3代前（Gen 3） =====
+    // 共通祖先: サンデーサイレンス（ドウデュース3代前 & アーバンシック4代前 via ダンスインザダーク）
+    const sundaySilenceId = await insertAnc(
+      'サンデーサイレンス',
+      '牡',
+      '米',
+      1986,
+      haloId,
+      wishingWellId,
+      ssLineage,
+    );
+    const irishDanceId = await insertAnc(
+      'アイリッシュダンス',
+      '牝',
+      '日',
+      1990,
+      tonyBinId,
+      beauperDanceId,
+    );
+    // ドウデュース母系
+    const vindicationId = await insertAnc(
+      'Vindication',
+      '牡',
+      '米',
+      2000,
+      seattleSlewId,
+      strawberryReasonId,
+    );
+    const majesticallyId = await insertAnc(
+      'Majestically',
+      '牝',
+      '米',
+      2002,
+      goneWestId,
+      darlingDameId,
+    );
+    // アーバンシック父母系
+    const piramimaId = await insertAnc(
+      'ピラミマ',
+      '牝',
+      '米',
+      2005,
+      unbridledsSongId,
+      careerCollectionId,
+    );
+    // アーバンシック母系（ダンスインザダーク: 父=サンデーサイレンス）
+    const danceInTheDarkId = await insertAnc(
+      'ダンスインザダーク',
+      '牡',
+      '日',
+      1993,
+      sundaySilenceId,
+      dancingKeyId,
+    );
+    const harbingerId = await insertAnc(
+      'ハービンジャー',
+      '牡',
+      '欧',
+      2006,
+      dansiliId,
+      penangPearlId,
+    );
+
+    // ===== 2代前（Gen 2） - 既存馬の更新 & 新規作成 =====
+    // ハーツクライに親情報を追加
+    await conn.run('UPDATE horses SET birth_year = ?, sire_id = ?, dam_id = ? WHERE id = ?', [
+      2001,
+      sundaySilenceId,
+      irishDanceId,
+      sireIds[3],
+    ]);
+    // ウインドインハーヘアに親情報を追加
+    await conn.run('UPDATE horses SET birth_year = ?, sire_id = ?, dam_id = ? WHERE id = ?', [
+      1991,
+      alzaoId,
+      burghclereId,
+      damIds[0],
+    ]);
+
+    // ドウデュースの母: ダストアンドダイヤモンズ
+    const dustAndDiamondsId = await insertAnc(
+      'ダストアンドダイヤモンズ',
+      '牝',
+      '米',
+      2008,
+      vindicationId,
+      majesticallyId,
+    );
+    // アーバンシック母系: ランズエッジ（母=ウインドインハーヘア）
+    const landsEdgeId = await insertAnc(
+      'ランズエッジ',
+      '牝',
+      '日',
+      2006,
+      danceInTheDarkId,
+      damIds[0],
+    );
+
+    // ===== 1代前（Gen 1） =====
+    // アーバンシックの父: スワーヴリチャード
+    const swaverRichardId = await insertAnc(
+      'スワーヴリチャード',
+      '牡',
+      '日',
+      2014,
+      sireIds[3],
+      piramimaId,
+      heartsCryLineage,
+    );
+    // アーバンシックの母: エッジースタイル
+    const edgyStyleId = await insertAnc(
+      'エッジースタイル',
+      '牝',
+      '日',
+      2013,
+      harbingerId,
+      landsEdgeId,
+    );
+
+    // ===== ドウデュース・アーバンシックの親を実データに更新 =====
+    // ドウデュース（horses[3]）: 母をダストアンドダイヤモンズに変更
+    await conn.run('UPDATE horses SET dam_id = ? WHERE id = ?', [dustAndDiamondsId, horseIds[3]]);
+    // アーバンシック（horses[9]）: 父をスワーヴリチャード、母をエッジースタイルに変更
+    await conn.run('UPDATE horses SET sire_id = ?, dam_id = ? WHERE id = ?', [
+      swaverRichardId,
+      edgyStyleId,
+      horseIds[9],
+    ]);
+
     for (const s of statuses) {
       await conn.run(
         `INSERT INTO yearly_statuses (
