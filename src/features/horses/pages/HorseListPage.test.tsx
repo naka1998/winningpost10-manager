@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHorseStore } from '../store';
 import { useLineageStore } from '@/features/lineages/store';
-import type { Horse } from '../types';
+import type { Horse, HorseFilter } from '../types';
 import type { LineageNode } from '@/features/lineages/types';
 
 function createTestHorse(overrides: Partial<Horse> = {}): Horse {
@@ -332,7 +332,15 @@ describe('HorseListPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFindAll.mockResolvedValue(horses);
+    mockFindAll.mockImplementation(async (filter?: HorseFilter) => {
+      if (filter?.statuses && filter.statuses.length > 0) {
+        return horses.filter((h) => filter.statuses!.includes(h.status));
+      }
+      if (filter?.status) {
+        return horses.filter((h) => h.status === filter.status);
+      }
+      return horses;
+    });
     mockCreate.mockResolvedValue(createTestHorse({ id: 100 }));
     mockUpdate.mockResolvedValue(createTestHorse({ id: 1 }));
     mockDelete.mockResolvedValue(undefined);
@@ -359,10 +367,11 @@ describe('HorseListPage', () => {
   async function renderAndWait() {
     const { HorseListPage } = await import('./HorseListPage');
     render(<HorseListPage />);
-    await screen.findByText('ディープインパクト');
+    // 初期タブ「現役」→ 現役馬のイクイノックスが表示されるまで待つ
+    await screen.findByText('イクイノックス');
   }
 
-  it('一覧テーブルに馬名・性別・生年・国・系統名・ステータスが表示される', async () => {
+  it('一覧テーブルに馬名・性別・生年・国・ステータスが表示される', async () => {
     await renderAndWait();
 
     // ヘッダー
@@ -378,20 +387,17 @@ describe('HorseListPage', () => {
     expect(headerTexts).toContain('系統');
     expect(headerTexts).toContain('ステータス');
 
-    // データ行
-    expect(screen.getByText('ディープインパクト')).toBeInTheDocument();
-    expect(screen.getByText('アーモンドアイ')).toBeInTheDocument();
+    // 現役タブなので現役馬のみ表示される
     expect(screen.getByText('イクイノックス')).toBeInTheDocument();
-
-    // 系統名がマッピングされて表示される
-    expect(screen.getAllByText('リファール系').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
+    expect(screen.queryByText('アーモンドアイ')).not.toBeInTheDocument();
   });
 
   it('馬名クリックで詳細画面へのリンクが存在する', async () => {
     await renderAndWait();
 
-    const link = screen.getByRole('link', { name: 'ディープインパクト' });
-    expect(link).toHaveAttribute('href', '/horses/1');
+    const link = screen.getByRole('link', { name: 'イクイノックス' });
+    expect(link).toHaveAttribute('href', '/horses/3');
   });
 
   it('新規登録ダイアログが開きフォーム入力→登録できる', async () => {
@@ -431,7 +437,7 @@ describe('HorseListPage', () => {
     await user.click(within(dialog).getByRole('button', { name: '更新' }));
 
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(mockUpdate).toHaveBeenCalledWith(1, expect.objectContaining({ name: '更新馬名' }));
+    expect(mockUpdate).toHaveBeenCalledWith(3, expect.objectContaining({ name: '更新馬名' }));
   });
 
   it('削除確認ダイアログで削除できる', async () => {
@@ -445,7 +451,7 @@ describe('HorseListPage', () => {
     expect(screen.getByText('馬の削除')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '削除する' }));
 
-    expect(mockDelete).toHaveBeenCalledWith(1);
+    expect(mockDelete).toHaveBeenCalledWith(3);
   });
 
   it('フィルタで性別絞り込みができる', async () => {
@@ -553,27 +559,41 @@ describe('HorseListPage', () => {
       expect(tabTexts).toContain('繁殖牝馬');
     });
 
-    it('デフォルトで「現役」タブがアクティブ', async () => {
+    it('デフォルトで「現役」タブがアクティブで現役馬のみ表示される', async () => {
       await renderAndWait();
 
       const activeTab = screen.getByRole('tab', { name: '現役' });
       expect(activeTab).toHaveAttribute('data-state', 'active');
+
+      expect(screen.getByText('イクイノックス')).toBeInTheDocument();
+      expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
+      expect(screen.queryByText('アーモンドアイ')).not.toBeInTheDocument();
+      expect(screen.queryByText('オルフェーヴル')).not.toBeInTheDocument();
     });
 
-    it('「引退」タブクリックで statuses フィルタが設定される', async () => {
+    it('「引退」タブクリックで現役以外の馬が表示される', async () => {
       const user = userEvent.setup();
       await renderAndWait();
 
       await user.click(screen.getByRole('tab', { name: '引退' }));
 
+      // フィルタが正しく設定される
       const filter = useHorseStore.getState().filter;
       expect(filter.statuses).toEqual(
         expect.arrayContaining(['引退', '種牡馬', '繁殖牝馬', '売却済']),
       );
       expect(filter.status).toBeUndefined();
+
+      // 引退タブに該当する馬が表示される
+      await screen.findByText('ディープインパクト');
+      expect(screen.getByText('アーモンドアイ')).toBeInTheDocument();
+      expect(screen.getByText('オルフェーヴル')).toBeInTheDocument();
+      expect(screen.getByText('ジェンティルドンナ')).toBeInTheDocument();
+      // 現役馬は表示されない
+      expect(screen.queryByText('イクイノックス')).not.toBeInTheDocument();
     });
 
-    it('「種牡馬」タブクリックで status フィルタが設定される', async () => {
+    it('「種牡馬」タブクリックで種牡馬のみ表示される', async () => {
       const user = userEvent.setup();
       await renderAndWait();
 
@@ -582,9 +602,13 @@ describe('HorseListPage', () => {
       const filter = useHorseStore.getState().filter;
       expect(filter.status).toBe('種牡馬');
       expect(filter.statuses).toBeUndefined();
+
+      await screen.findByText('ディープインパクト');
+      expect(screen.queryByText('イクイノックス')).not.toBeInTheDocument();
+      expect(screen.queryByText('アーモンドアイ')).not.toBeInTheDocument();
     });
 
-    it('「繁殖牝馬」タブクリックで status フィルタが設定される', async () => {
+    it('「繁殖牝馬」タブクリックで繁殖牝馬のみ表示される', async () => {
       const user = userEvent.setup();
       await renderAndWait();
 
@@ -593,20 +617,28 @@ describe('HorseListPage', () => {
       const filter = useHorseStore.getState().filter;
       expect(filter.status).toBe('繁殖牝馬');
       expect(filter.statuses).toBeUndefined();
+
+      await screen.findByText('アーモンドアイ');
+      expect(screen.queryByText('イクイノックス')).not.toBeInTheDocument();
+      expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
     });
 
-    it('「現役」タブクリックで status フィルタが設定される', async () => {
+    it('「現役」タブに戻ると現役馬のみ表示される', async () => {
       const user = userEvent.setup();
       await renderAndWait();
 
-      // まず別のタブに切替
+      // 別のタブに切替
       await user.click(screen.getByRole('tab', { name: '種牡馬' }));
+      await screen.findByText('ディープインパクト');
+
       // 現役に戻る
       await user.click(screen.getByRole('tab', { name: '現役' }));
+      await screen.findByText('イクイノックス');
 
       const filter = useHorseStore.getState().filter;
       expect(filter.status).toBe('現役');
       expect(filter.statuses).toBeUndefined();
+      expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
     });
 
     it('ステータスフィルタのドロップダウンが表示されない', async () => {
