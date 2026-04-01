@@ -9,6 +9,10 @@ import {
 } from '@/features/horses/yearly-status-repository';
 import { createLineageRepository, type LineageRepository } from '@/features/lineages/repository';
 import { createSettingsRepository, type SettingsRepository } from '@/features/settings/repository';
+import {
+  createBreedingRecordRepository,
+  type BreedingRecordRepository,
+} from '@/features/breeding-records/repository';
 import { DatabaseContext } from '@/app/database-context';
 import { RepositoryContext, type RepositoryContextValue } from '@/app/repository-context';
 
@@ -42,6 +46,9 @@ export async function renderWithProviders(
     settingsRepository:
       (options?.repositoryOverrides?.settingsRepository as SettingsRepository) ??
       createSettingsRepository(db),
+    breedingRecordRepository:
+      (options?.repositoryOverrides?.breedingRecordRepository as BreedingRecordRepository) ??
+      createBreedingRecordRepository(db),
   };
 
   const { repositoryOverrides: _, ...renderOptions } = options ?? {};

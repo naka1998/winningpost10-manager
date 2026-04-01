@@ -1,0 +1,230 @@
+import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Radix UI polyfills for jsdom
+beforeAll(() => {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+  Element.prototype.scrollIntoView = () => {};
+
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
+
+import { useBreedingRecordStore } from '../store';
+import type { BreedingRecordWithNames } from '../types';
+import type { Horse } from '@/features/horses/types';
+
+function createTestRecord(
+  overrides: Partial<BreedingRecordWithNames> = {},
+): BreedingRecordWithNames {
+  return {
+    id: 1,
+    mareId: 10,
+    sireId: 20,
+    year: 2024,
+    evaluation: 'A',
+    theories: [{ name: 'ニックス', points: 6 }],
+    totalPower: 80,
+    offspringId: null,
+    notes: null,
+    createdAt: '2026-01-01',
+    updatedAt: '2026-01-01',
+    mareName: 'テスト牝馬',
+    sireName: 'テスト種牡馬',
+    offspringName: null,
+    ...overrides,
+  };
+}
+
+function createTestHorse(overrides: Partial<Horse> = {}): Horse {
+  return {
+    id: 1,
+    name: 'テスト馬',
+    sex: '牡',
+    birthYear: 2020,
+    country: '日',
+    isHistorical: false,
+    mareLine: null,
+    status: '現役',
+    sireId: null,
+    damId: null,
+    lineageId: null,
+    factors: null,
+    notes: null,
+    createdAt: '2026-01-01',
+    updatedAt: '2026-01-01',
+    ...overrides,
+  };
+}
+
+const mockFindAll = vi.fn<() => Promise<BreedingRecordWithNames[]>>();
+const mockCreate = vi.fn();
+const mockUpdate = vi.fn();
+const mockDelete = vi.fn();
+
+const mockBreedingRecordRepo = {
+  findById: vi.fn(),
+  findAll: mockFindAll,
+  create: mockCreate,
+  update: mockUpdate,
+  delete: mockDelete,
+};
+
+const mockHorseFindAll = vi.fn<() => Promise<Horse[]>>();
+
+const mockRepoContext = {
+  breedingRecordRepository: mockBreedingRecordRepo,
+  horseRepository: { findAll: mockHorseFindAll },
+  yearlyStatusRepository: {},
+  lineageRepository: {},
+  settingsRepository: {},
+};
+
+vi.mock('@/app/repository-context', () => ({
+  useRepositoryContext: () => mockRepoContext,
+}));
+
+describe('BreedingRecordListPage', () => {
+  const testRecords = [
+    createTestRecord({ id: 1 }),
+    createTestRecord({
+      id: 2,
+      mareId: 11,
+      sireId: 21,
+      year: 2025,
+      evaluation: 'B',
+      theories: [{ name: 'アウトブリード', points: 3 }],
+      totalPower: 50,
+      mareName: '別牝馬',
+      sireName: '別種牡馬',
+      offspringId: 30,
+      offspringName: '産駒馬',
+    }),
+  ];
+
+  const testHorses = [
+    createTestHorse({ id: 10, name: 'テスト牝馬', sex: '牝', status: '繁殖牝馬' }),
+    createTestHorse({ id: 11, name: '別牝馬', sex: '牝', status: '繁殖牝馬' }),
+    createTestHorse({ id: 20, name: 'テスト種牡馬', sex: '牡', status: '種牡馬' }),
+    createTestHorse({ id: 21, name: '別種牡馬', sex: '牡', status: '種牡馬' }),
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFindAll.mockResolvedValue(testRecords);
+    mockCreate.mockResolvedValue(createTestRecord({ id: 100 }));
+    mockUpdate.mockResolvedValue(createTestRecord({ id: 1 }));
+    mockDelete.mockResolvedValue(undefined);
+    mockHorseFindAll.mockResolvedValue(testHorses);
+    useBreedingRecordStore.setState({
+      records: [],
+      isLoading: false,
+      error: null,
+      filter: {},
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  async function renderAndWait() {
+    const { BreedingRecordListPage } = await import('./BreedingRecordListPage');
+    render(<BreedingRecordListPage />);
+    await screen.findByText('テスト牝馬');
+  }
+
+  it('ヘッダーと新規登録ボタンが表示される', async () => {
+    await renderAndWait();
+
+    expect(screen.getByRole('heading', { name: '配合記録' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '新規登録' })).toBeInTheDocument();
+  });
+
+  it('テーブルにレコードが表示される', async () => {
+    await renderAndWait();
+
+    // Record 1
+    expect(screen.getByText('テスト牝馬')).toBeInTheDocument();
+    expect(screen.getByText('テスト種牡馬')).toBeInTheDocument();
+    expect(screen.getByText('2024')).toBeInTheDocument();
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.getByText('ニックス')).toBeInTheDocument();
+    expect(screen.getByText('80')).toBeInTheDocument();
+
+    // Record 2
+    expect(screen.getByText('別牝馬')).toBeInTheDocument();
+    expect(screen.getByText('別種牡馬')).toBeInTheDocument();
+    expect(screen.getByText('2025')).toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
+    expect(screen.getByText('産駒馬')).toBeInTheDocument();
+  });
+
+  it('ローディング状態が表示される', async () => {
+    useBreedingRecordStore.setState({ isLoading: true, records: [] });
+    const { BreedingRecordListPage } = await import('./BreedingRecordListPage');
+    render(<BreedingRecordListPage />);
+    expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+  });
+
+  it('エラー状態が表示される', async () => {
+    mockFindAll.mockRejectedValue(new Error('データ取得に失敗しました'));
+    const { BreedingRecordListPage } = await import('./BreedingRecordListPage');
+    render(<BreedingRecordListPage />);
+    await screen.findByText('データ取得に失敗しました');
+  });
+
+  it('レコードが空の場合にメッセージが表示される', async () => {
+    mockFindAll.mockResolvedValue([]);
+    const { BreedingRecordListPage } = await import('./BreedingRecordListPage');
+    render(<BreedingRecordListPage />);
+    await screen.findByText('配合記録がありません');
+  });
+
+  it('新規登録ダイアログが開きフォームフィールドが表示される', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: '新規登録' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText('配合記録を登録')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('繁殖牝馬')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('種牡馬')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('配合年')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('評価')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('爆発力')).toBeInTheDocument();
+  });
+
+  it('削除ボタンで確認ダイアログが開き、確認で削除される', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    const deleteButtons = screen.getAllByRole('button', { name: '削除' });
+    await user.click(deleteButtons[0]);
+
+    // Confirm dialog
+    expect(screen.getByText('この配合記録を削除しますか？')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '削除する' }));
+
+    expect(mockDelete).toHaveBeenCalledWith(1);
+  });
+
+  it('編集ボタンで編集ダイアログが開く', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    const editButtons = screen.getAllByRole('button', { name: '編集' });
+    await user.click(editButtons[0]);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText('配合記録を編集')).toBeInTheDocument();
+  });
+});
