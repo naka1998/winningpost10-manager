@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDatabase } from '@/database/connection.test-utils';
 import type { DatabaseConnection } from '@/database/connection';
 import { runMigrations } from './index';
+import { up as initialMigration } from './001_initial';
 
 describe('migrations', () => {
   let db: DatabaseConnection;
@@ -103,6 +104,10 @@ describe('migrations', () => {
     const parent = await db.get<{ id: number }>(
       "SELECT id FROM lineages WHERE lineage_type = 'parent' LIMIT 1",
     );
+    const anotherParent = await db.get<{ id: number }>(
+      "SELECT id FROM lineages WHERE lineage_type = 'parent' AND id <> ? LIMIT 1",
+      [parent!.id],
+    );
     const child = await db.get<{ id: number }>(
       "SELECT id FROM lineages WHERE lineage_type = 'child' LIMIT 1",
     );
@@ -130,6 +135,13 @@ describe('migrations', () => {
         child!.id,
       ]),
     ).rejects.toThrow(/parent must have lineage_type=parent/);
+    await expect(
+      db.run('UPDATE lineages SET lineage_type = ?, parent_lineage_id = ? WHERE id = ?', [
+        'child',
+        anotherParent!.id,
+        parent!.id,
+      ]),
+    ).rejects.toThrow(/cannot demote parent with existing children/);
 
     const mare = await db.run('INSERT INTO horses (name, sex, status) VALUES (?, ?, ?)', [
       '制約牝馬',
@@ -262,6 +274,50 @@ describe('migrations', () => {
     expect(lineage?.updated_at).not.toBe('2000-01-01 00:00:00');
     expect(horse?.updated_at).not.toBe('2000-01-01 00:00:00');
     expect(breedingRecord?.updated_at).not.toBe('2000-01-01 00:00:00');
+  });
+
+  it('cleans up duplicated breeding_records before adding unique index', async () => {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS game_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await initialMigration(db);
+    await db.run(
+      "INSERT OR REPLACE INTO game_settings (key, value, updated_at) VALUES ('db_version', '1', datetime('now'))",
+    );
+
+    const mare = await db.run('INSERT INTO horses (name, sex, status) VALUES (?, ?, ?)', [
+      '重複牝馬',
+      '牝',
+      '繁殖牝馬',
+    ]);
+    const sire = await db.run('INSERT INTO horses (name, sex, status) VALUES (?, ?, ?)', [
+      '重複種牡馬',
+      '牡',
+      '種牡馬',
+    ]);
+
+    await db.run(
+      'INSERT INTO breeding_records (mare_id, sire_id, year, evaluation) VALUES (?, ?, ?, ?)',
+      [mare.lastInsertRowId, sire.lastInsertRowId, 2024, 'A'],
+    );
+    await db.run(
+      'INSERT INTO breeding_records (mare_id, sire_id, year, evaluation) VALUES (?, ?, ?, ?)',
+      [mare.lastInsertRowId, sire.lastInsertRowId, 2024, 'B'],
+    );
+
+    await expect(runMigrations(db)).resolves.not.toThrow();
+
+    const deduped = await db.all<{ id: number; evaluation: string | null }>(
+      'SELECT id, evaluation FROM breeding_records WHERE mare_id = ? AND year = ? ORDER BY id',
+      [mare.lastInsertRowId, 2024],
+    );
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].evaluation).toBe('B');
   });
 
   it('is idempotent (running twice does not throw)', async () => {

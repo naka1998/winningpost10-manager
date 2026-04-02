@@ -6,6 +6,20 @@ UPDATE horses
 SET status = 'ancestor'
 WHERE status IS NULL;
 
+-- 既存重複を解消（同一 mare/year は最新 id を残す）
+DELETE FROM breeding_records
+WHERE id IN (
+  SELECT br.id
+  FROM breeding_records br
+  JOIN (
+    SELECT mare_id, year, MAX(id) AS keep_id, COUNT(*) AS cnt
+    FROM breeding_records
+    GROUP BY mare_id, year
+    HAVING cnt > 1
+  ) dup ON dup.mare_id = br.mare_id AND dup.year = br.year
+  WHERE br.id <> dup.keep_id
+);
+
 -- breeding_records の同一 mare/year 重複を禁止
 CREATE UNIQUE INDEX IF NOT EXISTS idx_breeding_records_mare_year_unique
   ON breeding_records(mare_id, year);
@@ -45,6 +59,12 @@ BEGIN
       THEN RAISE(ABORT, 'lineages(child): parent_lineage_id is required')
       WHEN NEW.parent_lineage_id = NEW.id
       THEN RAISE(ABORT, 'lineages: self reference is not allowed')
+      WHEN OLD.lineage_type = 'parent' AND NEW.lineage_type = 'child' AND EXISTS (
+        SELECT 1
+        FROM lineages c
+        WHERE c.parent_lineage_id = OLD.id
+      )
+      THEN RAISE(ABORT, 'lineages: cannot demote parent with existing children')
       WHEN NEW.lineage_type = 'child' AND NOT EXISTS (
         SELECT 1
         FROM lineages p
