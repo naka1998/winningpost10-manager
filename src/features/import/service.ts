@@ -141,34 +141,38 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
             created++;
           } else if (row.action === 'update' && row.existingHorse) {
             const horse = row.existingHorse;
+            const p = row.parsed;
 
-            // Resolve sire/dam for update (fills in missing pedigree)
-            const sireId = await resolveAncestor(
-              txHorseRepo,
-              txLineageRepo,
-              row.parsed.sireName,
-              row.parsed.sireLineageName,
-            );
-            const damId = await resolveAncestor(
-              txHorseRepo,
-              txLineageRepo,
-              row.parsed.damName,
-              null,
-            );
-            const lineageId = await resolveLineage(txLineageRepo, row.parsed.sireLineageName);
+            // Build update data, only including non-null parsed values
+            // (undefined values are skipped by horseToColumns, preserving existing DB values)
+            const updateData: Record<string, unknown> = {};
+            if (p.sex !== null) updateData.sex = p.sex;
+            if (p.birthYear !== null) updateData.birthYear = p.birthYear;
+            if (p.country !== null) updateData.country = p.country;
+            updateData.isHistorical = p.isHistorical;
+            if (p.mareLineName !== null) updateData.mareLine = p.mareLineName;
+            updateData.status = preview.importStatus ?? '現役';
 
-            // Overwrite horse data
-            await txHorseRepo.update(horse.id, {
-              sex: row.parsed.sex,
-              birthYear: row.parsed.birthYear,
-              country: row.parsed.country,
-              isHistorical: row.parsed.isHistorical,
-              mareLine: row.parsed.mareLineName,
-              status: preview.importStatus ?? '現役',
-              sireId,
-              damId,
-              lineageId,
-            });
+            // D3: only update pedigree when parsed data provides names
+            if (p.sireName !== null) {
+              const sireId = await resolveAncestor(
+                txHorseRepo,
+                txLineageRepo,
+                p.sireName,
+                p.sireLineageName,
+              );
+              updateData.sireId = sireId;
+            }
+            if (p.damName !== null) {
+              const damId = await resolveAncestor(txHorseRepo, txLineageRepo, p.damName, null);
+              updateData.damId = damId;
+            }
+            if (p.sireLineageName !== null) {
+              const lineageId = await resolveLineage(txLineageRepo, p.sireLineageName);
+              updateData.lineageId = lineageId;
+            }
+
+            await txHorseRepo.update(horse.id, updateData);
 
             // Upsert yearly status
             const existingStatus = await txYearlyStatusRepo.findByHorseAndYear(
@@ -393,28 +397,28 @@ function detectChanges(
   return changes;
 }
 
-function buildYearlyStatusUpdateInput(parsed: ParsedHorseRow) {
-  return {
-    spRank: parsed.spRank,
-    spValue: parsed.spValue,
-    powerRank: parsed.powerRank,
-    powerValue: parsed.powerValue,
-    instantRank: parsed.instantRank,
-    instantValue: parsed.instantValue,
-    staminaRank: parsed.staminaRank,
-    staminaValue: parsed.staminaValue,
-    mentalRank: parsed.mentalRank,
-    mentalValue: parsed.mentalValue,
-    wisdomRank: parsed.wisdomRank,
-    wisdomValue: parsed.wisdomValue,
-    turfAptitude: parsed.turfAptitude,
-    dirtAptitude: parsed.dirtAptitude,
-    distanceMin: parsed.distanceMin,
-    distanceMax: parsed.distanceMax,
-    growthType: parsed.growthType,
-    runningStyle: parsed.runningStyle ? [parsed.runningStyle] : null,
-    traits: parsed.traits,
-    jockey: parsed.jockey,
-    raceRecord: parsed.raceRecord,
-  };
+function buildYearlyStatusUpdateInput(parsed: ParsedHorseRow): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+  if (parsed.spRank !== null) data.spRank = parsed.spRank;
+  if (parsed.spValue !== null) data.spValue = parsed.spValue;
+  if (parsed.powerRank !== null) data.powerRank = parsed.powerRank;
+  if (parsed.powerValue !== null) data.powerValue = parsed.powerValue;
+  if (parsed.instantRank !== null) data.instantRank = parsed.instantRank;
+  if (parsed.instantValue !== null) data.instantValue = parsed.instantValue;
+  if (parsed.staminaRank !== null) data.staminaRank = parsed.staminaRank;
+  if (parsed.staminaValue !== null) data.staminaValue = parsed.staminaValue;
+  if (parsed.mentalRank !== null) data.mentalRank = parsed.mentalRank;
+  if (parsed.mentalValue !== null) data.mentalValue = parsed.mentalValue;
+  if (parsed.wisdomRank !== null) data.wisdomRank = parsed.wisdomRank;
+  if (parsed.wisdomValue !== null) data.wisdomValue = parsed.wisdomValue;
+  if (parsed.turfAptitude !== null) data.turfAptitude = parsed.turfAptitude;
+  if (parsed.dirtAptitude !== null) data.dirtAptitude = parsed.dirtAptitude;
+  if (parsed.distanceMin !== null) data.distanceMin = parsed.distanceMin;
+  if (parsed.distanceMax !== null) data.distanceMax = parsed.distanceMax;
+  if (parsed.growthType !== null) data.growthType = parsed.growthType;
+  if (parsed.runningStyle !== null) data.runningStyle = [parsed.runningStyle];
+  if (parsed.traits !== null) data.traits = parsed.traits;
+  if (parsed.jockey !== null) data.jockey = parsed.jockey;
+  if (parsed.raceRecord !== null) data.raceRecord = parsed.raceRecord;
+  return data;
 }

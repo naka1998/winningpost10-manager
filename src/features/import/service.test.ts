@@ -437,6 +437,47 @@ describe('ImportService', () => {
       expect(updated!.status).toBe('種牡馬');
     });
 
+    it('preserves existing pedigree when parsed data has null sire/dam', async () => {
+      const service = createServiceWithRealDb();
+
+      // First import: create horse with sire and dam
+      const rows1 = [buildParsedRow({ name: '血統保持馬', birthYear: 2023 })];
+      const preview1 = await service.preview(rows1, 2025, '現役');
+      await service.execute(preview1);
+
+      // Verify sire was created
+      const horse1 = await db.get<Record<string, unknown>>(
+        'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
+        ['血統保持馬', 2023],
+      );
+      expect(horse1!.sire_id).not.toBeNull();
+      expect(horse1!.dam_id).not.toBeNull();
+      const originalSireId = horse1!.sire_id;
+      const originalDamId = horse1!.dam_id;
+
+      // Second import: same horse but with null sire/dam (partial data)
+      const rows2 = [
+        buildParsedRow({
+          name: '血統保持馬',
+          birthYear: 2023,
+          sireName: null,
+          damName: null,
+          sireLineageName: null,
+          spValue: 90,
+        }),
+      ];
+      const preview2 = await service.preview(rows2, 2026, '現役');
+      await service.execute(preview2);
+
+      // Verify pedigree was NOT cleared
+      const horse2 = await db.get<Record<string, unknown>>(
+        'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
+        ['血統保持馬', 2023],
+      );
+      expect(horse2!.sire_id).toBe(originalSireId);
+      expect(horse2!.dam_id).toBe(originalDamId);
+    });
+
     it('records import log on success', async () => {
       const service = createServiceWithRealDb();
 
