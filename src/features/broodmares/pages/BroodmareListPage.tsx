@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ResponsiveContainer,
   PieChart,
@@ -24,8 +24,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import type { BroodmareSummary, GradeCount, LineageDistribution } from '../types';
+
+const SORT_OPTIONS = [
+  { value: 'name', label: '名前' },
+  { value: 'birthYear', label: '生年' },
+  { value: 'offspringCount', label: '産駒数' },
+  { value: 'breedingStartYear', label: '繁殖開始年' },
+] as const;
 
 const PIE_COLORS = [
   '#8884d8',
@@ -216,10 +230,13 @@ export function BroodmareListPage() {
     stallionDistribution,
     isLoading,
     error,
+    filter,
     loadSummaries,
     loadDistributions,
+    setFilter,
   } = useBroodmareStore();
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
@@ -231,6 +248,15 @@ export function BroodmareListPage() {
     }
     loadData();
   }, [broodmareRepository, settingsRepository, loadSummaries, loadDistributions]);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const currentYear = useSettingsStore.getState().settings?.currentYear ?? 2025;
+    loadSummaries(broodmareRepository, currentYear);
+  }, [filter, broodmareRepository, loadSummaries]);
 
   const toggleExpanded = (id: number) => {
     setExpandedIds((prev) => {
@@ -263,6 +289,45 @@ export function BroodmareListPage() {
         </TabsList>
 
         <TabsContent value="individual">
+          <div className="mb-4 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">ソート:</span>
+              <Select
+                value={filter.sortBy ?? 'name'}
+                onValueChange={(v) =>
+                  setFilter({
+                    sortBy: v as 'name' | 'birthYear' | 'offspringCount' | 'breedingStartYear',
+                  })
+                }
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">順序:</span>
+              <Select
+                value={filter.sortOrder ?? 'asc'}
+                onValueChange={(v) => setFilter({ sortOrder: v as 'asc' | 'desc' })}
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">昇順</SelectItem>
+                  <SelectItem value="desc">降順</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           {error ? (
             <p className="py-4 text-destructive">{error}</p>
           ) : summaries.length === 0 ? (
