@@ -114,8 +114,9 @@ function BreedingRecordFormDialog({
   ) => Promise<void>;
 }) {
   const [mareId, setMareId] = useState<string>('');
-  const [sireId, setSireId] = useState<string>('');
-  const [sireCustomName, setSireCustomName] = useState<string>('');
+  const [sireText, setSireText] = useState<string>('');
+  const [selectedSireId, setSelectedSireId] = useState<number | null>(null);
+  const [sireDropdownOpen, setSireDropdownOpen] = useState(false);
   const [year, setYear] = useState<string>('');
   const [evaluation, setEvaluation] = useState<string>('A');
   const [theories, setTheories] = useState<BreedingTheory[]>([]);
@@ -127,14 +128,9 @@ function BreedingRecordFormDialog({
   useEffect(() => {
     if (editTarget) {
       setMareId(String(editTarget.mareId));
-      const matchedStallion = stallions.find((h) => h.id === editTarget.sireId);
-      if (matchedStallion) {
-        setSireId(String(matchedStallion.id));
-        setSireCustomName('');
-      } else {
-        setSireId('__custom__');
-        setSireCustomName(editTarget.sireName);
-      }
+      setSireText(editTarget.sireName);
+      const matched = stallions.find((h) => h.id === editTarget.sireId);
+      setSelectedSireId(matched ? matched.id : null);
       setYear(String(editTarget.year));
       setEvaluation(editTarget.evaluation ?? 'A');
       setTheories(editTarget.theories ?? []);
@@ -142,16 +138,17 @@ function BreedingRecordFormDialog({
       setNotes(editTarget.notes ?? '');
     } else {
       setMareId('');
-      setSireId('');
-      setSireCustomName('');
+      setSireText('');
+      setSelectedSireId(null);
       setYear(String(defaultYear));
       setEvaluation('A');
       setTheories([]);
       setTotalPower('');
       setNotes('');
     }
+    setSireDropdownOpen(false);
     setFormError(null);
-  }, [editTarget, open, defaultYear]);
+  }, [editTarget, open, defaultYear, stallions]);
 
   // Exclude mares already bred in the selected year (except the current edit target's mare)
   const availableMares = useMemo(() => {
@@ -165,27 +162,43 @@ function BreedingRecordFormDialog({
     return mares.filter((m) => !bredMareIds.has(m.id));
   }, [mares, year, records, editTarget]);
 
+  const filteredStallions = useMemo(() => {
+    if (!sireText.trim()) return stallions;
+    const q = sireText.trim().toLowerCase();
+    return stallions.filter((h) => h.name.toLowerCase().includes(q));
+  }, [stallions, sireText]);
+
+  const exactMatch = stallions.find((h) => h.name === sireText.trim());
+  const showNewOption = sireText.trim() && !exactMatch;
+
+  const handleSireSelect = (horse: Horse) => {
+    setSireText(horse.name);
+    setSelectedSireId(horse.id);
+    setSireDropdownOpen(false);
+  };
+
+  const handleSireNewSelect = () => {
+    setSelectedSireId(null);
+    setSireDropdownOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    const isCustomSire = sireId === '__custom__';
-    if (isCustomSire && !sireCustomName.trim()) {
-      setFormError('種牡馬名を入力してください');
-      return;
-    }
-    if (!sireId) {
-      setFormError('種牡馬を選択してください');
+    if (!sireText.trim()) {
+      setFormError('種牡馬を入力してください');
       return;
     }
 
     setIsSaving(true);
 
     try {
+      const isNew = !exactMatch && !selectedSireId;
       const base = {
         mareId: Number(mareId),
-        sireId: isCustomSire ? 0 : Number(sireId),
-        sireName: isCustomSire ? sireCustomName.trim() : undefined,
+        sireId: selectedSireId ?? exactMatch?.id ?? 0,
+        sireName: isNew ? sireText.trim() : undefined,
         year: Number(year),
         evaluation: evaluation || null,
         theories: theories.length > 0 ? theories : null,
@@ -241,34 +254,43 @@ function BreedingRecordFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="relative">
             <Label htmlFor="br-sire">種牡馬</Label>
-            <Select
-              value={sireId}
-              onValueChange={(v) => {
-                setSireId(v);
-                if (v !== '__custom__') setSireCustomName('');
+            <Input
+              id="br-sire"
+              value={sireText}
+              onChange={(e) => {
+                setSireText(e.target.value);
+                setSelectedSireId(null);
+                setSireDropdownOpen(true);
               }}
-            >
-              <SelectTrigger id="br-sire">
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {stallions.map((h) => (
-                  <SelectItem key={h.id} value={String(h.id)}>
+              onFocus={() => setSireDropdownOpen(true)}
+              placeholder="種牡馬名を入力して検索"
+              autoComplete="off"
+              required
+            />
+            {sireDropdownOpen && (filteredStallions.length > 0 || showNewOption) && (
+              <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover p-1 shadow-md">
+                {filteredStallions.map((h) => (
+                  <li
+                    key={h.id}
+                    className="cursor-pointer rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSireSelect(h)}
+                  >
                     {h.name}
-                  </SelectItem>
+                  </li>
                 ))}
-                <SelectItem value="__custom__">その他（自由入力）</SelectItem>
-              </SelectContent>
-            </Select>
-            {sireId === '__custom__' && (
-              <Input
-                className="mt-2"
-                value={sireCustomName}
-                onChange={(e) => setSireCustomName(e.target.value)}
-                placeholder="種牡馬名を入力"
-              />
+                {showNewOption && (
+                  <li
+                    className="cursor-pointer rounded-sm px-2 py-1.5 text-sm font-medium text-primary hover:bg-accent"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={handleSireNewSelect}
+                  >
+                    「{sireText.trim()}」を新規登録
+                  </li>
+                )}
+              </ul>
             )}
           </div>
           <div>
