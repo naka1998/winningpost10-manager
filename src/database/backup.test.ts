@@ -140,6 +140,45 @@ describe('backup utilities', () => {
     expect(db.transaction).not.toHaveBeenCalled();
   });
 
+  it('リストア前に複数文を含むテーブルDDLを検出して中断する', async () => {
+    const db = createDbMock();
+    vi.mocked(db.get).mockResolvedValueOnce({ value: '2' } as never);
+    const file = {
+      text: async () =>
+        JSON.stringify({
+          format: 'wp10-manager-backup-v1',
+          exportedAt: '2026-04-02T00:00:00.000Z',
+          schemaVersion: 2,
+          tables: [
+            {
+              name: 'game_settings',
+              createSql: 'CREATE TABLE game_settings (id INTEGER); DROP TABLE import_logs;',
+              rows: [],
+            },
+            { name: 'lineages', createSql: 'CREATE TABLE lineages (id INTEGER)', rows: [] },
+            { name: 'horses', createSql: 'CREATE TABLE horses (id INTEGER)', rows: [] },
+            {
+              name: 'yearly_statuses',
+              createSql: 'CREATE TABLE yearly_statuses (id INTEGER)',
+              rows: [],
+            },
+            {
+              name: 'breeding_records',
+              createSql: 'CREATE TABLE breeding_records (id INTEGER)',
+              rows: [],
+            },
+            { name: 'race_plans', createSql: 'CREATE TABLE race_plans (id INTEGER)', rows: [] },
+            { name: 'import_logs', createSql: 'CREATE TABLE import_logs (id INTEGER)', rows: [] },
+          ],
+          schemaObjects: [],
+        }),
+    } as File;
+
+    await expect(importDatabase(db, file)).rejects.toThrow('テーブル定義が不正です');
+    expect(db.exec).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
   it('リストア前に危険なschemaObjects SQLを検出して中断する', async () => {
     const db = createDbMock();
     vi.mocked(db.get).mockResolvedValueOnce({ value: '2' } as never);
@@ -156,6 +195,36 @@ describe('backup utilities', () => {
             rows: [],
           })),
           schemaObjects: [{ type: 'index', name: 'idx_bad', sql: 'DROP TABLE horses;' }],
+        }),
+    } as File;
+
+    await expect(importDatabase(db, file)).rejects.toThrow('スキーマオブジェクト定義が不正');
+    expect(db.exec).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it('リストア前に複数文を含むschemaObject SQLを検出して中断する', async () => {
+    const db = createDbMock();
+    vi.mocked(db.get).mockResolvedValueOnce({ value: '2' } as never);
+    vi.mocked(db.all).mockResolvedValueOnce(fullTableSet as never);
+    const file = {
+      text: async () =>
+        JSON.stringify({
+          format: 'wp10-manager-backup-v1',
+          exportedAt: '2026-04-02T00:00:00.000Z',
+          schemaVersion: 2,
+          tables: fullTableSet.map((table) => ({
+            name: table.name,
+            createSql: `CREATE TABLE ${table.name} (id INTEGER)`,
+            rows: [],
+          })),
+          schemaObjects: [
+            {
+              type: 'view',
+              name: 'v_safe',
+              sql: 'CREATE VIEW v_safe AS SELECT 1; DROP TABLE game_settings;',
+            },
+          ],
         }),
     } as File;
 

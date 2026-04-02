@@ -98,6 +98,23 @@ function isDatabaseSnapshot(value: unknown): value is DatabaseSnapshot {
 }
 
 function validateSnapshot(snapshot: DatabaseSnapshot): void {
+  const isSingleStatement = (sql: string): boolean => {
+    const trimmed = sql.trim();
+    if (trimmed.length === 0) return false;
+    const withoutTrailing = trimmed.endsWith(';') ? trimmed.slice(0, -1) : trimmed;
+    return !withoutTrailing.includes(';');
+  };
+  const isSingleStatementForSchemaObject = (
+    type: SerializedSchemaObject['type'],
+    sql: string,
+  ): boolean => {
+    if (type === 'trigger') {
+      // Trigger bodies include semicolons; ensure the SQL is a single CREATE TRIGGER ... END statement.
+      return /^\s*CREATE\s+TRIGGER[\s\S]*\bEND\s*;?\s*$/i.test(sql);
+    }
+    return isSingleStatement(sql);
+  };
+
   if (snapshot.tables.length === 0) {
     throw new Error('バックアップにテーブル定義が含まれていません。');
   }
@@ -108,7 +125,8 @@ function validateSnapshot(snapshot: DatabaseSnapshot): void {
     }
     if (
       typeof table.createSql !== 'string' ||
-      !table.createSql.trim().toUpperCase().startsWith('CREATE TABLE')
+      !table.createSql.trim().toUpperCase().startsWith('CREATE TABLE') ||
+      !isSingleStatement(table.createSql)
     ) {
       throw new Error(`バックアップ内のテーブル定義が不正です: ${table.name}`);
     }
@@ -136,7 +154,8 @@ function validateSnapshot(snapshot: DatabaseSnapshot): void {
       typeof schemaObject.sql !== 'string' ||
       schemaObject.sql.trim().length === 0 ||
       !isExpectedCreate ||
-      !includesDeclaredName
+      !includesDeclaredName ||
+      !isSingleStatementForSchemaObject(schemaObject.type, schemaObject.sql)
     ) {
       throw new Error('バックアップ内のスキーマオブジェクト定義が不正です。');
     }
