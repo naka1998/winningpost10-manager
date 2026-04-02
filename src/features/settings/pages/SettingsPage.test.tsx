@@ -232,6 +232,17 @@ describe('SettingsPage', () => {
     await screen.findByText('エラー: UNIQUE constraint failed');
   });
 
+  it('テストデータ投入中はエクスポート/リストア操作がロックされる', async () => {
+    mockSeedTestHorses.mockImplementation(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: 'テストデータ投入' }));
+
+    expect(screen.getByRole('button', { name: 'エクスポート' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'データベースリストア' })).toBeDisabled();
+  });
+
   it('初回ロード失敗時にエラーメッセージが表示される（読み込み中のままにならない）', async () => {
     mockGetAll.mockRejectedValue(new Error('DB connection failed'));
     const { SettingsPage } = await import('./SettingsPage');

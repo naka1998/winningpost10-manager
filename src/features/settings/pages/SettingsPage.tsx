@@ -42,7 +42,7 @@ export function SettingsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
-  const isDbActionRunning = isExporting || isRestoring;
+  const isDbActionRunning = isExporting || isRestoring || seeding;
 
   useEffect(() => {
     loadSettings(settingsRepository);
