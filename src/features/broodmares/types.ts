@@ -7,6 +7,8 @@ export interface BroodmareSummary {
   offspringCount: number;
   activeOffspringCount: number;
   bestGrade: string | null;
+  avgEvaluation: number | null;
+  avgTotalPower: number | null;
 }
 
 export interface BroodmareOffspring {

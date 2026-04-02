@@ -43,7 +43,11 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
           MIN(br.year) AS breeding_start_year,
           COUNT(DISTINCT CASE WHEN offspring.status != 'ancestor' THEN offspring.id END) AS offspring_count,
           COUNT(DISTINCT CASE WHEN offspring.status = '現役' THEN offspring.id END) AS active_offspring_count,
-          MIN(CASE ys.grade ${gradeCase} ELSE 999 END) AS grade_rank
+          MIN(CASE ys.grade ${gradeCase} ELSE 999 END) AS grade_rank,
+          (SELECT AVG(CASE bre.evaluation WHEN 'S' THEN 5 WHEN 'A' THEN 4 WHEN 'B' THEN 3 WHEN 'C' THEN 2 WHEN 'D' THEN 1 ELSE NULL END)
+           FROM breeding_records bre WHERE bre.mare_id = h.id AND bre.evaluation IS NOT NULL) AS avg_evaluation,
+          (SELECT AVG(bre2.total_power)
+           FROM breeding_records bre2 WHERE bre2.mare_id = h.id AND bre2.total_power IS NOT NULL) AS avg_total_power
         FROM horses h
         LEFT JOIN breeding_records br ON br.mare_id = h.id
         LEFT JOIN horses offspring ON offspring.dam_id = h.id AND offspring.status != 'ancestor'
@@ -64,6 +68,12 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         offspringCount: (row.offspring_count as number) ?? 0,
         activeOffspringCount: (row.active_offspring_count as number) ?? 0,
         bestGrade: bestGradeFromRank(row.grade_rank === 999 ? null : (row.grade_rank as number)),
+        avgEvaluation:
+          row.avg_evaluation != null
+            ? Math.round((row.avg_evaluation as number) * 100) / 100
+            : null,
+        avgTotalPower:
+          row.avg_total_power != null ? Math.round(row.avg_total_power as number) : null,
       }));
     },
 

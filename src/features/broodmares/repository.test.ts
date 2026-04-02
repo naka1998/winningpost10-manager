@@ -165,6 +165,27 @@ describe('BroodmareRepository', () => {
       expect(summaries[0].name).toBe('繁殖牝馬D');
     });
 
+    it('calculates average evaluation and total power from breeding_records', async () => {
+      const mareId = await insertHorse('評価牝馬', { status: '繁殖牝馬', birth_year: 2015 });
+      const sire1 = await insertHorse('種牡馬1', { status: '種牡馬', sex: '牡' });
+      const sire2 = await insertHorse('種牡馬2', { status: '種牡馬', sex: '牡' });
+      // S=5, A=4 → avg = 4.5
+      await insertBreedingRecord(mareId, sire1, 2020, { evaluation: 'S', total_power: 90 });
+      await insertBreedingRecord(mareId, sire2, 2021, { evaluation: 'A', total_power: 80 });
+
+      const summaries = await repo.findAllSummaries(2026);
+      expect(summaries[0].avgEvaluation).toBe(4.5);
+      expect(summaries[0].avgTotalPower).toBe(85);
+    });
+
+    it('returns null averages when no breeding records', async () => {
+      await insertHorse('無配合牝馬', { status: '繁殖牝馬', birth_year: 2018 });
+
+      const summaries = await repo.findAllSummaries(2026);
+      expect(summaries[0].avgEvaluation).toBeNull();
+      expect(summaries[0].avgTotalPower).toBeNull();
+    });
+
     it('sorts by name ascending by default', async () => {
       await insertHorse('Ｂ牝馬', { status: '繁殖牝馬', birth_year: 2015 });
       await insertHorse('Ａ牝馬', { status: '繁殖牝馬', birth_year: 2016 });

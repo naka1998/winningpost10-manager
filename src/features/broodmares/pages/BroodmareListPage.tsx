@@ -53,6 +53,11 @@ function gradeBadgeClass(grade: string | null): string {
   }
 }
 
+function formatAvgEvaluation(avg: number | null): string {
+  if (avg === null) return '-';
+  return avg.toFixed(1);
+}
+
 function DistributionChart({ title, data }: { title: string; data: LineageDistribution[] }) {
   if (data.length === 0) {
     return (
@@ -180,10 +185,12 @@ function BroodmareRow({
             '-'
           )}
         </TableCell>
+        <TableCell>{formatAvgEvaluation(summary.avgEvaluation)}</TableCell>
+        <TableCell>{summary.avgTotalPower ?? '-'}</TableCell>
       </TableRow>
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={7} className="bg-muted/50 p-0 pl-4">
+          <TableCell colSpan={9} className="bg-muted/50 p-0 pl-4">
             <div className="px-8 py-2">
               <OffspringTable mareId={summary.id} />
             </div>
@@ -265,6 +272,8 @@ export function BroodmareListPage() {
                   <TableHead>産駒数</TableHead>
                   <TableHead>現役産駒</TableHead>
                   <TableHead>主な実績</TableHead>
+                  <TableHead>平均評価</TableHead>
+                  <TableHead>平均爆発力</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

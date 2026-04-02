@@ -13,6 +13,8 @@ function createMockSummary(overrides: Partial<BroodmareSummary> = {}): Broodmare
     offspringCount: 3,
     activeOffspringCount: 2,
     bestGrade: 'G1',
+    avgEvaluation: 4.0,
+    avgTotalPower: 80,
     ...overrides,
   };
 }
