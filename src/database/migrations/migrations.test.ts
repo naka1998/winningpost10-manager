@@ -53,13 +53,13 @@ describe('migrations', () => {
     expect(indexNames).toContain('idx_race_plans_year');
   });
 
-  it('sets db_version to 3', async () => {
+  it('sets db_version to 4', async () => {
     await runMigrations(db);
 
     const row = await db.get<{ value: string }>(
       "SELECT value FROM game_settings WHERE key = 'db_version'",
     );
-    expect(row?.value).toBe('3');
+    expect(row?.value).toBe('4');
   });
 
   it('inserts initial game settings', async () => {
@@ -371,6 +371,74 @@ describe('migrations', () => {
     ).rejects.toThrow(/cannot demote parent with existing children/);
   });
 
+  it('backfills orphan child lineages when upgrading existing database', async () => {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS game_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await initialMigration(db);
+    await db.run(
+      "INSERT OR REPLACE INTO game_settings (key, value, updated_at) VALUES ('db_version', '3', datetime('now'))",
+    );
+
+    const orphan = await db.run(
+      'INSERT INTO lineages (name, lineage_type, parent_lineage_id) VALUES (?, ?, ?)',
+      ['孤立子系統', 'child', null],
+    );
+
+    await expect(runMigrations(db)).resolves.not.toThrow();
+
+    const lineage = await db.get<{ lineage_type: string; parent_lineage_id: number | null }>(
+      'SELECT lineage_type, parent_lineage_id FROM lineages WHERE id = ?',
+      [orphan.lastInsertRowId],
+    );
+    expect(lineage?.lineage_type).toBe('parent');
+    expect(lineage?.parent_lineage_id).toBeNull();
+
+    await expect(
+      db.run('UPDATE lineages SET notes = ? WHERE id = ?', ['editable', orphan.lastInsertRowId]),
+    ).resolves.not.toThrow();
+  });
+
+  it('prevents horse role changes that would invalidate existing breeding_records', async () => {
+    await runMigrations(db);
+
+    const mare = await db.run('INSERT INTO horses (name, sex, status) VALUES (?, ?, ?)', [
+      '役割牝馬',
+      '牝',
+      '繁殖牝馬',
+    ]);
+    const sire = await db.run('INSERT INTO horses (name, sex, status) VALUES (?, ?, ?)', [
+      '役割種牡馬',
+      '牡',
+      '種牡馬',
+    ]);
+    await db.run('INSERT INTO breeding_records (mare_id, sire_id, year) VALUES (?, ?, ?)', [
+      mare.lastInsertRowId,
+      sire.lastInsertRowId,
+      2028,
+    ]);
+
+    await expect(
+      db.run('UPDATE horses SET sex = ?, status = ? WHERE id = ?', [
+        '牡',
+        '現役',
+        mare.lastInsertRowId,
+      ]),
+    ).rejects.toThrow(/referenced mare must remain/);
+
+    await expect(
+      db.run('UPDATE horses SET sex = ?, status = ? WHERE id = ?', [
+        '牝',
+        '現役',
+        sire.lastInsertRowId,
+      ]),
+    ).rejects.toThrow(/referenced sire must remain/);
+  });
+
   it('is idempotent (running twice does not throw)', async () => {
     await runMigrations(db);
     await expect(runMigrations(db)).resolves.not.toThrow();
@@ -379,6 +447,6 @@ describe('migrations', () => {
     const version = await db.get<{ value: string }>(
       "SELECT value FROM game_settings WHERE key = 'db_version'",
     );
-    expect(version?.value).toBe('3');
+    expect(version?.value).toBe('4');
   });
 });

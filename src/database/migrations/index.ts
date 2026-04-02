@@ -2,6 +2,7 @@ import type { DatabaseConnection } from '../connection';
 import { up as initialMigration } from './001_initial';
 import { up as constraintsHardeningMigration } from './002_constraints_hardening';
 import { up as lineagesParentDemotionGuardMigration } from './003_lineages_parent_demotion_guard';
+import { up as lineageBackfillAndHorseRoleGuardsMigration } from './004_lineage_backfill_and_horse_role_guards';
 
 interface Migration {
   version: number;
@@ -24,6 +25,11 @@ const migrations: Migration[] = [
     version: 3,
     description: 'lineages 親降格ガードを強化',
     up: lineagesParentDemotionGuardMigration,
+  },
+  {
+    version: 4,
+    description: 'lineages 旧データ補正と horses 役割整合ガード追加',
+    up: lineageBackfillAndHorseRoleGuardsMigration,
   },
 ];
 
