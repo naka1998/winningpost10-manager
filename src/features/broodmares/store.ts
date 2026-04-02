@@ -54,11 +54,10 @@ export const useBroodmareStore = create<BroodmareState>((set, get) => ({
   },
 
   async loadDistributions(repo: BroodmareRepository) {
-    const [sireLineDistribution, damLineDistribution, stallionDistribution] = await Promise.all([
-      repo.getSireLineDistribution(),
-      repo.getDamLineDistribution(),
-      repo.getStallionDistribution(),
-    ]);
+    // wa-sqlite does not support concurrent queries, so run sequentially
+    const sireLineDistribution = await repo.getSireLineDistribution();
+    const damLineDistribution = await repo.getDamLineDistribution();
+    const stallionDistribution = await repo.getStallionDistribution();
     set({ sireLineDistribution, damLineDistribution, stallionDistribution });
   },
 
