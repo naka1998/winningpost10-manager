@@ -43,6 +43,9 @@ function createTestOffspring(overrides: Partial<BroodmareOffspring> = {}): Brood
     status: '現役',
     sireName: 'テスト種牡馬',
     bestGrade: 'G2',
+    evaluation: null,
+    totalPower: null,
+    breedingNotes: null,
     ...overrides,
   };
 }
@@ -197,9 +200,9 @@ describe('BroodmareListPage', () => {
     const user = userEvent.setup();
     await renderAndWait();
 
-    // Click the expand button for 牝馬A
-    const expandButtons = screen.getAllByRole('button', { name: '産駒を表示' });
-    await user.click(expandButtons[0]);
+    // Click the row for 牝馬A
+    const row = screen.getByText('牝馬A').closest('tr')!;
+    await user.click(row);
 
     await screen.findByText('産駒1');
     expect(screen.getByText('産駒2')).toBeInTheDocument();

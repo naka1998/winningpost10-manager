@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import type { BroodmareSummary, LineageDistribution } from '../types';
 
 const PIE_COLORS = [
@@ -122,6 +121,9 @@ function OffspringTable({ mareId }: { mareId: number }) {
           <TableHead>状態</TableHead>
           <TableHead>父</TableHead>
           <TableHead>実績</TableHead>
+          <TableHead>評価</TableHead>
+          <TableHead>爆発力</TableHead>
+          <TableHead>メモ</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -138,6 +140,11 @@ function OffspringTable({ mareId }: { mareId: number }) {
               ) : (
                 '-'
               )}
+            </TableCell>
+            <TableCell>{o.evaluation ?? '-'}</TableCell>
+            <TableCell>{o.totalPower ?? '-'}</TableCell>
+            <TableCell className="max-w-48 truncate text-sm text-muted-foreground">
+              {o.breedingNotes ?? '-'}
             </TableCell>
           </TableRow>
         ))}
@@ -157,11 +164,9 @@ function BroodmareRow({
 }) {
   return (
     <>
-      <TableRow>
-        <TableCell>
-          <Button variant="ghost" size="sm" onClick={onToggle} aria-label="産駒を表示">
-            {isExpanded ? '▼' : '▶'}
-          </Button>
+      <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onToggle}>
+        <TableCell className="w-10 text-center text-muted-foreground">
+          {isExpanded ? '▼' : '▶'}
         </TableCell>
         <TableCell className="font-medium">{summary.name}</TableCell>
         <TableCell>{summary.age ?? '-'}</TableCell>
@@ -178,7 +183,7 @@ function BroodmareRow({
       </TableRow>
       {isExpanded && (
         <TableRow>
-          <TableCell colSpan={7} className="bg-muted/50 p-0">
+          <TableCell colSpan={7} className="bg-muted/50 p-0 pl-4">
             <div className="px-8 py-2">
               <OffspringTable mareId={summary.id} />
             </div>

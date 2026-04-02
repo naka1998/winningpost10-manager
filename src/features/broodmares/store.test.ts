@@ -26,6 +26,9 @@ function createMockOffspring(overrides: Partial<BroodmareOffspring> = {}): Brood
     status: '現役',
     sireName: 'テスト種牡馬',
     bestGrade: 'G2',
+    evaluation: null,
+    totalPower: null,
+    breedingNotes: null,
     ...overrides,
   };
 }

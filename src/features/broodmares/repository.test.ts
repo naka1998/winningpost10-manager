@@ -45,10 +45,19 @@ describe('BroodmareRepository', () => {
     mareId: number,
     sireId: number,
     year: number,
+    overrides: Record<string, unknown> = {},
   ): Promise<number> {
+    const data: Record<string, unknown> = {
+      mare_id: mareId,
+      sire_id: sireId,
+      year,
+      ...overrides,
+    };
+    const keys = Object.keys(data);
+    const placeholders = keys.map(() => '?').join(', ');
     const result = await db.run(
-      'INSERT INTO breeding_records (mare_id, sire_id, year) VALUES (?, ?, ?)',
-      [mareId, sireId, year],
+      `INSERT INTO breeding_records (${keys.join(', ')}) VALUES (${placeholders})`,
+      keys.map((k) => data[k]),
     );
     return result.lastInsertRowId;
   }
@@ -111,18 +120,37 @@ describe('BroodmareRepository', () => {
       expect(summaries[0].offspringCount).toBe(1);
     });
 
-    it('returns best grade from yearly_statuses', async () => {
+    it('returns best grade from offspring yearly_statuses', async () => {
       const mareId = await insertHorse('実績牝馬', { status: '繁殖牝馬', birth_year: 2012 });
-      await insertYearlyStatus(mareId, 2015, 'G3');
-      await insertYearlyStatus(mareId, 2016, 'G1');
-      await insertYearlyStatus(mareId, 2017, 'G2');
+      const offspring1 = await insertHorse('産駒G3', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2020,
+      });
+      const offspring2 = await insertHorse('産駒G1', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2021,
+      });
+      await insertYearlyStatus(offspring1, 2023, 'G3');
+      await insertYearlyStatus(offspring2, 2024, 'G1');
+      // 繁殖牝馬自身のグレードは含めない
+      await insertYearlyStatus(mareId, 2015, 'G2');
 
       const summaries = await repo.findAllSummaries(2026);
       expect(summaries[0].bestGrade).toBe('G1');
     });
 
-    it('returns null bestGrade when no yearly_statuses', async () => {
-      await insertHorse('無実績牝馬', { status: '繁殖牝馬', birth_year: 2018 });
+    it('returns null bestGrade when offspring have no grades', async () => {
+      const mareId = await insertHorse('無実績牝馬', { status: '繁殖牝馬', birth_year: 2018 });
+      await insertHorse('産駒', { dam_id: mareId, status: '現役', birth_year: 2023 });
+
+      const summaries = await repo.findAllSummaries(2026);
+      expect(summaries[0].bestGrade).toBeNull();
+    });
+
+    it('returns null bestGrade when no offspring', async () => {
+      await insertHorse('子なし牝馬', { status: '繁殖牝馬', birth_year: 2018 });
 
       const summaries = await repo.findAllSummaries(2026);
       expect(summaries[0].bestGrade).toBeNull();
@@ -194,6 +222,44 @@ describe('BroodmareRepository', () => {
       expect(offspring[0].status).toBe('現役');
       expect(offspring[0].sireName).toBe('種牡馬X');
       expect(offspring[0].bestGrade).toBe('G1');
+    });
+
+    it('returns breeding record data when offspring_id is linked', async () => {
+      const sireId = await insertHorse('種牡馬Z', { status: '種牡馬', sex: '牡' });
+      const mareId = await insertHorse('繁殖牝馬Z', { status: '繁殖牝馬', birth_year: 2012 });
+      const offspringId = await insertHorse('子馬Z', {
+        dam_id: mareId,
+        sire_id: sireId,
+        status: '現役',
+        sex: '牡',
+        birth_year: 2022,
+      });
+      await insertBreedingRecord(mareId, sireId, 2021, {
+        offspring_id: offspringId,
+        evaluation: 'A',
+        total_power: 85,
+        notes: 'テストメモ',
+      });
+
+      const offspring = await repo.findOffspring(mareId);
+      expect(offspring).toHaveLength(1);
+      expect(offspring[0].evaluation).toBe('A');
+      expect(offspring[0].totalPower).toBe(85);
+      expect(offspring[0].breedingNotes).toBe('テストメモ');
+    });
+
+    it('returns null breeding data when no breeding record linked', async () => {
+      const mareId = await insertHorse('繁殖牝馬W', { status: '繁殖牝馬', birth_year: 2012 });
+      await insertHorse('子馬W', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2022,
+      });
+
+      const offspring = await repo.findOffspring(mareId);
+      expect(offspring[0].evaluation).toBeNull();
+      expect(offspring[0].totalPower).toBeNull();
+      expect(offspring[0].breedingNotes).toBeNull();
     });
 
     it('excludes ancestor offspring', async () => {

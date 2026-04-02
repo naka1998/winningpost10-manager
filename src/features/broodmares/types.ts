@@ -17,6 +17,9 @@ export interface BroodmareOffspring {
   status: string;
   sireName: string | null;
   bestGrade: string | null;
+  evaluation: string | null;
+  totalPower: number | null;
+  breedingNotes: string | null;
 }
 
 export interface LineageDistribution {

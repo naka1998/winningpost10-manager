@@ -47,7 +47,7 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         FROM horses h
         LEFT JOIN breeding_records br ON br.mare_id = h.id
         LEFT JOIN horses offspring ON offspring.dam_id = h.id AND offspring.status != 'ancestor'
-        LEFT JOIN yearly_statuses ys ON ys.horse_id = h.id AND ys.grade IS NOT NULL
+        LEFT JOIN yearly_statuses ys ON ys.horse_id = offspring.id AND ys.grade IS NOT NULL
         WHERE h.status = '繁殖牝馬'
         GROUP BY h.id
         ORDER BY ${sortCol} ${sortOrder}, h.name ASC
@@ -74,10 +74,12 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         SELECT
           o.id, o.name, o.birth_year, o.sex, o.status,
           s.name AS sire_name,
-          MIN(CASE ys.grade ${gradeCase} ELSE 999 END) AS grade_rank
+          MIN(CASE ys.grade ${gradeCase} ELSE 999 END) AS grade_rank,
+          br.evaluation, br.total_power, br.notes AS breeding_notes
         FROM horses o
         LEFT JOIN horses s ON s.id = o.sire_id
         LEFT JOIN yearly_statuses ys ON ys.horse_id = o.id AND ys.grade IS NOT NULL
+        LEFT JOIN breeding_records br ON br.offspring_id = o.id
         WHERE o.dam_id = ? AND o.status != 'ancestor'
         GROUP BY o.id
         ORDER BY o.birth_year DESC, o.name ASC
@@ -93,6 +95,9 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         status: row.status as string,
         sireName: (row.sire_name as string) ?? null,
         bestGrade: bestGradeFromRank(row.grade_rank === 999 ? null : (row.grade_rank as number)),
+        evaluation: (row.evaluation as string) ?? null,
+        totalPower: (row.total_power as number) ?? null,
+        breedingNotes: (row.breeding_notes as string) ?? null,
       }));
     },
 
