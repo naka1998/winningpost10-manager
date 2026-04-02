@@ -24,22 +24,36 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import type { BroodmareSummary, GradeCount, LineageDistribution } from '../types';
+import type { BroodmareFilter, BroodmareSummary, GradeCount, LineageDistribution } from '../types';
 
-const SORT_OPTIONS = [
-  { value: 'name', label: '名前' },
-  { value: 'birthYear', label: '生年' },
-  { value: 'offspringCount', label: '産駒数' },
-  { value: 'breedingStartYear', label: '繁殖開始年' },
-] as const;
+type SortKey = NonNullable<BroodmareFilter['sortBy']>;
+
+function sortIndicator(
+  column: SortKey,
+  currentSortBy: SortKey | undefined,
+  currentSortOrder: 'asc' | 'desc' | undefined,
+): string {
+  if (currentSortBy !== column) return '';
+  return currentSortOrder === 'desc' ? ' ↓' : ' ↑';
+}
+
+function nextSortState(
+  column: SortKey,
+  currentSortBy: SortKey | undefined,
+  currentSortOrder: 'asc' | 'desc' | undefined,
+): Partial<BroodmareFilter> {
+  if (currentSortBy !== column) {
+    // First click on a new column → descending
+    return { sortBy: column, sortOrder: 'desc' };
+  }
+  if (currentSortOrder === 'desc') {
+    // Second click → ascending
+    return { sortBy: column, sortOrder: 'asc' };
+  }
+  // Third click → clear sort
+  return { sortBy: undefined, sortOrder: undefined };
+}
 
 const PIE_COLORS = [
   '#8884d8',
@@ -289,45 +303,6 @@ export function BroodmareListPage() {
         </TabsList>
 
         <TabsContent value="individual">
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">ソート:</span>
-              <Select
-                value={filter.sortBy ?? 'name'}
-                onValueChange={(v) =>
-                  setFilter({
-                    sortBy: v as 'name' | 'birthYear' | 'offspringCount' | 'breedingStartYear',
-                  })
-                }
-              >
-                <SelectTrigger className="w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">順序:</span>
-              <Select
-                value={filter.sortOrder ?? 'asc'}
-                onValueChange={(v) => setFilter({ sortOrder: v as 'asc' | 'desc' })}
-              >
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="asc">昇順</SelectItem>
-                  <SelectItem value="desc">降順</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           {error ? (
             <p className="py-4 text-destructive">{error}</p>
           ) : summaries.length === 0 ? (
@@ -337,10 +312,39 @@ export function BroodmareListPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10" />
-                  <TableHead>名前</TableHead>
-                  <TableHead>年齢</TableHead>
-                  <TableHead>繁殖開始年</TableHead>
-                  <TableHead>産駒数</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('name', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    名前{sortIndicator('name', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('birthYear', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    年齢{sortIndicator('birthYear', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('breedingStartYear', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    繁殖開始年
+                    {sortIndicator('breedingStartYear', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('offspringCount', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    産駒数{sortIndicator('offspringCount', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
                   <TableHead>現役産駒</TableHead>
                   <TableHead>主な実績</TableHead>
                   <TableHead>平均評価</TableHead>
