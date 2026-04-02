@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRepositoryContext } from '@/app/repository-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -368,14 +368,14 @@ export function BreedingRecordListPage() {
   const [editTarget, setEditTarget] = useState<BreedingRecordWithNames | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BreedingRecordWithNames | null>(null);
 
-  const refreshAllRecords = async () => {
+  const refreshAllRecords = useCallback(async () => {
     try {
       const all = await breedingRecordRepository.findAll();
       setAllRecords(all);
     } catch {
       // Error is handled by the store's loadRecords
     }
-  };
+  }, [breedingRecordRepository]);
 
   useEffect(() => {
     async function loadData() {
@@ -386,7 +386,7 @@ export function BreedingRecordListPage() {
       await useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
     }
     loadData();
-  }, [breedingRecordRepository, horseRepository, settingsRepository]);
+  }, [breedingRecordRepository, horseRepository, settingsRepository, refreshAllRecords]);
 
   const isInitialMount = useRef(true);
   useEffect(() => {

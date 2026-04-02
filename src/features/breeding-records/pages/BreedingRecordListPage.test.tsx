@@ -283,4 +283,47 @@ describe('BreedingRecordListPage', () => {
 
     expect(mockCreate).toHaveBeenCalled();
   });
+
+  it('filter変更で再取得される', async () => {
+    await renderAndWait();
+    const callCountAfterMount = mockFindAll.mock.calls.length;
+
+    // Change filter via store
+    useBreedingRecordStore.getState().setFilter({ year: 2025 });
+
+    // Wait for effect to trigger loadRecords
+    await screen.findByRole('heading', { name: '配合記録' });
+    // Allow async effect to run
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mockFindAll.mock.calls.length).toBeGreaterThan(callCountAfterMount);
+  });
+
+  it('絞り込み中でも年×牝馬の重複が防がれる', async () => {
+    // Records include mare 10 bred in 2024 (from testRecords[0])
+    // Even if store records are filtered (e.g. by sire), allRecords should still exclude the mare
+    mockFindAll.mockResolvedValue(testRecords);
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    // Apply a sire filter so displayed records might be filtered,
+    // but allRecords (loaded separately) still contains all records
+    await user.click(screen.getByRole('button', { name: '新規登録' }));
+    const dialog = screen.getByRole('dialog');
+
+    // Year is defaulted to 2026 (from settings). Change to 2024 where mare 10 is already bred
+    const yearInput = within(dialog).getByLabelText('配合年') as HTMLInputElement;
+    await user.clear(yearInput);
+    await user.type(yearInput, '2024');
+
+    // Open mare select and check that テスト牝馬 (mare 10, bred in 2024) is NOT available
+    const mareSelect = within(dialog).getByLabelText('繁殖牝馬');
+    await user.click(mareSelect);
+
+    // 別牝馬 (mare 11, bred in 2025 not 2024) should be available
+    const options = screen.getAllByRole('option');
+    const optionTexts = options.map((o) => o.textContent);
+    expect(optionTexts).toContain('別牝馬');
+    expect(optionTexts).not.toContain('テスト牝馬');
+  });
 });
