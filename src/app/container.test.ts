@@ -3,11 +3,17 @@ import type { RepositoryContextValue } from './repository-context';
 
 // Mock initDatabase to return a test database
 vi.mock('@/database/connection', () => ({
-  initDatabase: async () => {
+  initDatabase: vi.fn(async () => {
     const { createTestDatabase } = await import('@/database/connection.test-utils');
     return createTestDatabase();
-  },
+  }),
 }));
+
+// Spy on runMigrations so individual tests can override it
+vi.mock('@/database/migrations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/database/migrations')>();
+  return { ...actual, runMigrations: vi.fn(actual.runMigrations) };
+});
 
 describe('createAppContainer', () => {
   it('should return a container with db and all 6 repositories', async () => {
@@ -21,6 +27,24 @@ describe('createAppContainer', () => {
     expect(container.repositories.settingsRepository).toBeDefined();
     expect(container.repositories.breedingRecordRepository).toBeDefined();
     expect(container.repositories.broodmareRepository).toBeDefined();
+  });
+
+  it('should propagate error when initDatabase fails', async () => {
+    const { initDatabase } = await import('@/database/connection');
+    const mocked = vi.mocked(initDatabase);
+    mocked.mockRejectedValueOnce(new Error('OPFS not available'));
+
+    const { createAppContainer } = await import('./container');
+    await expect(createAppContainer()).rejects.toThrow('OPFS not available');
+  });
+
+  it('should propagate error when runMigrations fails', async () => {
+    const { runMigrations } = await import('@/database/migrations');
+    const mocked = vi.mocked(runMigrations);
+    mocked.mockRejectedValueOnce(new Error('migration 003 failed'));
+
+    const { createAppContainer } = await import('./container');
+    await expect(createAppContainer()).rejects.toThrow('migration 003 failed');
   });
 
   it('should run migrations so tables exist', async () => {
