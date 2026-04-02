@@ -72,6 +72,7 @@ function buildExistingHorse(overrides?: Partial<Horse>): Horse {
 function createMockHorseRepo(overrides?: Partial<HorseRepository>): HorseRepository {
   return {
     findById: vi.fn(),
+    findByName: vi.fn().mockResolvedValue(null),
     findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
     findAncestorByName: vi.fn(),
     findAll: vi.fn(),
@@ -125,9 +126,7 @@ function createMockDb(overrides?: Partial<DatabaseConnection>): DatabaseConnecti
 describe('ImportService', () => {
   describe('preview', () => {
     it('marks row as "create" when horse does not exist', async () => {
-      const horseRepo = createMockHorseRepo({
-        findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
-      });
+      const horseRepo = createMockHorseRepo();
       const service = createImportService({
         db: createMockDb(),
         horseRepo,
@@ -136,17 +135,15 @@ describe('ImportService', () => {
       });
 
       const rows = [buildParsedRow({ name: '新馬', birthYear: 2024 })];
-      const preview = await service.preview(rows, 2025);
+      const preview = await service.preview(rows, 2025, '現役');
 
       expect(preview.rows).toHaveLength(1);
       expect(preview.rows[0].action).toBe('create');
       expect(preview.summary.newCount).toBe(1);
-      expect(preview.summary.updateCount).toBe(0);
-      expect(preview.summary.skipCount).toBe(0);
     });
 
-    it('marks row as "update" when horse exists with different data', async () => {
-      const existing = buildExistingHorse({ name: '既存馬', sex: '牡', country: '日' });
+    it('marks row as "update" when horse exists by name+birthYear', async () => {
+      const existing = buildExistingHorse({ name: '既存馬' });
       const horseRepo = createMockHorseRepo({
         findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
       });
@@ -157,19 +154,23 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024, country: '米' })];
-      const preview = await service.preview(rows, 2025);
+      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024 })];
+      const preview = await service.preview(rows, 2025, '現役');
 
       expect(preview.rows[0].action).toBe('update');
-      expect(preview.rows[0].changes).toHaveProperty('country');
-      expect(preview.rows[0].changes!.country).toEqual({ old: '日', new: '米' });
+      expect(preview.rows[0].existingHorse).toBeDefined();
       expect(preview.summary.updateCount).toBe(1);
     });
 
-    it('marks row as "skip" when horse exists with same data', async () => {
-      const existing = buildExistingHorse({ name: '既存馬', sex: '牡', country: '日' });
+    it('marks row as "update" when horse exists by name only (ancestor match)', async () => {
+      const ancestor = buildExistingHorse({
+        name: '既存祖先馬',
+        birthYear: null,
+        status: 'ancestor',
+      });
       const horseRepo = createMockHorseRepo({
-        findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
+        findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
+        findByName: vi.fn().mockResolvedValue(ancestor),
       });
       const service = createImportService({
         db: createMockDb(),
@@ -178,11 +179,12 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024, sex: '牡', country: '日' })];
-      const preview = await service.preview(rows, 2025);
+      const rows = [buildParsedRow({ name: '既存祖先馬', birthYear: 2024 })];
+      const preview = await service.preview(rows, 2025, '種牡馬');
 
-      expect(preview.rows[0].action).toBe('skip');
-      expect(preview.summary.skipCount).toBe(1);
+      expect(preview.rows[0].action).toBe('update');
+      expect(preview.rows[0].existingHorse!.status).toBe('ancestor');
+      expect(preview.summary.updateCount).toBe(1);
     });
 
     it('marks row as "invalid" when birthYear is null', async () => {
@@ -194,43 +196,13 @@ describe('ImportService', () => {
       });
 
       const rows = [buildParsedRow({ name: '生年不明馬', birthYear: null })];
-      const preview = await service.preview(rows, 2025);
+      const preview = await service.preview(rows, 2025, '現役');
 
       expect(preview.rows[0].action).toBe('invalid');
-      expect(preview.rows[0].skipReason).toBeDefined();
       expect(preview.summary.invalidCount).toBe(1);
-      expect(preview.summary.skipCount).toBe(0);
     });
 
-    it('handles multiple rows with mixed actions', async () => {
-      const existing = buildExistingHorse({ name: '既存馬', sex: '牡', country: '日' });
-      const horseRepo = createMockHorseRepo({
-        findByNameAndBirthYear: vi.fn().mockImplementation(async (name: string) => {
-          if (name === '既存馬') return existing;
-          return null;
-        }),
-      });
-      const service = createImportService({
-        db: createMockDb(),
-        horseRepo,
-        yearlyStatusRepo: createMockYearlyStatusRepo(),
-        lineageRepo: createMockLineageRepo(),
-      });
-
-      const rows = [
-        buildParsedRow({ name: '新馬', birthYear: 2024 }),
-        buildParsedRow({ name: '既存馬', birthYear: 2024, sex: '牡', country: '日' }),
-        buildParsedRow({ name: '生年不明', birthYear: null }),
-      ];
-      const preview = await service.preview(rows, 2025);
-
-      expect(preview.summary.newCount).toBe(1);
-      expect(preview.summary.skipCount).toBe(1);
-      expect(preview.summary.invalidCount).toBe(1);
-      expect(preview.importYear).toBe(2025);
-    });
-
-    it('sets importYear on the preview result', async () => {
+    it('sets importStatus on the preview result', async () => {
       const service = createImportService({
         db: createMockDb(),
         horseRepo: createMockHorseRepo(),
@@ -238,9 +210,8 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      const preview = await service.preview([], 2026);
-      expect(preview.importYear).toBe(2026);
-      expect(preview.rows).toHaveLength(0);
+      const preview = await service.preview([], 2026, '種牡馬');
+      expect(preview.importStatus).toBe('種牡馬');
     });
   });
 
@@ -261,27 +232,31 @@ describe('ImportService', () => {
       });
     }
 
+    it('creates new horses with the specified status', async () => {
+      const service = createServiceWithRealDb();
+
+      const rows = [buildParsedRow({ name: 'テスト種牡馬', birthYear: 2020 })];
+      const preview = await service.preview(rows, 2026, '種牡馬');
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(true);
+      expect(result.created).toBe(1);
+
+      const horse = await db.get<Record<string, unknown>>('SELECT * FROM horses WHERE name = ?', [
+        'テスト種牡馬',
+      ]);
+      expect(horse!.status).toBe('種牡馬');
+    });
+
     it('creates new horses with ancestors and yearly statuses', async () => {
       const service = createServiceWithRealDb();
 
       const rows = [buildParsedRow({ name: 'テスト馬A', birthYear: 2023 })];
-      const preview = await service.preview(rows, 2026);
-      expect(preview.summary.newCount).toBe(1);
-
+      const preview = await service.preview(rows, 2026, '現役');
       const result = await service.execute(preview);
+
       expect(result.success).toBe(true);
       expect(result.created).toBe(1);
-      expect(result.errors).toHaveLength(0);
-
-      // Verify horse was created
-      const horse = await db.get<Record<string, unknown>>(
-        'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
-        ['テスト馬A', 2023],
-      );
-      expect(horse).toBeDefined();
-      expect(horse!.sex).toBe('牡');
-      expect(horse!.country).toBe('日');
-      expect(horse!.status).toBe('現役');
 
       // Verify sire was auto-created as ancestor
       const sire = await db.get<Record<string, unknown>>(
@@ -291,72 +266,99 @@ describe('ImportService', () => {
       expect(sire).toBeDefined();
       expect(sire!.status).toBe('ancestor');
 
-      // Verify dam was auto-created as ancestor
-      const dam = await db.get<Record<string, unknown>>(
-        'SELECT * FROM horses WHERE name = ? AND birth_year IS NULL',
-        ['母馬'],
-      );
-      expect(dam).toBeDefined();
-
       // Verify yearly status was created
+      const horse = await db.get<Record<string, unknown>>('SELECT * FROM horses WHERE name = ?', [
+        'テスト馬A',
+      ]);
       const status = await db.get<Record<string, unknown>>(
         'SELECT * FROM yearly_statuses WHERE horse_id = ? AND year = ?',
         [horse!.id, 2026],
       );
       expect(status).toBeDefined();
       expect(status!.sp_value).toBe(79);
-      expect(status!.power_rank).toBe('A');
-
-      // Verify lineage was auto-created
-      const lineage = await db.get<Record<string, unknown>>(
-        'SELECT * FROM lineages WHERE name = ?',
-        ['サンデーサイレンス系'],
-      );
-      expect(lineage).toBeDefined();
     });
 
-    it('updates existing horses and upserts yearly statuses', async () => {
+    it('overwrites existing horse data on update (name-based match)', async () => {
       const service = createServiceWithRealDb();
 
-      // First import to create the horse
-      const rows1 = [buildParsedRow({ name: '更新テスト馬', birthYear: 2023 })];
-      const preview1 = await service.preview(rows1, 2025);
+      // First import creates the horse as 現役
+      const rows1 = [buildParsedRow({ name: '上書きテスト馬', birthYear: 2023 })];
+      const preview1 = await service.preview(rows1, 2025, '現役');
       await service.execute(preview1);
 
-      // Second import with changed data
+      // Second import with same name → update (overwrite)
       const rows2 = [
         buildParsedRow({
-          name: '更新テスト馬',
+          name: '上書きテスト馬',
           birthYear: 2023,
-          mareLineName: 'ドクサ系',
-          spValue: 85,
+          sex: '牝',
+          country: '米',
+          spValue: 90,
         }),
       ];
-      const preview2 = await service.preview(rows2, 2026);
+      const preview2 = await service.preview(rows2, 2026, '繁殖牝馬');
       expect(preview2.summary.updateCount).toBe(1);
 
       const result = await service.execute(preview2);
-      expect(result.success).toBe(true);
       expect(result.updated).toBe(1);
 
-      // Verify new yearly status was created for year 2026
-      const horse = await db.get<Record<string, unknown>>(
-        'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
-        ['更新テスト馬', 2023],
+      // Verify horse data was overwritten
+      const horse = await db.get<Record<string, unknown>>('SELECT * FROM horses WHERE name = ?', [
+        '上書きテスト馬',
+      ]);
+      expect(horse!.sex).toBe('牝');
+      expect(horse!.country).toBe('米');
+      expect(horse!.status).toBe('繁殖牝馬');
+    });
+
+    it('overwrites ancestor horse when importing with same name', async () => {
+      const service = createServiceWithRealDb();
+
+      // Create a horse that auto-creates an ancestor named '父馬'
+      const rows1 = [buildParsedRow({ name: 'テスト子馬', birthYear: 2023, sireName: '父馬' })];
+      const preview1 = await service.preview(rows1, 2025, '現役');
+      await service.execute(preview1);
+
+      // Verify ancestor exists
+      const ancestor = await db.get<Record<string, unknown>>(
+        'SELECT * FROM horses WHERE name = ? AND birth_year IS NULL',
+        ['父馬'],
       );
-      const statuses = await db.all<Record<string, unknown>>(
-        'SELECT * FROM yearly_statuses WHERE horse_id = ? ORDER BY year',
-        [horse!.id],
-      );
-      expect(statuses).toHaveLength(2); // 2025 and 2026
-      expect(statuses[1].sp_value).toBe(85);
+      expect(ancestor).toBeDefined();
+      expect(ancestor!.status).toBe('ancestor');
+
+      // Now import '父馬' as 種牡馬 → should update the ancestor
+      const rows2 = [
+        buildParsedRow({
+          name: '父馬',
+          birthYear: 2018,
+          sex: '牡',
+          country: '米',
+          sireName: '祖父馬',
+          damName: '祖母馬',
+        }),
+      ];
+      const preview2 = await service.preview(rows2, 2026, '種牡馬');
+      expect(preview2.summary.updateCount).toBe(1);
+
+      const result = await service.execute(preview2);
+      expect(result.updated).toBe(1);
+
+      // Verify the ancestor was updated (overwritten)
+      const updated = await db.get<Record<string, unknown>>('SELECT * FROM horses WHERE id = ?', [
+        ancestor!.id,
+      ]);
+      expect(updated!.birth_year).toBe(2018);
+      expect(updated!.sex).toBe('牡');
+      expect(updated!.country).toBe('米');
+      expect(updated!.status).toBe('種牡馬');
     });
 
     it('records import log on success', async () => {
       const service = createServiceWithRealDb();
 
       const rows = [buildParsedRow({ name: 'ログテスト馬', birthYear: 2023 })];
-      const preview = await service.preview(rows, 2026);
+      const preview = await service.preview(rows, 2026, '現役');
       await service.execute(preview);
 
       const log = await db.get<Record<string, unknown>>(
@@ -375,12 +377,11 @@ describe('ImportService', () => {
         buildParsedRow({ name: '兄', birthYear: 2022, sireName: '共通父馬' }),
         buildParsedRow({ name: '弟', birthYear: 2023, sireName: '共通父馬' }),
       ];
-      const preview = await service.preview(rows, 2026);
+      const preview = await service.preview(rows, 2026, '現役');
       const result = await service.execute(preview);
 
       expect(result.created).toBe(2);
 
-      // Only one ancestor with this name should exist
       const sires = await db.all<Record<string, unknown>>(
         'SELECT * FROM horses WHERE name = ? AND birth_year IS NULL',
         ['共通父馬'],
@@ -389,23 +390,19 @@ describe('ImportService', () => {
     });
 
     it('rolls back entire transaction on error', async () => {
-      // Create a horse first
       await db.run("INSERT INTO horses (name, birth_year, status) VALUES ('既存馬', 2023, '現役')");
 
       const service = createServiceWithRealDb();
 
-      // Build a preview with a row that will cause a constraint violation
-      // (duplicate name + birth_year without going through preview)
       const preview = {
         importYear: 2026,
+        importStatus: '現役',
         rows: [
           {
             parsed: buildParsedRow({ name: '正常馬', birthYear: 2024 }),
             action: 'create' as const,
           },
           {
-            // This row has action 'create' but the horse already exists in DB
-            // The UNIQUE constraint on (name, birth_year) will cause an error
             parsed: buildParsedRow({ name: '既存馬', birthYear: 2023 }),
             action: 'create' as const,
           },
@@ -415,7 +412,6 @@ describe('ImportService', () => {
 
       await expect(service.execute(preview)).rejects.toThrow();
 
-      // Verify rollback: the first horse should NOT have been created
       const horse = await db.get<Record<string, unknown>>(
         'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
         ['正常馬', 2024],

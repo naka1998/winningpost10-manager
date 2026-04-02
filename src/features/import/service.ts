@@ -4,8 +4,14 @@ import type { YearlyStatusRepository } from '@/features/horses/yearly-status-rep
 import type { LineageRepository } from '@/features/lineages/repository';
 import type { ImportPreview, ImportPreviewRow, ImportResult, ParsedHorseRow } from './types';
 
+export type ImportStatus = '現役' | '種牡馬' | '繁殖牝馬';
+
 export interface ImportService {
-  preview(rows: ParsedHorseRow[], importYear: number): Promise<ImportPreview>;
+  preview(
+    rows: ParsedHorseRow[],
+    importYear: number,
+    importStatus: ImportStatus,
+  ): Promise<ImportPreview>;
   execute(preview: ImportPreview): Promise<ImportResult>;
 }
 
@@ -18,7 +24,11 @@ export interface ImportServiceDeps {
 
 export function createImportService(deps: ImportServiceDeps): ImportService {
   return {
-    async preview(rows: ParsedHorseRow[], importYear: number): Promise<ImportPreview> {
+    async preview(
+      rows: ParsedHorseRow[],
+      importYear: number,
+      importStatus: ImportStatus = '現役',
+    ): Promise<ImportPreview> {
       const previewRows: ImportPreviewRow[] = [];
       let newCount = 0;
       let updateCount = 0;
@@ -36,25 +46,25 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
           continue;
         }
 
-        const existing = await deps.horseRepo.findByNameAndBirthYear(parsed.name, parsed.birthYear);
+        // Match by name+birthYear first, then by name only (catches ancestors and previously imported horses)
+        let existing = await deps.horseRepo.findByNameAndBirthYear(parsed.name, parsed.birthYear);
+        if (!existing) {
+          existing = await deps.horseRepo.findByName(parsed.name);
+        }
 
         if (!existing) {
           previewRows.push({ parsed, action: 'create' });
           newCount++;
         } else {
-          const changes = detectChanges(existing, parsed);
-          if (Object.keys(changes).length === 0) {
-            previewRows.push({ parsed, action: 'skip', existingHorse: existing });
-            skipCount++;
-          } else {
-            previewRows.push({ parsed, action: 'update', existingHorse: existing, changes });
-            updateCount++;
-          }
+          // Always treat existing match as "update" (overwrite)
+          previewRows.push({ parsed, action: 'update', existingHorse: existing });
+          updateCount++;
         }
       }
 
       return {
         importYear,
+        importStatus,
         rows: previewRows,
         summary: { newCount, updateCount, skipCount, invalidCount },
       };
@@ -112,7 +122,7 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
               country: row.parsed.country,
               isHistorical: row.parsed.isHistorical,
               mareLine: row.parsed.mareLineName,
-              status: '現役',
+              status: preview.importStatus ?? '現役',
               sireId,
               damId,
               lineageId,
@@ -127,14 +137,33 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
           } else if (row.action === 'update' && row.existingHorse) {
             const horse = row.existingHorse;
 
-            // Update horse (only mutable fields)
-            if (row.changes && Object.keys(row.changes).length > 0) {
-              const updateData: Record<string, unknown> = {};
-              if (row.changes.mareLine) updateData.mareLine = row.changes.mareLine.new;
-              if (Object.keys(updateData).length > 0) {
-                await txHorseRepo.update(horse.id, updateData);
-              }
-            }
+            // Resolve sire/dam for update (fills in missing pedigree)
+            const sireId = await resolveAncestor(
+              txHorseRepo,
+              txLineageRepo,
+              row.parsed.sireName,
+              row.parsed.sireLineageName,
+            );
+            const damId = await resolveAncestor(
+              txHorseRepo,
+              txLineageRepo,
+              row.parsed.damName,
+              null,
+            );
+            const lineageId = await resolveLineage(txLineageRepo, row.parsed.sireLineageName);
+
+            // Overwrite horse data
+            await txHorseRepo.update(horse.id, {
+              sex: row.parsed.sex,
+              birthYear: row.parsed.birthYear,
+              country: row.parsed.country,
+              isHistorical: row.parsed.isHistorical,
+              mareLine: row.parsed.mareLineName,
+              status: preview.importStatus ?? '現役',
+              sireId,
+              damId,
+              lineageId,
+            });
 
             // Upsert yearly status
             const existingStatus = await txYearlyStatusRepo.findByHorseAndYear(
@@ -293,23 +322,4 @@ function buildYearlyStatusUpdateInput(parsed: ParsedHorseRow) {
     jockey: parsed.jockey,
     raceRecord: parsed.raceRecord,
   };
-}
-
-function detectChanges(
-  existing: { sex: string | null; country: string | null; mareLine: string | null },
-  parsed: ParsedHorseRow,
-): Record<string, { old: unknown; new: unknown }> {
-  const changes: Record<string, { old: unknown; new: unknown }> = {};
-
-  if (parsed.sex !== null && parsed.sex !== existing.sex) {
-    changes.sex = { old: existing.sex, new: parsed.sex };
-  }
-  if (parsed.country !== null && parsed.country !== existing.country) {
-    changes.country = { old: existing.country, new: parsed.country };
-  }
-  if (parsed.mareLineName !== null && parsed.mareLineName !== existing.mareLine) {
-    changes.mareLine = { old: existing.mareLine, new: parsed.mareLineName };
-  }
-
-  return changes;
 }

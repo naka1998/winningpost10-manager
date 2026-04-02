@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ImportPreview, ImportResult, ParseResult } from './types';
-import type { ImportService } from './service';
+import type { ImportService, ImportStatus } from './service';
 
 export type ImportStep = 'file' | 'settings' | 'preview' | 'result';
 
@@ -8,6 +8,7 @@ export interface ImportState {
   step: ImportStep;
   file: File | null;
   importYear: number;
+  importStatus: ImportStatus;
   parseResult: ParseResult | null;
   preview: ImportPreview | null;
   result: ImportResult | null;
@@ -17,6 +18,7 @@ export interface ImportState {
   setStep: (step: ImportStep) => void;
   setFile: (file: File | null) => void;
   setImportYear: (year: number) => void;
+  setImportStatus: (status: ImportStatus) => void;
   parseFile: (importYear: number) => Promise<void>;
   runPreview: (service: ImportService) => Promise<void>;
   runExecute: (service: ImportService) => Promise<void>;
@@ -27,6 +29,7 @@ const initialState = {
   step: 'file' as ImportStep,
   file: null as File | null,
   importYear: new Date().getFullYear(),
+  importStatus: '現役' as ImportStatus,
   parseResult: null as ParseResult | null,
   preview: null as ImportPreview | null,
   result: null as ImportResult | null,
@@ -47,6 +50,10 @@ export const useImportStore = create<ImportState>((set, get) => ({
 
   setImportYear(year: number) {
     set({ importYear: year });
+  },
+
+  setImportStatus(status: ImportStatus) {
+    set({ importStatus: status });
   },
 
   async parseFile(importYear: number) {
@@ -73,7 +80,8 @@ export const useImportStore = create<ImportState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const preview = await service.preview(parseResult.rows, importYear);
+      const { importStatus } = get();
+      const preview = await service.preview(parseResult.rows, importYear, importStatus);
       set({ preview, isLoading: false, step: 'preview' });
     } catch (err) {
       set({

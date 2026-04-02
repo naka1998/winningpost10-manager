@@ -14,8 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { createImportService, type ImportService } from '../service';
+import { createImportService, type ImportService, type ImportStatus } from '../service';
 import { useImportStore, type ImportStep } from '../store';
+
+const STATUS_OPTIONS: { value: ImportStatus; label: string }[] = [
+  { value: '現役', label: '現役' },
+  { value: '種牡馬', label: '種牡馬' },
+  { value: '繁殖牝馬', label: '繁殖牝馬' },
+];
 
 const STEPS: { key: ImportStep; label: string }[] = [
   { key: 'file', label: '1. ファイル選択' },
@@ -143,8 +149,17 @@ function FileStep() {
 }
 
 function SettingsStep({ service }: { service: ImportService }) {
-  const { importYear, setImportYear, parseFile, runPreview, isLoading, error, parseResult } =
-    useImportStore();
+  const {
+    importYear,
+    setImportYear,
+    importStatus,
+    setImportStatus,
+    parseFile,
+    runPreview,
+    isLoading,
+    error,
+    parseResult,
+  } = useImportStore();
 
   const handleParse = async () => {
     await parseFile(importYear);
@@ -167,7 +182,7 @@ function SettingsStep({ service }: { service: ImportService }) {
         <CardDescription>インポート年度を指定してください（年齢→生年変換に使用）</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex max-w-xs items-end gap-3">
+        <div className="flex max-w-md gap-4">
           <div className="flex-1 space-y-2">
             <Label htmlFor="import-year">インポート年（ゲーム内年度）</Label>
             <Input
@@ -178,6 +193,21 @@ function SettingsStep({ service }: { service: ImportService }) {
               value={importYear}
               onChange={(e) => setImportYear(parseInt(e.target.value, 10) || 0)}
             />
+          </div>
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="import-status">ステータス</Label>
+            <select
+              id="import-status"
+              value={importStatus}
+              onChange={(e) => setImportStatus(e.target.value as ImportStatus)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
