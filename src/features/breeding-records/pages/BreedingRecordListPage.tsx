@@ -114,7 +114,8 @@ function BreedingRecordFormDialog({
   ) => Promise<void>;
 }) {
   const [mareId, setMareId] = useState<string>('');
-  const [sireName, setSireName] = useState<string>('');
+  const [sireId, setSireId] = useState<string>('');
+  const [sireCustomName, setSireCustomName] = useState<string>('');
   const [year, setYear] = useState<string>('');
   const [evaluation, setEvaluation] = useState<string>('A');
   const [theories, setTheories] = useState<BreedingTheory[]>([]);
@@ -126,7 +127,14 @@ function BreedingRecordFormDialog({
   useEffect(() => {
     if (editTarget) {
       setMareId(String(editTarget.mareId));
-      setSireName(editTarget.sireName);
+      const matchedStallion = stallions.find((h) => h.id === editTarget.sireId);
+      if (matchedStallion) {
+        setSireId(String(matchedStallion.id));
+        setSireCustomName('');
+      } else {
+        setSireId('__custom__');
+        setSireCustomName(editTarget.sireName);
+      }
       setYear(String(editTarget.year));
       setEvaluation(editTarget.evaluation ?? 'A');
       setTheories(editTarget.theories ?? []);
@@ -134,7 +142,8 @@ function BreedingRecordFormDialog({
       setNotes(editTarget.notes ?? '');
     } else {
       setMareId('');
-      setSireName('');
+      setSireId('');
+      setSireCustomName('');
       setYear(String(defaultYear));
       setEvaluation('A');
       setTheories([]);
@@ -160,19 +169,23 @@ function BreedingRecordFormDialog({
     e.preventDefault();
     setFormError(null);
 
-    if (!sireName.trim()) {
-      setFormError('種牡馬を入力してください');
+    const isCustomSire = sireId === '__custom__';
+    if (isCustomSire && !sireCustomName.trim()) {
+      setFormError('種牡馬名を入力してください');
+      return;
+    }
+    if (!sireId) {
+      setFormError('種牡馬を選択してください');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const matchedStallion = stallions.find((h) => h.name === sireName.trim());
       const base = {
         mareId: Number(mareId),
-        sireId: matchedStallion?.id ?? 0,
-        sireName: matchedStallion ? undefined : sireName.trim(),
+        sireId: isCustomSire ? 0 : Number(sireId),
+        sireName: isCustomSire ? sireCustomName.trim() : undefined,
         year: Number(year),
         evaluation: evaluation || null,
         theories: theories.length > 0 ? theories : null,
@@ -230,19 +243,33 @@ function BreedingRecordFormDialog({
           </div>
           <div>
             <Label htmlFor="br-sire">種牡馬</Label>
-            <Input
-              id="br-sire"
-              list="stallion-list"
-              value={sireName}
-              onChange={(e) => setSireName(e.target.value)}
-              placeholder="種牡馬名を入力（候補から選択 or 新規入力）"
-              required
-            />
-            <datalist id="stallion-list">
-              {stallions.map((h) => (
-                <option key={h.id} value={h.name} />
-              ))}
-            </datalist>
+            <Select
+              value={sireId}
+              onValueChange={(v) => {
+                setSireId(v);
+                if (v !== '__custom__') setSireCustomName('');
+              }}
+            >
+              <SelectTrigger id="br-sire">
+                <SelectValue placeholder="選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                {stallions.map((h) => (
+                  <SelectItem key={h.id} value={String(h.id)}>
+                    {h.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__custom__">その他（自由入力）</SelectItem>
+              </SelectContent>
+            </Select>
+            {sireId === '__custom__' && (
+              <Input
+                className="mt-2"
+                value={sireCustomName}
+                onChange={(e) => setSireCustomName(e.target.value)}
+                placeholder="種牡馬名を入力"
+              />
+            )}
           </div>
           <div>
             <Label htmlFor="br-evaluation">評価</Label>
