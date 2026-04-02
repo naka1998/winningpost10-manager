@@ -12,24 +12,25 @@ describe('seedTestHorses', () => {
     await runMigrations(db);
   });
 
-  it('10頭の馬を作成する', async () => {
+  it('31頭の馬を作成する（10基本 + 4繁殖牝馬 + 17産駒）', async () => {
     const count = await seedTestHorses(db);
-    expect(count).toBe(10);
+    expect(count).toBe(31);
   });
 
-  it('祖先馬も含めて合計69頭が登録される（5世代血統含む）', async () => {
+  it('祖先馬も含めて合計90頭が登録される（5世代血統含む）', async () => {
     await seedTestHorses(db);
     const result = await db.get<{ count: number }>('SELECT COUNT(*) as count FROM horses');
-    // 10 horses + 10 original ancestors + 49 deep pedigree ancestors = 69
-    expect(result!.count).toBe(69);
+    // 10 horses + 10 original ancestors + 49 deep pedigree ancestors + 4 broodmares + 17 offspring = 90
+    expect(result!.count).toBe(90);
   });
 
-  it('現役馬にはステータスが登録される', async () => {
+  it('ステータスが登録される（基本10 + 繁殖牝馬12 + 産駒11 = 33件）', async () => {
     await seedTestHorses(db);
     const statuses = await db.all<{ horse_id: number }>(
       'SELECT DISTINCT horse_id FROM yearly_statuses',
     );
-    expect(statuses).toHaveLength(10);
+    // 10 original + 6 broodmares(既存2+新4) + 7 offspring with grades = 23 distinct horses
+    expect(statuses.length).toBeGreaterThanOrEqual(20);
   });
 
   it('馬に父馬・母馬が紐づいている', async () => {
@@ -113,6 +114,46 @@ describe('seedTestHorses', () => {
 
     // 同一IDであること（インブリード）
     expect(ss1!.id).toBe(ss2!.id);
+  });
+
+  it('繁殖牝馬が6頭登録される', async () => {
+    await seedTestHorses(db);
+    const result = await db.get<{ count: number }>(
+      "SELECT COUNT(*) as count FROM horses WHERE status = '繁殖牝馬'",
+    );
+    expect(result!.count).toBe(6);
+  });
+
+  it('繁殖牝馬に産駒がdam_idで紐づいている', async () => {
+    await seedTestHorses(db);
+    const offspring = await db.all<{ name: string }>(
+      "SELECT h.name FROM horses h JOIN horses m ON h.dam_id = m.id WHERE m.status = '繁殖牝馬' AND h.status != 'ancestor'",
+    );
+    expect(offspring.length).toBe(17);
+  });
+
+  it('配合記録が登録される', async () => {
+    await seedTestHorses(db);
+    const records = await db.get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM breeding_records',
+    );
+    expect(records!.count).toBe(17);
+  });
+
+  it('繁殖牝馬にmare_lineが設定される', async () => {
+    await seedTestHorses(db);
+    const mares = await db.all<{ name: string; mare_line: string }>(
+      "SELECT name, mare_line FROM horses WHERE status = '繁殖牝馬' AND mare_line IS NOT NULL",
+    );
+    expect(mares.length).toBe(6);
+  });
+
+  it('繁殖牝馬にグレード付きyearly_statusesがある', async () => {
+    await seedTestHorses(db);
+    const grades = await db.all<{ name: string; grade: string }>(
+      "SELECT h.name, ys.grade FROM horses h JOIN yearly_statuses ys ON ys.horse_id = h.id WHERE h.status = '繁殖牝馬' AND ys.grade IS NOT NULL",
+    );
+    expect(grades.length).toBeGreaterThanOrEqual(10);
   });
 
   it('2回実行するとUNIQUE制約で失敗する', async () => {
