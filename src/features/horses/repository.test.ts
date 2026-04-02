@@ -69,6 +69,18 @@ describe('HorseRepository', () => {
     });
   });
 
+  describe('findByName', () => {
+    it('finds horses by same name regardless of birth year', async () => {
+      await repo.create({ name: '同名馬', birthYear: 2020, status: '現役' });
+      await repo.create({ name: '同名馬', birthYear: 2022, status: '現役' });
+
+      const found = await repo.findByName('同名馬');
+      expect(found).toHaveLength(2);
+      expect(found[0].birthYear).toBe(2022);
+      expect(found[1].birthYear).toBe(2020);
+    });
+  });
+
   describe('findAncestorByName', () => {
     it('finds an ancestor horse by name (birth_year is NULL)', async () => {
       await repo.create({ name: '祖先馬', status: 'ancestor' });

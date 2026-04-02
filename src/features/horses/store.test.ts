@@ -27,6 +27,7 @@ function createMockHorse(overrides: Partial<Horse> = {}): Horse {
 function createMockRepo(horses: Horse[] = [createMockHorse()]): HorseRepository {
   return {
     findById: vi.fn(),
+    findByName: vi.fn(),
     findByNameAndBirthYear: vi.fn(),
     findAncestorByName: vi.fn(),
     findAll: vi.fn().mockResolvedValue(horses),

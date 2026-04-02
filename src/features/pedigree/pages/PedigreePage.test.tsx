@@ -39,6 +39,7 @@ vi.mock('@/app/repository-context', () => ({
     horseRepository: mockHorseRepo,
     yearlyStatusRepository: {
       findById: vi.fn(),
+      findByName: vi.fn(),
       findByHorseId: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock('@/app/repository-context', () => ({
     },
     lineageRepository: {
       findById: vi.fn(),
+      findByName: vi.fn(),
       findAll: vi.fn(),
       getChildren: vi.fn(),
       getHierarchy: vi.fn(),

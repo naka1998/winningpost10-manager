@@ -51,6 +51,12 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
         if (!existing) {
           existing = await deps.horseRepo.findAncestorByName(parsed.name);
         }
+        if (!existing) {
+          const sameNameHorses = await deps.horseRepo.findByName(parsed.name);
+          if (sameNameHorses.length === 1) {
+            existing = sameNameHorses[0];
+          }
+        }
 
         if (!existing) {
           previewRows.push({ parsed, action: 'create' });

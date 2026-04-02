@@ -83,6 +83,7 @@ const mockHorseRepo = {
 
 const mockYearlyStatusRepo = {
   findById: vi.fn(),
+  findByName: vi.fn(),
   findByHorseId: mockYsFindByHorseId,
   create: mockYsCreate,
   update: mockYsUpdate,
