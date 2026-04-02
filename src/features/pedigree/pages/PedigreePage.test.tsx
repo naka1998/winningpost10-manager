@@ -46,7 +46,6 @@ vi.mock('@/app/repository-context', () => ({
     },
     lineageRepository: {
       findById: vi.fn(),
-      findByName: vi.fn(),
       findAll: vi.fn(),
       getChildren: vi.fn(),
       getHierarchy: vi.fn(),

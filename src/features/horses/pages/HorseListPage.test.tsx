@@ -75,7 +75,6 @@ const mockHorseRepo = {
 
 const mockLineageRepo = {
   findById: vi.fn(),
-  findByName: vi.fn(),
   findAll: vi.fn(),
   getChildren: vi.fn(),
   getHierarchy: mockGetHierarchy,

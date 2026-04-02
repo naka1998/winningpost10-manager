@@ -46,19 +46,24 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
           continue;
         }
 
-        // Match by name+birthYear first, then by name only (catches ancestors and previously imported horses)
+        // Match by name+birthYear first, then ancestor-only fallback (name + birth_year IS NULL)
         let existing = await deps.horseRepo.findByNameAndBirthYear(parsed.name, parsed.birthYear);
         if (!existing) {
-          existing = await deps.horseRepo.findByName(parsed.name);
+          existing = await deps.horseRepo.findAncestorByName(parsed.name);
         }
 
         if (!existing) {
           previewRows.push({ parsed, action: 'create' });
           newCount++;
         } else {
-          // Always treat existing match as "update" (overwrite)
-          previewRows.push({ parsed, action: 'update', existingHorse: existing });
-          updateCount++;
+          const changes = detectChanges(existing, parsed, importStatus);
+          if (Object.keys(changes).length === 0) {
+            previewRows.push({ parsed, action: 'skip', existingHorse: existing });
+            skipCount++;
+          } else {
+            previewRows.push({ parsed, action: 'update', existingHorse: existing, changes });
+            updateCount++;
+          }
         }
       }
 
@@ -296,6 +301,34 @@ function buildYearlyStatusInput(
     jockey: parsed.jockey,
     raceRecord: parsed.raceRecord,
   };
+}
+
+function detectChanges(
+  existing: {
+    sex: string | null;
+    country: string | null;
+    mareLine: string | null;
+    status: string;
+  },
+  parsed: ParsedHorseRow,
+  importStatus: ImportStatus,
+): Record<string, { old: unknown; new: unknown }> {
+  const changes: Record<string, { old: unknown; new: unknown }> = {};
+
+  if (parsed.sex !== null && parsed.sex !== existing.sex) {
+    changes.sex = { old: existing.sex, new: parsed.sex };
+  }
+  if (parsed.country !== null && parsed.country !== existing.country) {
+    changes.country = { old: existing.country, new: parsed.country };
+  }
+  if (parsed.mareLineName !== null && parsed.mareLineName !== existing.mareLine) {
+    changes.mareLine = { old: existing.mareLine, new: parsed.mareLineName };
+  }
+  if (importStatus !== existing.status) {
+    changes.status = { old: existing.status, new: importStatus };
+  }
+
+  return changes;
 }
 
 function buildYearlyStatusUpdateInput(parsed: ParsedHorseRow) {

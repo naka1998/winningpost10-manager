@@ -91,7 +91,6 @@ const mockYearlyStatusRepo = {
 
 const mockLineageRepo = {
   findById: mockLineageFindById,
-  findByName: vi.fn(),
   findAll: vi.fn(),
   getChildren: vi.fn(),
   getHierarchy: vi.fn(),

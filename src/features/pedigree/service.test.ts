@@ -22,7 +22,6 @@ function buildRow(overrides: Partial<PedigreeRow>): PedigreeRow {
 function createMockHorseRepo(overrides?: Partial<HorseRepository>): HorseRepository {
   return {
     findById: vi.fn(),
-    findByName: vi.fn(),
     findByNameAndBirthYear: vi.fn(),
     findAncestorByName: vi.fn(),
     findAll: vi.fn(),

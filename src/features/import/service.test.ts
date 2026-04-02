@@ -72,9 +72,8 @@ function buildExistingHorse(overrides?: Partial<Horse>): Horse {
 function createMockHorseRepo(overrides?: Partial<HorseRepository>): HorseRepository {
   return {
     findById: vi.fn(),
-    findByName: vi.fn().mockResolvedValue(null),
     findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
-    findAncestorByName: vi.fn(),
+    findAncestorByName: vi.fn().mockResolvedValue(null),
     findAll: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -142,8 +141,8 @@ describe('ImportService', () => {
       expect(preview.summary.newCount).toBe(1);
     });
 
-    it('marks row as "update" when horse exists by name+birthYear', async () => {
-      const existing = buildExistingHorse({ name: '既存馬' });
+    it('marks row as "update" when horse exists with different data', async () => {
+      const existing = buildExistingHorse({ name: '既存馬', country: '日' });
       const horseRepo = createMockHorseRepo({
         findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
       });
@@ -154,15 +153,15 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024 })];
+      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024, country: '米' })];
       const preview = await service.preview(rows, 2025, '現役');
 
       expect(preview.rows[0].action).toBe('update');
-      expect(preview.rows[0].existingHorse).toBeDefined();
+      expect(preview.rows[0].changes).toHaveProperty('country');
       expect(preview.summary.updateCount).toBe(1);
     });
 
-    it('marks row as "update" when horse exists by name only (ancestor match)', async () => {
+    it('marks row as "update" when ancestor exists by name (ancestor match)', async () => {
       const ancestor = buildExistingHorse({
         name: '既存祖先馬',
         birthYear: null,
@@ -170,7 +169,7 @@ describe('ImportService', () => {
       });
       const horseRepo = createMockHorseRepo({
         findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
-        findByName: vi.fn().mockResolvedValue(ancestor),
+        findAncestorByName: vi.fn().mockResolvedValue(ancestor),
       });
       const service = createImportService({
         db: createMockDb(),
@@ -185,6 +184,31 @@ describe('ImportService', () => {
       expect(preview.rows[0].action).toBe('update');
       expect(preview.rows[0].existingHorse!.status).toBe('ancestor');
       expect(preview.summary.updateCount).toBe(1);
+    });
+
+    it('marks row as "skip" when horse exists with same data', async () => {
+      const existing = buildExistingHorse({
+        name: '同一馬',
+        sex: '牡',
+        country: '日',
+        status: '現役',
+      });
+      const horseRepo = createMockHorseRepo({
+        findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
+      });
+      const service = createImportService({
+        db: createMockDb(),
+        horseRepo,
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      const rows = [buildParsedRow({ name: '同一馬', birthYear: 2024, sex: '牡', country: '日' })];
+      const preview = await service.preview(rows, 2025, '現役');
+
+      expect(preview.rows[0].action).toBe('skip');
+      expect(preview.summary.skipCount).toBe(1);
+      expect(preview.summary.updateCount).toBe(0);
     });
 
     it('marks row as "invalid" when birthYear is null', async () => {

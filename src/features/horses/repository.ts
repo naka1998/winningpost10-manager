@@ -4,7 +4,6 @@ import type { Horse, HorseCreateInput, HorseFilter, HorseUpdateInput, PedigreeRo
 
 export interface HorseRepository {
   findById(id: number): Promise<Horse | null>;
-  findByName(name: string): Promise<Horse | null>;
   findByNameAndBirthYear(name: string, birthYear: number): Promise<Horse | null>;
   findAncestorByName(name: string): Promise<Horse | null>;
   findAll(filter?: HorseFilter): Promise<Horse[]>;
@@ -52,14 +51,6 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
   return {
     async findById(id: number) {
       const row = await db.get<Record<string, unknown>>('SELECT * FROM horses WHERE id = ?', [id]);
-      return row ? mapHorseRow(row) : null;
-    },
-
-    async findByName(name: string) {
-      const row = await db.get<Record<string, unknown>>(
-        'SELECT * FROM horses WHERE name = ? LIMIT 1',
-        [name],
-      );
       return row ? mapHorseRow(row) : null;
     },
 
