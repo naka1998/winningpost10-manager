@@ -23,6 +23,29 @@ export interface ImportServiceDeps {
 }
 
 export function createImportService(deps: ImportServiceDeps): ImportService {
+  async function writeImportLog(params: {
+    gameYear: number;
+    recordCount: number;
+    newCount: number;
+    updatedCount: number;
+    status: 'success' | 'failed';
+    errorDetail: string | null;
+  }): Promise<void> {
+    await deps.db.run(
+      `INSERT INTO import_logs (game_year, file_name, record_count, new_count, updated_count, status, error_detail)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.gameYear,
+        null,
+        params.recordCount,
+        params.newCount,
+        params.updatedCount,
+        params.status,
+        params.errorDetail,
+      ],
+    );
+  }
+
   return {
     async preview(
       rows: ParsedHorseRow[],
@@ -82,131 +105,177 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
     },
 
     async execute(preview: ImportPreview): Promise<ImportResult> {
-      return deps.db.transaction(async (tx) => {
-        // Create repos bound to the transaction connection
-        const { createHorseRepository } = await import('@/features/horses/repository');
-        const { createYearlyStatusRepository } =
-          await import('@/features/horses/yearly-status-repository');
-        const { createLineageRepository } = await import('@/features/lineages/repository');
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      let currentPhase = 'initialization';
 
-        const txHorseRepo = createHorseRepository(tx);
-        const txYearlyStatusRepo = createYearlyStatusRepository(tx);
-        const txLineageRepo = createLineageRepository(tx);
+      try {
+        await deps.db.transaction(async (tx) => {
+          currentPhase = 'repository setup';
+          // Create repos bound to the transaction connection
+          const { createHorseRepository } = await import('@/features/horses/repository');
+          const { createYearlyStatusRepository } =
+            await import('@/features/horses/yearly-status-repository');
+          const { createLineageRepository } = await import('@/features/lineages/repository');
 
-        let created = 0;
-        let updated = 0;
-        let skipped = 0;
+          const txHorseRepo = createHorseRepository(tx);
+          const txYearlyStatusRepo = createYearlyStatusRepository(tx);
+          const txLineageRepo = createLineageRepository(tx);
 
-        for (let i = 0; i < preview.rows.length; i++) {
-          const row = preview.rows[i];
+          currentPhase = 'row processing';
+          for (let i = 0; i < preview.rows.length; i++) {
+            const row = preview.rows[i];
+            currentPhase = `row processing (${i + 1}/${preview.rows.length})`;
 
-          if (row.action === 'skip' || row.action === 'invalid') {
-            skipped++;
-            continue;
-          }
+            if (row.action === 'skip' || row.action === 'invalid') {
+              skipped++;
+              continue;
+            }
 
-          if (row.action === 'create') {
-            // Resolve sire
-            const sireId = await resolveAncestor(
-              txHorseRepo,
-              txLineageRepo,
-              row.parsed.sireName,
-              row.parsed.sireLineageName,
-            );
-
-            // Resolve dam
-            const damId = await resolveAncestor(
-              txHorseRepo,
-              txLineageRepo,
-              row.parsed.damName,
-              null,
-            );
-
-            // Resolve lineage
-            const lineageId = await resolveLineage(txLineageRepo, row.parsed.sireLineageName);
-
-            // Create horse
-            const horse = await txHorseRepo.create({
-              name: row.parsed.name,
-              sex: row.parsed.sex,
-              birthYear: row.parsed.birthYear,
-              country: row.parsed.country,
-              isHistorical: row.parsed.isHistorical,
-              mareLine: row.parsed.mareLineName,
-              status: preview.importStatus ?? '現役',
-              sireId,
-              damId,
-              lineageId,
-            });
-
-            // Create yearly status
-            await txYearlyStatusRepo.create(
-              buildYearlyStatusInput(horse.id, preview.importYear, row.parsed),
-            );
-
-            created++;
-          } else if (row.action === 'update' && row.existingHorse) {
-            const horse = row.existingHorse;
-            const p = row.parsed;
-
-            // Build update data, only including non-null parsed values
-            // (undefined values are skipped by horseToColumns, preserving existing DB values)
-            const updateData: Record<string, unknown> = {};
-            if (p.sex !== null) updateData.sex = p.sex;
-            if (p.birthYear !== null) updateData.birthYear = p.birthYear;
-            if (p.country !== null) updateData.country = p.country;
-            updateData.isHistorical = p.isHistorical;
-            if (p.mareLineName !== null) updateData.mareLine = p.mareLineName;
-            updateData.status = preview.importStatus ?? '現役';
-
-            // D3: only update pedigree when parsed data provides names
-            if (p.sireName !== null) {
+            if (row.action === 'create') {
+              // Resolve sire
               const sireId = await resolveAncestor(
                 txHorseRepo,
                 txLineageRepo,
-                p.sireName,
-                p.sireLineageName,
+                row.parsed.sireName,
+                row.parsed.sireLineageName,
               );
-              updateData.sireId = sireId;
-            }
-            if (p.damName !== null) {
-              const damId = await resolveAncestor(txHorseRepo, txLineageRepo, p.damName, null);
-              updateData.damId = damId;
-            }
-            if (p.sireLineageName !== null) {
-              const lineageId = await resolveLineage(txLineageRepo, p.sireLineageName);
-              updateData.lineageId = lineageId;
-            }
 
-            await txHorseRepo.update(horse.id, updateData);
-
-            // Upsert yearly status
-            const existingStatus = await txYearlyStatusRepo.findByHorseAndYear(
-              horse.id,
-              preview.importYear,
-            );
-            if (existingStatus) {
-              await txYearlyStatusRepo.update(
-                existingStatus.id,
-                buildYearlyStatusUpdateInput(row.parsed),
+              // Resolve dam
+              const damId = await resolveAncestor(
+                txHorseRepo,
+                txLineageRepo,
+                row.parsed.damName,
+                null,
               );
-            } else {
+
+              // Resolve lineage
+              const lineageId = await resolveLineage(txLineageRepo, row.parsed.sireLineageName);
+
+              // Create horse
+              const horse = await txHorseRepo.create({
+                name: row.parsed.name,
+                sex: row.parsed.sex,
+                birthYear: row.parsed.birthYear,
+                country: row.parsed.country,
+                isHistorical: row.parsed.isHistorical,
+                mareLine: row.parsed.mareLineName,
+                status: preview.importStatus ?? '現役',
+                sireId,
+                damId,
+                lineageId,
+              });
+
+              // Create yearly status
               await txYearlyStatusRepo.create(
                 buildYearlyStatusInput(horse.id, preview.importYear, row.parsed),
               );
-            }
 
-            updated++;
+              created++;
+            } else if (row.action === 'update' && row.existingHorse) {
+              const horse = row.existingHorse;
+              const p = row.parsed;
+
+              // Build update data, only including non-null parsed values
+              // (undefined values are skipped by horseToColumns, preserving existing DB values)
+              const updateData: Record<string, unknown> = {};
+              if (p.sex !== null) updateData.sex = p.sex;
+              if (p.birthYear !== null) updateData.birthYear = p.birthYear;
+              if (p.country !== null) updateData.country = p.country;
+              updateData.isHistorical = p.isHistorical;
+              if (p.mareLineName !== null) updateData.mareLine = p.mareLineName;
+              updateData.status = preview.importStatus ?? '現役';
+
+              // D3: only update pedigree when parsed data provides names
+              if (p.sireName !== null) {
+                const sireId = await resolveAncestor(
+                  txHorseRepo,
+                  txLineageRepo,
+                  p.sireName,
+                  p.sireLineageName,
+                );
+                updateData.sireId = sireId;
+              }
+              if (p.damName !== null) {
+                const damId = await resolveAncestor(txHorseRepo, txLineageRepo, p.damName, null);
+                updateData.damId = damId;
+              }
+              if (p.sireLineageName !== null) {
+                const lineageId = await resolveLineage(txLineageRepo, p.sireLineageName);
+                updateData.lineageId = lineageId;
+              }
+
+              await txHorseRepo.update(horse.id, updateData);
+
+              // Upsert yearly status
+              const existingStatus = await txYearlyStatusRepo.findByHorseAndYear(
+                horse.id,
+                preview.importYear,
+              );
+              if (existingStatus) {
+                await txYearlyStatusRepo.update(
+                  existingStatus.id,
+                  buildYearlyStatusUpdateInput(row.parsed),
+                );
+              } else {
+                await txYearlyStatusRepo.create(
+                  buildYearlyStatusInput(horse.id, preview.importYear, row.parsed),
+                );
+              }
+
+              updated++;
+            }
           }
+        });
+      } catch (error) {
+        // トランザクション失敗時は DB 変更は全て rollback されるため、件数を 0 へ補正する
+        created = 0;
+        updated = 0;
+        const errorDetail = formatImportErrorDetail(currentPhase, error);
+        const errors = [
+          {
+            row: 0,
+            horseName: 'import',
+            message: errorDetail,
+          },
+        ];
+
+        try {
+          await writeImportLog({
+            gameYear: preview.importYear,
+            recordCount: preview.rows.length,
+            newCount: created,
+            updatedCount: updated,
+            status: 'failed',
+            errorDetail,
+          });
+        } catch (auditError) {
+          errors.push({
+            row: 0,
+            horseName: 'import',
+            message: formatImportErrorDetail('audit logging (failed)', auditError),
+          });
         }
 
-        // Record import log
-        await tx.run(
-          `INSERT INTO import_logs (game_year, file_name, record_count, new_count, updated_count, status)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [preview.importYear, null, preview.rows.length, created, updated, 'success'],
-        );
+        return {
+          success: false,
+          created,
+          updated,
+          skipped,
+          errors,
+        };
+      }
 
+      try {
+        await writeImportLog({
+          gameYear: preview.importYear,
+          recordCount: preview.rows.length,
+          newCount: created,
+          updatedCount: updated,
+          status: 'success',
+          errorDetail: null,
+        });
         return {
           success: true,
           created,
@@ -214,9 +283,41 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
           skipped,
           errors: [],
         };
-      });
+      } catch (logError) {
+        const auditError = formatImportErrorDetail('audit logging (success)', logError);
+        return {
+          success: false,
+          created,
+          updated,
+          skipped,
+          errors: [
+            {
+              row: 0,
+              horseName: 'import',
+              message: auditError,
+            },
+          ],
+        };
+      }
     },
   };
+}
+
+function formatImportErrorDetail(phase: string, error: unknown): string {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const maskedMessage = maskSensitiveErrorMessage(rawMessage);
+  return `phase=${phase}; message=${maskedMessage}`;
+}
+
+function maskSensitiveErrorMessage(message: string): string {
+  const oneLine = message.replace(/\s+/g, ' ').trim();
+  const masked = oneLine.replace(
+    /\b(password|passwd|token|secret|api[-_]?key)\b\s*[:=]\s*([^\s,;]+)/gi,
+    '$1=[redacted]',
+  );
+
+  // DB へ保存する監査ログの肥大化を防ぐ
+  return masked.length > 300 ? `${masked.slice(0, 300)}...` : masked;
 }
 
 async function resolveAncestor(

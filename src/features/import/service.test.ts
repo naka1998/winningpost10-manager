@@ -616,7 +616,7 @@ describe('ImportService', () => {
       expect(sires).toHaveLength(1);
     });
 
-    it('rolls back entire transaction on error', async () => {
+    it('rolls back entire transaction on error and records failed import log', async () => {
       await db.run("INSERT INTO horses (name, birth_year, status) VALUES ('既存馬', 2023, '現役')");
 
       const service = createServiceWithRealDb();
@@ -637,13 +637,97 @@ describe('ImportService', () => {
         summary: { newCount: 2, updateCount: 0, skipCount: 0, invalidCount: 0 },
       };
 
-      await expect(service.execute(preview)).rejects.toThrow();
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(false);
+      expect(result.created).toBe(0);
+      expect(result.updated).toBe(0);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('phase=');
 
       const horse = await db.get<Record<string, unknown>>(
         'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
         ['正常馬', 2024],
       );
       expect(horse).toBeUndefined();
+
+      const failedLog = await db.get<Record<string, unknown>>(
+        "SELECT * FROM import_logs WHERE status = 'failed' ORDER BY id DESC LIMIT 1",
+      );
+      expect(failedLog).toBeDefined();
+      expect(failedLog!.status).toBe('failed');
+      expect(failedLog!.new_count).toBe(0);
+      expect(failedLog!.updated_count).toBe(0);
+      expect(failedLog!.error_detail).not.toBeNull();
+    });
+  });
+
+  describe('execute (error masking)', () => {
+    it('masks sensitive values in failed error_detail and ImportResult.errors', async () => {
+      const db = createMockDb({
+        transaction: vi.fn().mockRejectedValue(new Error('token=abc123 import failed')),
+        run: vi.fn().mockResolvedValue({ changes: 1, lastInsertRowId: 1 }),
+      });
+      const service = createImportService({
+        db,
+        horseRepo: createMockHorseRepo(),
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      const preview = {
+        importYear: 2026,
+        importStatus: '現役',
+        rows: [],
+        summary: { newCount: 0, updateCount: 0, skipCount: 0, invalidCount: 0 },
+      };
+
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toContain('token=[redacted]');
+      expect(result.errors[0].message).not.toContain('abc123');
+
+      expect(db.run).toHaveBeenCalledWith(expect.any(String), [
+        2026,
+        null,
+        0,
+        0,
+        0,
+        'failed',
+        expect.stringContaining('token=[redacted]'),
+      ]);
+    });
+
+    it('returns non-success when success audit logging fails', async () => {
+      const db = createMockDb({
+        transaction: vi.fn().mockImplementation(async (fn) => {
+          await fn(db);
+          return undefined;
+        }),
+        run: vi.fn().mockRejectedValue(new Error('token=abc123 audit insert failed')),
+      });
+      const service = createImportService({
+        db,
+        horseRepo: createMockHorseRepo(),
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      const preview = {
+        importYear: 2026,
+        importStatus: '現役',
+        rows: [],
+        summary: { newCount: 0, updateCount: 0, skipCount: 0, invalidCount: 0 },
+      };
+
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('phase=audit logging (success)');
+      expect(result.errors[0].message).toContain('token=[redacted]');
+      expect(result.errors[0].message).not.toContain('abc123');
     });
   });
 });
