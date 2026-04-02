@@ -243,4 +243,44 @@ describe('BreedingRecordListPage', () => {
     expect(dialog).toBeInTheDocument();
     expect(screen.getByText('配合記録を編集')).toBeInTheDocument();
   });
+
+  it('Enter単体ではフォーム送信されない', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: '新規登録' }));
+    const dialog = screen.getByRole('dialog');
+    const yearInput = within(dialog).getByLabelText('配合年');
+
+    await user.click(yearInput);
+    await user.keyboard('{Enter}');
+
+    // Dialog should still be open, create not called
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('Ctrl+Enterでフォーム送信される', async () => {
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    await user.click(screen.getByRole('button', { name: '新規登録' }));
+    const dialog = screen.getByRole('dialog');
+
+    // Fill required fields
+    const mareSelect = within(dialog).getByLabelText('繁殖牝馬');
+    await user.click(mareSelect);
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    const sireInput = within(dialog).getByLabelText('種牡馬');
+    await user.type(sireInput, 'テスト種牡馬');
+    // Select from dropdown
+    const option = await screen.findByText('テスト種牡馬', { selector: 'li' });
+    await user.click(option);
+
+    // Ctrl+Enter to submit
+    await user.keyboard('{Control>}{Enter}{/Control}');
+
+    expect(mockCreate).toHaveBeenCalled();
+  });
 });

@@ -232,8 +232,13 @@ function BreedingRecordFormDialog({
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-              e.preventDefault();
+            if (e.key === 'Enter') {
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                e.currentTarget.requestSubmit();
+              } else {
+                e.preventDefault();
+              }
             }
           }}
           className="space-y-4"
