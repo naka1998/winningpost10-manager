@@ -1,40 +1,23 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { initDatabase, type DatabaseConnection } from '@/database/connection';
-import { runMigrations } from '@/database/migrations';
-import { createHorseRepository } from '@/features/horses/repository';
-import { createYearlyStatusRepository } from '@/features/horses/yearly-status-repository';
-import { createLineageRepository } from '@/features/lineages/repository';
-import { createSettingsRepository } from '@/features/settings/repository';
-import { createBreedingRecordRepository } from '@/features/breeding-records/repository';
-import { createBroodmareRepository } from '@/features/broodmares/repository';
+import { createAppContainer, type AppContainer } from './container';
 import { DatabaseContext } from './database-context';
-import { RepositoryContext, type RepositoryContextValue } from './repository-context';
+import { RepositoryContext } from './repository-context';
 
 interface ProvidersProps {
   children: ReactNode;
 }
 
 export function Providers({ children }: ProvidersProps) {
-  const [db, setDb] = useState<DatabaseConnection | null>(null);
-  const [repos, setRepos] = useState<RepositoryContextValue | null>(null);
+  const [container, setContainer] = useState<AppContainer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    initDatabase()
-      .then(async (connection) => {
-        await runMigrations(connection);
+    createAppContainer()
+      .then((c) => {
         if (!cancelled) {
-          setDb(connection);
-          setRepos({
-            horseRepository: createHorseRepository(connection),
-            yearlyStatusRepository: createYearlyStatusRepository(connection),
-            lineageRepository: createLineageRepository(connection),
-            settingsRepository: createSettingsRepository(connection),
-            breedingRecordRepository: createBreedingRecordRepository(connection),
-            broodmareRepository: createBroodmareRepository(connection),
-          });
+          setContainer(c);
         }
       })
       .catch((err: unknown) => {
@@ -59,7 +42,7 @@ export function Providers({ children }: ProvidersProps) {
     );
   }
 
-  if (!db || !repos) {
+  if (!container) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -70,8 +53,10 @@ export function Providers({ children }: ProvidersProps) {
   }
 
   return (
-    <DatabaseContext.Provider value={{ db }}>
-      <RepositoryContext.Provider value={repos}>{children}</RepositoryContext.Provider>
+    <DatabaseContext.Provider value={{ db: container.db }}>
+      <RepositoryContext.Provider value={container.repositories}>
+        {children}
+      </RepositoryContext.Provider>
     </DatabaseContext.Provider>
   );
 }
