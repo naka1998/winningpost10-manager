@@ -12,6 +12,7 @@ export interface BroodmareSummary {
   offspringCount: number;
   activeOffspringCount: number;
   gradeDistribution: GradeCount[];
+  avgGradeScore: number | null;
   avgEvaluation: number | null;
   avgTotalPower: number | null;
 }
@@ -35,6 +36,13 @@ export interface LineageDistribution {
 }
 
 export interface BroodmareFilter {
-  sortBy?: 'name' | 'birthYear' | 'offspringCount' | 'breedingStartYear';
+  sortBy?:
+    | 'name'
+    | 'birthYear'
+    | 'offspringCount'
+    | 'breedingStartYear'
+    | 'avgEvaluation'
+    | 'avgTotalPower'
+    | 'avgGradeScore';
   sortOrder?: 'asc' | 'desc';
 }

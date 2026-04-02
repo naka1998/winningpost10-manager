@@ -180,6 +180,39 @@ describe('BroodmareRepository', () => {
       expect(summaries[0].gradeDistribution).toEqual([{ grade: 'G1', count: 1 }]);
     });
 
+    it('calculates avgGradeScore (G1=5, G2=2, G3=1, none=0)', async () => {
+      const mareId = await insertHorse('スコア牝馬', { status: '繁殖牝馬', birth_year: 2012 });
+      const o1 = await insertHorse('G1産駒', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2020,
+      });
+      const o2 = await insertHorse('G3産駒', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2021,
+      });
+      await insertHorse('無冠産駒', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2022,
+      });
+      await insertYearlyStatus(o1, 2023, 'G1');
+      await insertYearlyStatus(o2, 2024, 'G3');
+      // o3 has no grade → score 0
+
+      const summaries = await repo.findAllSummaries(2026);
+      // (5 + 1 + 0) / 3 = 2.0
+      expect(summaries[0].avgGradeScore).toBe(2);
+    });
+
+    it('returns null avgGradeScore when no offspring', async () => {
+      await insertHorse('子なし2', { status: '繁殖牝馬', birth_year: 2018 });
+
+      const summaries = await repo.findAllSummaries(2026);
+      expect(summaries[0].avgGradeScore).toBeNull();
+    });
+
     it('excludes non-broodmare horses', async () => {
       await insertHorse('現役馬', { status: '現役', sex: '牝', birth_year: 2020 });
       await insertHorse('繁殖牝馬D', { status: '繁殖牝馬', birth_year: 2015 });

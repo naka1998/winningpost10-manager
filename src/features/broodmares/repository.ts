@@ -41,6 +41,9 @@ const SORT_COLUMN_MAP: Record<string, string> = {
   birthYear: 'h.birth_year',
   offspringCount: 'offspring_count',
   breedingStartYear: 'breeding_start_year',
+  avgEvaluation: 'avg_evaluation',
+  avgTotalPower: 'avg_total_power',
+  avgGradeScore: 'avg_grade_score',
 };
 
 export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepository {
@@ -70,6 +73,14 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
              GROUP BY o2.id
              HAVING best_rank < 999
            ) bg) AS offspring_grades,
+          (SELECT AVG(gs.score) FROM (
+             SELECT CASE MIN(CASE ys3.grade WHEN 'G1' THEN 1 WHEN 'G2' THEN 2 WHEN 'G3' THEN 3 ELSE 999 END)
+               WHEN 1 THEN 5 WHEN 2 THEN 2 WHEN 3 THEN 1 ELSE 0 END AS score
+             FROM horses o3
+             LEFT JOIN yearly_statuses ys3 ON ys3.horse_id = o3.id AND ys3.grade IN ('G1', 'G2', 'G3')
+             WHERE o3.dam_id = h.id AND o3.status != 'ancestor'
+             GROUP BY o3.id
+           ) gs) AS avg_grade_score,
           (SELECT AVG(CASE bre.evaluation WHEN 'S' THEN 5 WHEN 'A' THEN 4 WHEN 'B' THEN 3 WHEN 'C' THEN 2 WHEN 'D' THEN 1 ELSE NULL END)
            FROM breeding_records bre WHERE bre.mare_id = h.id AND bre.evaluation IS NOT NULL) AS avg_evaluation,
           (SELECT AVG(bre2.total_power)
@@ -92,6 +103,10 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         offspringCount: (row.offspring_count as number) ?? 0,
         activeOffspringCount: (row.active_offspring_count as number) ?? 0,
         gradeDistribution: parseGradeDistribution((row.offspring_grades as string) ?? null),
+        avgGradeScore:
+          row.avg_grade_score != null
+            ? Math.round((row.avg_grade_score as number) * 100) / 100
+            : null,
         avgEvaluation:
           row.avg_evaluation != null
             ? Math.round((row.avg_evaluation as number) * 100) / 100

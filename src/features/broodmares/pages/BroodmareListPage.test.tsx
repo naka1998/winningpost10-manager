@@ -30,6 +30,7 @@ function createTestSummary(overrides: Partial<BroodmareSummary> = {}): Broodmare
     offspringCount: 3,
     activeOffspringCount: 2,
     gradeDistribution: [{ grade: 'G1', count: 1 }],
+    avgGradeScore: 5.0,
     avgEvaluation: 4.0,
     avgTotalPower: 80,
     ...overrides,
@@ -110,6 +111,7 @@ describe('BroodmareListPage', () => {
       offspringCount: 1,
       activeOffspringCount: 0,
       gradeDistribution: [{ grade: 'G3', count: 1 }],
+      avgGradeScore: 1.0,
     }),
   ];
 

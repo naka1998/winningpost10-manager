@@ -13,6 +13,7 @@ function createMockSummary(overrides: Partial<BroodmareSummary> = {}): Broodmare
     offspringCount: 3,
     activeOffspringCount: 2,
     gradeDistribution: [{ grade: 'G1', count: 1 }],
+    avgGradeScore: 5.0,
     avgEvaluation: 4.0,
     avgTotalPower: 80,
     ...overrides,

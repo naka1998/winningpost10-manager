@@ -348,9 +348,30 @@ export function BroodmareListPage() {
                     産駒数{sortIndicator('offspringCount', filter.sortBy, filter.sortOrder)}
                   </TableHead>
                   <TableHead>現役産駒</TableHead>
-                  <TableHead>主な実績</TableHead>
-                  <TableHead>平均評価</TableHead>
-                  <TableHead>平均爆発力</TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('avgGradeScore', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    主な実績{sortIndicator('avgGradeScore', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('avgEvaluation', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    平均評価{sortIndicator('avgEvaluation', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer select-none"
+                    onClick={() =>
+                      setFilter(nextSortState('avgTotalPower', filter.sortBy, filter.sortOrder))
+                    }
+                  >
+                    平均爆発力{sortIndicator('avgTotalPower', filter.sortBy, filter.sortOrder)}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
