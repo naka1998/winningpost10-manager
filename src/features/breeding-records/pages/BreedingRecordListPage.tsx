@@ -491,6 +491,7 @@ export function BreedingRecordListPage() {
               <TableHead>配合理論</TableHead>
               <TableHead>爆発力</TableHead>
               <TableHead>産駒</TableHead>
+              <TableHead>メモ</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -504,6 +505,13 @@ export function BreedingRecordListPage() {
                 <TableCell>{record.theories?.map((t) => t.name).join(', ') ?? '-'}</TableCell>
                 <TableCell>{record.totalPower ?? '-'}</TableCell>
                 <TableCell>{record.offspringName ?? '-'}</TableCell>
+                <TableCell title={record.notes ?? undefined}>
+                  {record.notes
+                    ? record.notes.length > 10
+                      ? `${record.notes.slice(0, 10)}…`
+                      : record.notes
+                    : '-'}
+                </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(record)}>
