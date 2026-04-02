@@ -30,14 +30,6 @@ interface DatabaseSnapshot {
   schemaObjects: SerializedSchemaObject[];
 }
 
-const MANDATORY_TABLES = [
-  'game_settings',
-  'lineages',
-  'horses',
-  'yearly_statuses',
-  'breeding_records',
-] as const;
-
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) {
@@ -125,19 +117,26 @@ function validateSnapshot(snapshot: DatabaseSnapshot): void {
     }
   }
 
-  const tableNames = new Set(snapshot.tables.map((table) => table.name));
-  const missingMandatory = MANDATORY_TABLES.filter((name) => !tableNames.has(name));
-  if (missingMandatory.length > 0) {
-    throw new Error(`必須テーブルが不足しています: ${missingMandatory.join(', ')}`);
-  }
-
   for (const schemaObject of snapshot.schemaObjects) {
+    const normalizedSql = schemaObject.sql.trim().toUpperCase();
+    const expectedPrefixes: Record<SerializedSchemaObject['type'], string[]> = {
+      index: ['CREATE INDEX', 'CREATE UNIQUE INDEX'],
+      trigger: ['CREATE TRIGGER'],
+      view: ['CREATE VIEW'],
+    };
+    const isExpectedCreate = expectedPrefixes[schemaObject.type]?.some((prefix) =>
+      normalizedSql.startsWith(prefix),
+    );
+    const includesDeclaredName = normalizedSql.includes(schemaObject.name.toUpperCase());
+
     if (
       !['index', 'trigger', 'view'].includes(schemaObject.type) ||
       typeof schemaObject.name !== 'string' ||
       schemaObject.name.length === 0 ||
       typeof schemaObject.sql !== 'string' ||
-      schemaObject.sql.trim().length === 0
+      schemaObject.sql.trim().length === 0 ||
+      !isExpectedCreate ||
+      !includesDeclaredName
     ) {
       throw new Error('バックアップ内のスキーマオブジェクト定義が不正です。');
     }
@@ -223,6 +222,17 @@ async function getCurrentSchemaVersion(db: DatabaseConnection): Promise<number> 
   return Number(row?.value ?? 0);
 }
 
+async function getCurrentTableSet(db: DatabaseConnection): Promise<Set<string>> {
+  const tables = await db.all<{ name: string }>(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table'
+      AND name NOT LIKE 'sqlite_%'
+    ORDER BY name
+  `);
+  return new Set(tables.map((table) => table.name));
+}
+
 async function readBlobText(blob: Blob): Promise<string> {
   if (typeof blob.text === 'function') {
     return blob.text();
@@ -249,6 +259,16 @@ export async function importDatabase(db: DatabaseConnection, file: File): Promis
   if (currentVersion !== parsed.schemaVersion) {
     throw new Error(
       `スキーマバージョンが一致しません（現在: v${currentVersion}, バックアップ: v${parsed.schemaVersion}）。`,
+    );
+  }
+
+  const snapshotTableSet = new Set(parsed.tables.map((table) => table.name));
+  const currentTableSet = await getCurrentTableSet(db);
+  const missingFromSnapshot = [...currentTableSet].filter((table) => !snapshotTableSet.has(table));
+  const unknownInSnapshot = [...snapshotTableSet].filter((table) => !currentTableSet.has(table));
+  if (missingFromSnapshot.length > 0 || unknownInSnapshot.length > 0) {
+    throw new Error(
+      `バックアップのテーブル構成が一致しません（不足: ${missingFromSnapshot.join(', ') || 'なし'}, 余剰: ${unknownInSnapshot.join(', ') || 'なし'}）。`,
     );
   }
 

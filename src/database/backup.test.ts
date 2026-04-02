@@ -13,6 +13,16 @@ function createDbMock(): DatabaseConnection {
   };
 }
 
+const fullTableSet = [
+  'game_settings',
+  'lineages',
+  'horses',
+  'yearly_statuses',
+  'breeding_records',
+  'race_plans',
+  'import_logs',
+].map((name) => ({ name }));
+
 describe('backup utilities', () => {
   it('バックアップファイル名の命名規則を満たす', () => {
     const name = createBackupFilename(new Date('2026-04-02T09:30:15Z'));
@@ -66,6 +76,8 @@ describe('backup utilities', () => {
               createSql: 'CREATE TABLE breeding_records (id INTEGER)',
               rows: [],
             },
+            { name: 'race_plans', createSql: 'CREATE TABLE race_plans (id INTEGER)', rows: [] },
+            { name: 'import_logs', createSql: 'CREATE TABLE import_logs (id INTEGER)', rows: [] },
           ],
           schemaObjects: [],
         }),
@@ -116,12 +128,64 @@ describe('backup utilities', () => {
               createSql: 'CREATE TABLE breeding_records (id INTEGER)',
               rows: [],
             },
+            { name: 'race_plans', createSql: 'CREATE TABLE race_plans (id INTEGER)', rows: [] },
+            { name: 'import_logs', createSql: 'CREATE TABLE import_logs (id INTEGER)', rows: [] },
           ],
           schemaObjects: [],
         }),
     } as File;
 
     await expect(importDatabase(db, file)).rejects.toThrow('テーブル定義が不正です');
+    expect(db.exec).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it('リストア前に危険なschemaObjects SQLを検出して中断する', async () => {
+    const db = createDbMock();
+    vi.mocked(db.get).mockResolvedValueOnce({ value: '2' } as never);
+    vi.mocked(db.all).mockResolvedValueOnce(fullTableSet as never);
+    const file = {
+      text: async () =>
+        JSON.stringify({
+          format: 'wp10-manager-backup-v1',
+          exportedAt: '2026-04-02T00:00:00.000Z',
+          schemaVersion: 2,
+          tables: fullTableSet.map((table) => ({
+            name: table.name,
+            createSql: `CREATE TABLE ${table.name} (id INTEGER)`,
+            rows: [],
+          })),
+          schemaObjects: [{ type: 'index', name: 'idx_bad', sql: 'DROP TABLE horses;' }],
+        }),
+    } as File;
+
+    await expect(importDatabase(db, file)).rejects.toThrow('スキーマオブジェクト定義が不正');
+    expect(db.exec).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it('リストア前に現在DBとテーブル構成が一致しない場合は中断する', async () => {
+    const db = createDbMock();
+    vi.mocked(db.get).mockResolvedValueOnce({ value: '2' } as never);
+    vi.mocked(db.all).mockResolvedValueOnce(fullTableSet as never);
+    const file = {
+      text: async () =>
+        JSON.stringify({
+          format: 'wp10-manager-backup-v1',
+          exportedAt: '2026-04-02T00:00:00.000Z',
+          schemaVersion: 2,
+          tables: fullTableSet
+            .filter((table) => table.name !== 'race_plans')
+            .map((table) => ({
+              name: table.name,
+              createSql: `CREATE TABLE ${table.name} (id INTEGER)`,
+              rows: [],
+            })),
+          schemaObjects: [],
+        }),
+    } as File;
+
+    await expect(importDatabase(db, file)).rejects.toThrow('テーブル構成が一致しません');
     expect(db.exec).not.toHaveBeenCalled();
     expect(db.transaction).not.toHaveBeenCalled();
   });
