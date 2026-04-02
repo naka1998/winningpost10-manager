@@ -399,8 +399,21 @@ Lint → TypeCheck → Test (pnpm test) → Build
 Lint → TypeCheck → Test (with coverage) → Build → E2E (main のみ)
 ```
 
-- **カバレッジ**: `@vitest/coverage-v8` を導入。Service 層 90%+、Repository 層 80%+ を目標
+- **カバレッジ**: `@vitest/coverage-v8` を導入。まずはグローバル閾値（Lines / Functions / Statements = 70%、Branches = 60%）で回帰を検知し、段階的に引き上げる
 - **E2E**: `main` ブランチへのプッシュ時のみ実行（PR では省略して CI 時間を短縮）
+
+### カバレッジ閾値の運用方針（2026-04-02）
+
+段階的に引き上げ、既存資産に対して無理なく品質を改善する。
+
+1. **Phase 1（即時適用）**  
+   グローバル閾値を `70 / 70 / 70 / 60`（Lines / Functions / Statements / Branches）に設定し、CI で常時チェックする。
+2. **Phase 2（次回の主要機能追加時）**  
+   `75 / 75 / 75 / 65` に引き上げる。
+3. **Phase 3（Service / Repository テスト補強後）**  
+   `80 / 80 / 80 / 70` に引き上げる。
+
+各フェーズ移行時は、未達が出る場合に先に Service / Repository テスト追加を行う（閾値だけを先行して上げない）。
 
 ---
 
