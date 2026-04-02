@@ -13,6 +13,16 @@ const mockSettingsRepo = {
   set: mockSet,
 };
 
+const mockExportDatabase = vi.fn();
+const mockDownloadBackupFile = vi.fn();
+const mockImportDatabase = vi.fn();
+
+vi.mock('@/database/backup', () => ({
+  exportDatabase: (...args: unknown[]) => mockExportDatabase(...args),
+  downloadBackupFile: (...args: unknown[]) => mockDownloadBackupFile(...args),
+  importDatabase: (...args: unknown[]) => mockImportDatabase(...args),
+}));
+
 vi.mock('@/components/ui/select', () => {
   const SelectContext = React.createContext<{
     value?: string;
@@ -61,8 +71,10 @@ vi.mock('@/database/seed/test-horses', () => ({
   seedTestHorses: (...args: unknown[]) => mockSeedTestHorses(...(args as [])),
 }));
 
+const mockDb = {};
+
 vi.mock('@/app/database-context', () => ({
-  useDatabaseContext: () => ({ db: {} }),
+  useDatabaseContext: () => ({ db: mockDb }),
 }));
 
 vi.mock('@/app/repository-context', () => ({
@@ -84,7 +96,6 @@ const defaultRaw: Record<string, string> = {
 async function renderAndWait() {
   const { SettingsPage } = await import('./SettingsPage');
   render(<SettingsPage />);
-  // Wait for settings to fully load (this element only appears after loading completes)
   await screen.findByLabelText('現在の年度');
 }
 
@@ -94,20 +105,27 @@ describe('SettingsPage', () => {
     mockGetAll.mockResolvedValue({ ...defaultRaw });
     mockSet.mockResolvedValue(undefined);
     mockSeedTestHorses.mockResolvedValue(10);
+    mockExportDatabase.mockResolvedValue({
+      blob: new Blob(['backup']),
+      filename: 'wp10-manager-backup-20260402-120000.sqlite3',
+    });
+    mockDownloadBackupFile.mockResolvedValue(undefined);
+    mockImportDatabase.mockResolvedValue(undefined);
     useSettingsStore.setState({
       settings: null,
       isLoading: false,
       error: null,
     });
+    vi.stubGlobal('location', { reload: vi.fn() });
   });
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
 
   it('設定が読み込まれて表示される', async () => {
     await renderAndWait();
-    // 年度が表示される
     const yearInput = screen.getByLabelText('現在の年度');
     expect(yearInput).toHaveValue(2025);
   });
@@ -131,8 +149,7 @@ describe('SettingsPage', () => {
     await user.clear(yearInput);
     await user.type(yearInput, '2030');
 
-    const saveButton = screen.getByRole('button', { name: '保存' });
-    await user.click(saveButton);
+    await user.click(screen.getByRole('button', { name: '保存' }));
 
     expect(mockSet).toHaveBeenCalledWith('current_year', '2030');
   });
@@ -143,30 +160,56 @@ describe('SettingsPage', () => {
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: '5' } });
 
-    // Wait for the async store update
     await vi.waitFor(() => {
       expect(mockSet).toHaveBeenCalledWith('pedigree_depth', '5');
     });
   });
 
-  it('エクスポートボタンが表示される', async () => {
-    await renderAndWait();
-    expect(screen.getByRole('button', { name: 'エクスポート' })).toBeInTheDocument();
-  });
-
-  it('リセットボタンで確認ダイアログが表示される', async () => {
+  it('エクスポートボタン押下でバックアップ処理が実行される', async () => {
     const user = userEvent.setup();
     await renderAndWait();
 
-    const resetButton = screen.getByRole('button', { name: 'データベースリセット' });
-    await user.click(resetButton);
+    await user.click(screen.getByRole('button', { name: 'エクスポート' }));
 
-    expect(screen.getByText('本当にリセットしますか？')).toBeInTheDocument();
+    expect(mockExportDatabase).toHaveBeenCalledWith(mockDb);
+    expect(mockDownloadBackupFile).toHaveBeenCalledTimes(1);
   });
 
-  it('テストデータ投入ボタンが表示される', async () => {
+  it('リストアは二重確認ダイアログを経て実行される', async () => {
+    const user = userEvent.setup();
     await renderAndWait();
-    expect(screen.getByRole('button', { name: 'テストデータ投入' })).toBeInTheDocument();
+
+    const file = new File(['{"format":"wp10-manager-backup-v1","tables":[]}'], 'test.sqlite3', {
+      type: 'application/x-sqlite3',
+    });
+
+    const input = screen.getByTestId('restore-file-input');
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(screen.getByText('バックアップをリストアしますか？')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '次へ' }));
+
+    expect(screen.getByText('最終確認: リストアを実行します')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'リストア実行' }));
+
+    expect(mockImportDatabase).toHaveBeenCalledWith(mockDb, file);
+    expect(location.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('リストア失敗時にエラーメッセージが表示される', async () => {
+    mockImportDatabase.mockRejectedValue(new Error('restore failed'));
+    const user = userEvent.setup();
+    await renderAndWait();
+
+    const file = new File(['{}'], 'broken.sqlite3', { type: 'application/x-sqlite3' });
+    const input = screen.getByTestId('restore-file-input');
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await user.click(screen.getByRole('button', { name: '次へ' }));
+    await user.click(screen.getByRole('button', { name: 'リストア実行' }));
+
+    await screen.findByText(/リストアに失敗しました。変更はロールバックされ元のDBを維持します/);
+    expect(location.reload).not.toHaveBeenCalled();
   });
 
   it('テストデータ投入ボタンをクリックすると結果が表示される', async () => {
@@ -199,9 +242,7 @@ describe('SettingsPage', () => {
   });
 
   it('ローディング中は読み込み中メッセージが表示される', async () => {
-    mockGetAll.mockImplementation(
-      () => new Promise(() => {}), // never resolves
-    );
+    mockGetAll.mockImplementation(() => new Promise(() => {}));
     const { SettingsPage } = await import('./SettingsPage');
     render(<SettingsPage />);
 
