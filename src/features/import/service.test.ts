@@ -385,6 +385,35 @@ describe('ImportService', () => {
       expect(lineage!.parent_lineage_id).toBeNull();
     });
 
+    it('updates existing horse even when update payload includes unknown lineage', async () => {
+      const service = createServiceWithRealDb();
+
+      const initialRows = [buildParsedRow({ name: '更新未知系統馬', birthYear: 2023 })];
+      const initialPreview = await service.preview(initialRows, 2025, '現役');
+      await service.execute(initialPreview);
+
+      const updateRows = [
+        buildParsedRow({
+          name: '更新未知系統馬',
+          birthYear: 2023,
+          sireLineageName: '更新時未知系統',
+          spValue: 92,
+        }),
+      ];
+      const updatePreview = await service.preview(updateRows, 2026, '種牡馬');
+      const updateResult = await service.execute(updatePreview);
+
+      expect(updateResult.success).toBe(true);
+      expect(updateResult.updated).toBe(1);
+
+      const lineage = await db.get<Record<string, unknown>>(
+        'SELECT * FROM lineages WHERE name = ?',
+        ['更新時未知系統'],
+      );
+      expect(lineage).toBeDefined();
+      expect(lineage!.lineage_type).toBe('parent');
+    });
+
     it('overwrites existing horse data on update (name-based match)', async () => {
       const service = createServiceWithRealDb();
 
