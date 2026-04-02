@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRepositoryContext } from '@/app/repository-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -363,24 +363,35 @@ export function BreedingRecordListPage() {
   const settings = useSettingsStore((s) => s.settings);
 
   const [horses, setHorses] = useState<Horse[]>([]);
+  const [allRecords, setAllRecords] = useState<BreedingRecordWithNames[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<BreedingRecordWithNames | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BreedingRecordWithNames | null>(null);
+
+  const refreshAllRecords = async () => {
+    try {
+      const all = await breedingRecordRepository.findAll();
+      setAllRecords(all);
+    } catch {
+      // Error is handled by the store's loadRecords
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
       await useSettingsStore.getState().loadSettings(settingsRepository);
       const allHorses = await horseRepository.findAll();
       setHorses(allHorses);
+      await refreshAllRecords();
       await useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
     }
     loadData();
   }, [breedingRecordRepository, horseRepository, settingsRepository]);
 
-  const isInitialMount = useState(true);
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    if (isInitialMount[0]) {
-      isInitialMount[0] = false;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
       return;
     }
     useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
@@ -427,12 +438,14 @@ export function BreedingRecordListPage() {
     } else {
       await store.createRecord(breedingRecordRepository, recordData as BreedingRecordCreateInput);
     }
+    await refreshAllRecords();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     await useBreedingRecordStore.getState().deleteRecord(breedingRecordRepository, deleteTarget.id);
     setDeleteTarget(null);
+    await refreshAllRecords();
   };
 
   const handleFilterChange = (key: string, value: string) => {
@@ -574,7 +587,7 @@ export function BreedingRecordListPage() {
         mares={mares}
         stallions={stallions}
         defaultYear={currentYear}
-        records={records}
+        records={allRecords}
         onSubmit={handleSubmit}
       />
 
