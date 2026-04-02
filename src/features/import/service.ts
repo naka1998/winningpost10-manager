@@ -245,8 +245,7 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
           errors: [],
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        const errorDetail = `phase=${currentPhase}; message=${message}`;
+        const errorDetail = formatImportErrorDetail(currentPhase, error);
 
         await writeImportLog({
           gameYear: preview.importYear,
@@ -273,6 +272,23 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
       }
     },
   };
+}
+
+function formatImportErrorDetail(phase: string, error: unknown): string {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const maskedMessage = maskSensitiveErrorMessage(rawMessage);
+  return `phase=${phase}; message=${maskedMessage}`;
+}
+
+function maskSensitiveErrorMessage(message: string): string {
+  const oneLine = message.replace(/\s+/g, ' ').trim();
+  const masked = oneLine.replace(
+    /\b(password|passwd|token|secret|api[-_]?key)\b\s*[:=]\s*([^\s,;]+)/gi,
+    '$1=[redacted]',
+  );
+
+  // DB へ保存する監査ログの肥大化を防ぐ
+  return masked.length > 300 ? `${masked.slice(0, 300)}...` : masked;
 }
 
 async function resolveAncestor(

@@ -657,4 +657,42 @@ describe('ImportService', () => {
       expect(failedLog!.error_detail).not.toBeNull();
     });
   });
+
+  describe('execute (error masking)', () => {
+    it('masks sensitive values in failed error_detail and ImportResult.errors', async () => {
+      const db = createMockDb({
+        transaction: vi.fn().mockRejectedValue(new Error('token=abc123 import failed')),
+        run: vi.fn().mockResolvedValue({ changes: 1, lastInsertRowId: 1 }),
+      });
+      const service = createImportService({
+        db,
+        horseRepo: createMockHorseRepo(),
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      const preview = {
+        importYear: 2026,
+        importStatus: '現役',
+        rows: [],
+        summary: { newCount: 0, updateCount: 0, skipCount: 0, invalidCount: 0 },
+      };
+
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0].message).toContain('token=[redacted]');
+      expect(result.errors[0].message).not.toContain('abc123');
+
+      expect(db.run).toHaveBeenCalledWith(expect.any(String), [
+        2026,
+        null,
+        0,
+        0,
+        0,
+        'failed',
+        expect.stringContaining('token=[redacted]'),
+      ]);
+    });
+  });
 });
