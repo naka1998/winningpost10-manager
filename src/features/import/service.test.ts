@@ -640,6 +640,8 @@ describe('ImportService', () => {
       const result = await service.execute(preview);
 
       expect(result.success).toBe(false);
+      expect(result.created).toBe(0);
+      expect(result.updated).toBe(0);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].message).toContain('phase=');
 
@@ -693,6 +695,37 @@ describe('ImportService', () => {
         'failed',
         expect.stringContaining('token=[redacted]'),
       ]);
+    });
+
+    it('keeps import success even when success audit logging fails', async () => {
+      const db = createMockDb({
+        transaction: vi.fn().mockImplementation(async (fn) => {
+          await fn(db);
+          return undefined;
+        }),
+        run: vi.fn().mockRejectedValue(new Error('token=abc123 audit insert failed')),
+      });
+      const service = createImportService({
+        db,
+        horseRepo: createMockHorseRepo(),
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      const preview = {
+        importYear: 2026,
+        importStatus: '現役',
+        rows: [],
+        summary: { newCount: 0, updateCount: 0, skipCount: 0, invalidCount: 0 },
+      };
+
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(true);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('phase=audit logging (success)');
+      expect(result.errors[0].message).toContain('token=[redacted]');
+      expect(result.errors[0].message).not.toContain('abc123');
     });
   });
 });

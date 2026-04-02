@@ -228,7 +228,46 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
             }
           }
         });
+      } catch (error) {
+        // トランザクション失敗時は DB 変更は全て rollback されるため、件数を 0 へ補正する
+        created = 0;
+        updated = 0;
+        const errorDetail = formatImportErrorDetail(currentPhase, error);
+        const errors = [
+          {
+            row: 0,
+            horseName: 'import',
+            message: errorDetail,
+          },
+        ];
 
+        try {
+          await writeImportLog({
+            gameYear: preview.importYear,
+            recordCount: preview.rows.length,
+            newCount: created,
+            updatedCount: updated,
+            status: 'failed',
+            errorDetail,
+          });
+        } catch (auditError) {
+          errors.push({
+            row: 0,
+            horseName: 'import',
+            message: formatImportErrorDetail('audit logging (failed)', auditError),
+          });
+        }
+
+        return {
+          success: false,
+          created,
+          updated,
+          skipped,
+          errors,
+        };
+      }
+
+      try {
         await writeImportLog({
           gameYear: preview.importYear,
           recordCount: preview.rows.length,
@@ -244,20 +283,10 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
           skipped,
           errors: [],
         };
-      } catch (error) {
-        const errorDetail = formatImportErrorDetail(currentPhase, error);
-
-        await writeImportLog({
-          gameYear: preview.importYear,
-          recordCount: preview.rows.length,
-          newCount: created,
-          updatedCount: updated,
-          status: 'failed',
-          errorDetail,
-        });
-
+      } catch (logError) {
+        const auditError = formatImportErrorDetail('audit logging (success)', logError);
         return {
-          success: false,
+          success: true,
           created,
           updated,
           skipped,
@@ -265,7 +294,7 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
             {
               row: 0,
               horseName: 'import',
-              message: errorDetail,
+              message: auditError,
             },
           ],
         };
