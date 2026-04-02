@@ -699,7 +699,7 @@ describe('ImportService', () => {
       ]);
     });
 
-    it('keeps import success even when success audit logging fails', async () => {
+    it('returns non-success when success audit logging fails', async () => {
       const db = createMockDb({
         transaction: vi.fn().mockImplementation(async (fn) => {
           await fn(db);
@@ -723,7 +723,7 @@ describe('ImportService', () => {
 
       const result = await service.execute(preview);
 
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].message).toContain('phase=audit logging (success)');
       expect(result.errors[0].message).toContain('token=[redacted]');

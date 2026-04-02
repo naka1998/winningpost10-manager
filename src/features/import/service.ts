@@ -286,7 +286,7 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
       } catch (logError) {
         const auditError = formatImportErrorDetail('audit logging (success)', logError);
         return {
-          success: true,
+          success: false,
           created,
           updated,
           skipped,
