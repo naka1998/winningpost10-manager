@@ -1,6 +1,7 @@
 import type { DatabaseConnection } from '../connection';
 import { up as initialMigration } from './001_initial';
 import { up as constraintsHardeningMigration } from './002_constraints_hardening';
+import { up as lineagesParentDemotionGuardMigration } from './003_lineages_parent_demotion_guard';
 
 interface Migration {
   version: number;
@@ -18,6 +19,11 @@ const migrations: Migration[] = [
     version: 2,
     description: '制約強化と updated_at トリガー追加',
     up: constraintsHardeningMigration,
+  },
+  {
+    version: 3,
+    description: 'lineages 親降格ガードを強化',
+    up: lineagesParentDemotionGuardMigration,
   },
 ];
 
