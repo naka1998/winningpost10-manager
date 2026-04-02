@@ -1,178 +1,245 @@
 import { describe, it, expect } from 'vitest';
 import { parseTsv, decodeWithAutoDetect } from './tsv-parser';
-
-// Real TSV data from the user (header + 3 representative rows)
-const HEADER =
-  '馬名\t国\t年\t性\tSP\tST\tSP率\t力\t瞬\t勝\t柔\t精\t賢\t健\tサ\t芝\tダ\t芝質\t距離適性\t気\t脚質\t成型\t成力\t成度\t成限\t寿命\t調子\t疲労\t闘\t馬体重\t子出\t毛色\t性格\t高\t長\t跳\t小\t左\t右\t脚\t喉\t腰\t遅\t特性\t関係性効果\t父馬\t父系\t母馬\t牝系\t出走\t戦績\t前走\t次走\tクラス\t賞金\t本賞金\t生産国\t馬主\t牧場\t調教師\t騎手\t海外遠征\t現役\t史実\t史実番号\t能力番号\t馬番号\t継承特性\t馬名';
-
-const ROW_CAESAR_JUPITER =
-  'シーザジュピター\t日\t5\t牝\t83(82)\t27\t84.7(84.7)\tS+(0)\tB(1)\tD+(1)\tA+(3)\tA+(2)\tD(6)\tC(7)\t72( +8)\t◎\t◎\t1-4(1-5)\t1100～2000m\t激\t追込\t早鍋\t有\t102\t102\t53\t37 ／\t0\t3\t+4(526)\t7\t鹿\t普通\t高\t普\t普\t\t\t\t\t\t\t\t大舞台 鉄砲 牡馬混合 直一気\t闘 学\tシーザスターズ\tグリーンデザート系\tカンパリジュピター\t\t17\t14 -  3 -  0 -  0\t12月2週 - 香港スプリント\t 4月1週 - 大阪杯\tオープン\t133,800\t67,000\t日本\t48\t32\t161\t188\t済\t○\t\t0x7FFF\t0x0591\t0x176F\tSP(非ST優,父,無,ST)\tシーザジュピター';
-
-const ROW_JIN_SHOWDOW =
-  '(外)ジンショウドウ\t日\t3\t牡\t78(75)\t50\t78.8(79.6)\tS+(2)\tS(0)\tC+(0)\tG(0)\tA(1)\tS(1)\tA+(1)\t77( +1)\t◎\t○\t1-2(1-3)\t1900～2100m\t激\t追込\t普早\t有\t101\t102\t81\t45 →\t11\t2\t-4(524)\t7\t栗\t頑固\t高\t普\t普\t\t\t\t\t\t×\t\t\t\tジャイアンツコーズウェイ\tストームキャット系\tジンワシントン\t\t4\t 4 -  0 -  0 -  0\t12月3週 - 朝日杯ＦＳ\t 3月2週 - 弥生賞ディープインパクト記念\tオープン\t14,100\t7,100\t米国\t48\t32\t161\t344\t\t○\t\t0x7FFF\t0x0150\t0x1767\tSP(非ST優,母,無,ST)\tジンショウドウ';
-
-const ROW_JIN_BEES =
-  'ジンビーズ\t日\t3\t牝\t82(78)\t55\t74.6(82.0)\tE(0)\tA+(0)\tS+(0)\tS(2)\tS(0)\tG(0)\tS+(0)\t75( +1)\t◎\t◎\t1-2(1-3)\t1500～2700m\t普\t先行\t普早\t普\t91\t100\t70\t42 ／\t0\t2\t+6(454)\t10\t栗\t頑固\t低\t普\t普\t\t\t\t\t\t\t\tスタート\t\tキングカメハメハ\tキングマンボ系\tジンチョウウン\tドクサ系\t3\t 3 -  0 -  0 -  0\t12月2週 - 全日本２歳優駿\t 1月2週 - シンザン記念\tオープン\t7,800\t4,100\t日本\t48\t32\t161\t230\t\t○\t\t0x7FFF\t0x008E\t0x1764\tSP(非ST優,父,無,ST)\tジンビーズ';
-
-const TEST_TSV = [HEADER, ROW_CAESAR_JUPITER, ROW_JIN_SHOWDOW, ROW_JIN_BEES].join('\n');
+import { buildFullTsv, buildFullTsvNoTrailingTab, HEADER_ROW, DATA_ROWS } from './test-fixtures';
 
 const IMPORT_YEAR = 2026;
 
 describe('parseTsv', () => {
-  describe('with real TSV data', () => {
-    it('returns correct number of parsed rows', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows).toHaveLength(3);
+  describe('full 22-row real data', () => {
+    const result = parseTsv(buildFullTsvNoTrailingTab(), IMPORT_YEAR);
+
+    it('parses all 22 rows', () => {
+      expect(result.rows).toHaveLength(22);
     });
 
-    it('parses horse name correctly, stripping (外) prefix', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    it('produces no warnings for valid data', () => {
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    // --- Horse name parsing ---
+    it('parses plain horse names', () => {
       expect(result.rows[0].name).toBe('シーザジュピター');
-      expect(result.rows[1].name).toBe('ジンショウドウ');
-      expect(result.rows[2].name).toBe('ジンビーズ');
+      expect(result.rows[1].name).toBe('ジンキヨモト');
+      expect(result.rows[19].name).toBe('ジンアオイダンガン');
     });
 
-    it('parses country field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].country).toBe('日');
-      expect(result.rows[1].country).toBe('日');
+    it('strips (外) prefix from horse names', () => {
+      expect(result.rows[6].name).toBe('ジンショウドウ');
+      expect(result.rows[8].name).toBe('ジントモザワ');
+      expect(result.rows[11].name).toBe('ジンパピヨン');
+      expect(result.rows[15].name).toBe('ジンジュース');
     });
 
-    it('converts age to birthYear using importYear', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].birthYear).toBe(2021); // 2026 - 5
-      expect(result.rows[1].birthYear).toBe(2023); // 2026 - 3
-      expect(result.rows[2].birthYear).toBe(2023); // 2026 - 3
+    // --- Country ---
+    it('parses all countries: 日/米/欧', () => {
+      expect(result.rows[0].country).toBe('日'); // シーザジュピター
+      expect(result.rows[1].country).toBe('米'); // ジンキヨモト
+      expect(result.rows[3].country).toBe('欧'); // ジンタクト
     });
 
-    it('parses sex field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    // --- Age → birthYear ---
+    it('converts age to birthYear for various ages', () => {
+      expect(result.rows[0].birthYear).toBe(2021); // age 5 → 2026-5
+      expect(result.rows[1].birthYear).toBe(2022); // age 4 → 2026-4
+      expect(result.rows[2].birthYear).toBe(2023); // age 3 → 2026-3
+    });
+
+    // --- Sex ---
+    it('parses sex (牡/牝)', () => {
       expect(result.rows[0].sex).toBe('牝');
       expect(result.rows[1].sex).toBe('牡');
     });
 
-    it('extracts SP value from "83(82)" format', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    // --- SP ---
+    it('extracts SP value from various formats', () => {
       expect(result.rows[0].spValue).toBe(83);
-      expect(result.rows[1].spValue).toBe(78);
+      expect(result.rows[20].spValue).toBe(69);
+      expect(result.rows[1].spValue).toBe(82);
     });
 
-    it('extracts rank and value for power field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].powerRank).toBe('S+');
+    it('sets spRank to null (SP has no letter rank)', () => {
+      expect(result.rows[0].spRank).toBeNull();
+    });
+
+    // --- Ability ranks: full range G to S+ ---
+    it('parses G rank', () => {
+      expect(result.rows[7].powerRank).toBe('G'); // ジンオクイ power=G(0)
+      expect(result.rows[2].wisdomRank).toBe('G'); // ジンビーズ wisdom=G(0)
+    });
+
+    it('parses G+ rank', () => {
+      expect(result.rows[3].instantRank).toBe('G+'); // ジンタクト instant=G+(2)
+    });
+
+    it('parses F and F+ ranks', () => {
+      expect(result.rows[1].staminaRank).toBe('F'); // ジンキヨモト stamina=F(2)
+      expect(result.rows[10].powerRank).toBe('F+'); // ジンライアー power=F+(3)
+    });
+
+    it('parses E and E+ ranks', () => {
+      expect(result.rows[2].powerRank).toBe('E'); // ジンビーズ power=E(0)
+      expect(result.rows[10].staminaRank).toBe('E+'); // ジンライアー stamina=E+(0)
+    });
+
+    it('parses D and D+ ranks', () => {
+      expect(result.rows[0].wisdomRank).toBe('D'); // シーザジュピター wisdom=D(6)
+      expect(result.rows[0].staminaRank).toBe('D+'); // シーザジュピター stamina=D+(1)
+    });
+
+    it('parses C and C+ ranks', () => {
+      expect(result.rows[4].staminaRank).toBe('C'); // ジンヒジリ stamina=C(3)
+      expect(result.rows[4].instantRank).toBe('C+'); // ジンヒジリ instant=C+(2)
+    });
+
+    it('parses B and B+ ranks', () => {
+      expect(result.rows[0].instantRank).toBe('B'); // シーザジュピター instant=B(1)
+      expect(result.rows[1].instantRank).toBe('B+'); // ジンキヨモト instant=B+(1)
+    });
+
+    it('parses A and A+ ranks', () => {
+      expect(result.rows[1].mentalRank).toBe('A'); // ジンキヨモト mental=A(6)
+      expect(result.rows[0].mentalRank).toBe('A+'); // シーザジュピター mental=A+(2)
+    });
+
+    it('parses S and S+ ranks', () => {
+      expect(result.rows[6].instantRank).toBe('S'); // ジンショウドウ instant=S(0)
+      expect(result.rows[0].powerRank).toBe('S+'); // シーザジュピター power=S+(0)
+    });
+
+    it('parses ability values correctly', () => {
       expect(result.rows[0].powerValue).toBe(0);
+      expect(result.rows[10].mentalValue).toBe(10); // ジンライアー mental=C+(10)
+      expect(result.rows[11].instantValue).toBe(7); // ジンパピヨン instant=S(7)
+      expect(result.rows[5].mentalValue).toBe(8); // ジンタキモト mental=S+(8)
     });
 
-    it('extracts rank and value for instant field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].instantRank).toBe('B');
-      expect(result.rows[0].instantValue).toBe(1);
-    });
-
-    it('extracts rank and value for stamina field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].staminaRank).toBe('D+');
-      expect(result.rows[0].staminaValue).toBe(1);
-    });
-
-    it('extracts rank and value for mental field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].mentalRank).toBe('A+');
-      expect(result.rows[0].mentalValue).toBe(2);
-    });
-
-    it('extracts rank and value for wisdom field', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].wisdomRank).toBe('D');
-      expect(result.rows[0].wisdomValue).toBe(6);
-    });
-
-    it('parses turf aptitude', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    // --- Turf/Dirt aptitude ---
+    it('parses ◎ aptitude', () => {
       expect(result.rows[0].turfAptitude).toBe('◎');
-      expect(result.rows[1].turfAptitude).toBe('◎');
-    });
-
-    it('parses dirt aptitude', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
       expect(result.rows[0].dirtAptitude).toBe('◎');
-      expect(result.rows[1].dirtAptitude).toBe('○');
     });
 
-    it('extracts distance range min and max', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    it('parses ○ aptitude', () => {
+      expect(result.rows[6].dirtAptitude).toBe('○');
+      expect(result.rows[14].turfAptitude).toBe('○');
+    });
+
+    it('parses △ aptitude', () => {
+      expect(result.rows[1].turfAptitude).toBe('△'); // ジンキヨモト
+      expect(result.rows[20].dirtAptitude).toBe('△'); // ジンブロウィン
+    });
+
+    it('parses × aptitude', () => {
+      expect(result.rows[4].dirtAptitude).toBe('×'); // ジンヒジリ
+      expect(result.rows[21].turfAptitude).toBe('×'); // ジンウチョウテン
+    });
+
+    // --- Distance ---
+    it('parses various distance ranges', () => {
       expect(result.rows[0].distanceMin).toBe(1100);
       expect(result.rows[0].distanceMax).toBe(2000);
-      expect(result.rows[1].distanceMin).toBe(1900);
-      expect(result.rows[1].distanceMax).toBe(2100);
+      expect(result.rows[12].distanceMin).toBe(1200); // same min/max
+      expect(result.rows[12].distanceMax).toBe(1200);
+      expect(result.rows[14].distanceMin).toBe(1700);
+      expect(result.rows[14].distanceMax).toBe(2900);
     });
 
-    it('parses growth type', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].growthType).toBe('早鍋');
-      expect(result.rows[1].growthType).toBe('普早');
-    });
-
-    it('parses running style', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    // --- Running style ---
+    it('parses all running styles', () => {
       expect(result.rows[0].runningStyle).toBe('追込');
+      expect(result.rows[1].runningStyle).toBe('差し');
       expect(result.rows[2].runningStyle).toBe('先行');
+      expect(result.rows[7].runningStyle).toBe('逃げ');
+      expect(result.rows[14].runningStyle).toBe('自在');
     });
 
-    it('splits traits by space into array', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    // --- Growth type ---
+    it('parses all growth types', () => {
+      expect(result.rows[0].growthType).toBe('早鍋');
+      expect(result.rows[1].growthType).toBe('普遅');
+      expect(result.rows[2].growthType).toBe('普早');
+      expect(result.rows[7].growthType).toBe('超晩');
+      expect(result.rows[9].growthType).toBe('覚醒');
+      expect(result.rows[19].growthType).toBe('早熟');
+      expect(result.rows[3].growthType).toBe('普鍋');
+    });
+
+    // --- Traits ---
+    it('parses multiple traits', () => {
       expect(result.rows[0].traits).toEqual(['大舞台', '鉄砲', '牡馬混合', '直一気']);
+      expect(result.rows[9].traits).toEqual(['大舞台', '直一気', '学習能力']);
+    });
+
+    it('parses single trait', () => {
+      expect(result.rows[1].traits).toEqual(['叩き良化']);
       expect(result.rows[2].traits).toEqual(['スタート']);
+      expect(result.rows[3].traits).toEqual(['二の脚']);
     });
 
-    it('parses null traits when column is empty', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      // row 1 ((外)ジンショウドウ) has empty traits column
-      expect(result.rows[1].traits).toBeNull();
+    it('parses two traits', () => {
+      expect(result.rows[8].traits).toEqual(['鉄砲', 'スタート']);
+      expect(result.rows[17].traits).toEqual(['スタート', '完全燃焼']);
     });
 
-    it('parses sire name', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    it('returns null for empty traits', () => {
+      expect(result.rows[4].traits).toBeNull(); // ジンヒジリ
+      expect(result.rows[6].traits).toBeNull(); // ジンショウドウ
+      expect(result.rows[10].traits).toBeNull(); // ジンライアー
+    });
+
+    // --- Pedigree ---
+    it('parses sire and dam names', () => {
       expect(result.rows[0].sireName).toBe('シーザスターズ');
-      expect(result.rows[1].sireName).toBe('ジャイアンツコーズウェイ');
-    });
-
-    it('parses sire lineage name', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].sireLineageName).toBe('グリーンデザート系');
-      expect(result.rows[2].sireLineageName).toBe('キングマンボ系');
-    });
-
-    it('parses dam name', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
       expect(result.rows[0].damName).toBe('カンパリジュピター');
-      expect(result.rows[1].damName).toBe('ジンワシントン');
+      expect(result.rows[6].sireName).toBe('ジャイアンツコーズウェイ');
+      expect(result.rows[6].damName).toBe('ジンワシントン');
     });
 
-    it('parses mare line name (null when empty)', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].mareLineName).toBeNull(); // empty in TSV
+    it('parses sire lineage names', () => {
+      expect(result.rows[0].sireLineageName).toBe('グリーンデザート系');
+      expect(result.rows[1].sireLineageName).toBe('マンノウォー系');
+      expect(result.rows[6].sireLineageName).toBe('ストームキャット系');
+    });
+
+    it('parses mare line when present', () => {
+      expect(result.rows[1].mareLineName).toBe('エスサーディー系');
       expect(result.rows[2].mareLineName).toBe('ドクサ系');
+      expect(result.rows[9].mareLineName).toBe('リメンブランス系');
     });
 
-    it('stores race record as-is', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+    it('returns null for empty mare line', () => {
+      expect(result.rows[0].mareLineName).toBeNull();
+      expect(result.rows[6].mareLineName).toBeNull();
+      expect(result.rows[10].mareLineName).toBeNull();
+    });
+
+    // --- Race record ---
+    it('parses race records (trimmed)', () => {
       expect(result.rows[0].raceRecord).toBe('14 -  3 -  0 -  0');
+      expect(result.rows[1].raceRecord).toBe('6 -  1 -  2 -  1');
     });
 
-    it('parses jockey', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].jockey).toBe('188');
+    it('parses unraced horse record', () => {
+      expect(result.rows[12].raceRecord).toBe('0 -  0 -  0 -  0');
+      expect(result.rows[13].raceRecord).toBe('0 -  0 -  0 -  0');
     });
 
-    it('parses isHistorical as boolean', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
-      expect(result.rows[0].isHistorical).toBe(false);
-      expect(result.rows[1].isHistorical).toBe(false);
+    // --- isHistorical ---
+    it('parses isHistorical as false for all owned horses', () => {
+      for (const row of result.rows) {
+        expect(row.isHistorical).toBe(false);
+      }
     });
+  });
 
-    it('returns no warnings for valid data', () => {
-      const result = parseTsv(TEST_TSV, IMPORT_YEAR);
+  describe('trailing tab handling', () => {
+    it('parses data with trailing tabs (real 読専 output format)', () => {
+      const tsvWithTrailingTabs = buildFullTsv();
+      const result = parseTsv(tsvWithTrailingTabs, IMPORT_YEAR);
+      expect(result.rows).toHaveLength(22);
+      expect(result.rows[0].name).toBe('シーザジュピター');
+      expect(result.rows[0].birthYear).toBe(2021);
+      expect(result.rows[6].name).toBe('ジンショウドウ');
       expect(result.warnings).toHaveLength(0);
     });
   });
@@ -210,21 +277,29 @@ describe('parseTsv', () => {
     });
 
     it('returns empty rows for header-only input', () => {
-      const result = parseTsv(HEADER, IMPORT_YEAR);
+      const result = parseTsv(HEADER_ROW, IMPORT_YEAR);
       expect(result.rows).toHaveLength(0);
     });
 
     it('handles \\r\\n line endings', () => {
-      const tsvCrLf = [HEADER, ROW_CAESAR_JUPITER].join('\r\n');
+      const tsvCrLf = [HEADER_ROW, DATA_ROWS[0]].join('\r\n');
       const result = parseTsv(tsvCrLf, IMPORT_YEAR);
       expect(result.rows).toHaveLength(1);
       expect(result.rows[0].name).toBe('シーザジュピター');
     });
 
     it('ignores empty trailing lines', () => {
-      const tsvTrailing = [HEADER, ROW_CAESAR_JUPITER, '', ''].join('\n');
+      const tsvTrailing = [HEADER_ROW, DATA_ROWS[0], '', ''].join('\n');
       const result = parseTsv(tsvTrailing, IMPORT_YEAR);
       expect(result.rows).toHaveLength(1);
+    });
+
+    it('parses single row correctly', () => {
+      const tsv = [HEADER_ROW, DATA_ROWS[6]].join('\n');
+      const result = parseTsv(tsv, IMPORT_YEAR);
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].name).toBe('ジンショウドウ');
+      expect(result.rows[0].sireName).toBe('ジャイアンツコーズウェイ');
     });
   });
 });
