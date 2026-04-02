@@ -184,6 +184,10 @@ function BreedingRecordFormDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (sireDropdownOpen) {
+      setSireDropdownOpen(false);
+      return;
+    }
     setFormError(null);
 
     if (!sireText.trim()) {
