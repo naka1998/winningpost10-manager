@@ -5,6 +5,7 @@ import { createHorseRepository } from '@/features/horses/repository';
 import { createYearlyStatusRepository } from '@/features/horses/yearly-status-repository';
 import { createLineageRepository } from '@/features/lineages/repository';
 import { createSettingsRepository } from '@/features/settings/repository';
+import { createBreedingRecordRepository } from '@/features/breeding-records/repository';
 import { DatabaseContext } from './database-context';
 import { RepositoryContext, type RepositoryContextValue } from './repository-context';
 
@@ -30,6 +31,7 @@ export function Providers({ children }: ProvidersProps) {
             yearlyStatusRepository: createYearlyStatusRepository(connection),
             lineageRepository: createLineageRepository(connection),
             settingsRepository: createSettingsRepository(connection),
+            breedingRecordRepository: createBreedingRecordRepository(connection),
           });
         }
       })

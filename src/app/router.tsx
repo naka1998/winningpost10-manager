@@ -13,6 +13,7 @@ import { ImportPage } from '@/features/import/pages/ImportPage';
 import { PedigreePage } from '@/features/pedigree/pages/PedigreePage';
 import { LineageListPage } from '@/features/lineages/pages/LineageListPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
+import { BreedingRecordListPage } from '@/features/breeding-records/pages/BreedingRecordListPage';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -68,6 +69,12 @@ const lineagesRoute = createRoute({
   component: LineageListPage,
 });
 
+const breedingRecordsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/breeding-records',
+  component: BreedingRecordListPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -81,6 +88,7 @@ const routeTree = rootRoute.addChildren([
   horseDetailRoute,
   pedigreeRoute,
   lineagesRoute,
+  breedingRecordsRoute,
   settingsRoute,
 ]);
 
