@@ -83,7 +83,11 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
       const conditions: string[] = [];
       const params: unknown[] = [];
 
-      if (filter?.status) {
+      if (filter?.statuses && filter.statuses.length > 0) {
+        const placeholders = filter.statuses.map(() => '?').join(', ');
+        conditions.push(`status IN (${placeholders})`);
+        params.push(...filter.statuses);
+      } else if (filter?.status) {
         conditions.push('status = ?');
         params.push(filter.status);
       }
@@ -152,6 +156,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
           SELECT
             h.id,
             h.name,
+            h.country,
             h.sire_id,
             h.dam_id,
             h.lineage_id,
@@ -167,6 +172,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
           SELECT
             parent.id,
             parent.name,
+            parent.country,
             parent.sire_id,
             parent.dam_id,
             parent.lineage_id,
@@ -185,6 +191,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
           SELECT
             parent.id,
             parent.name,
+            parent.country,
             parent.sire_id,
             parent.dam_id,
             parent.lineage_id,
@@ -201,6 +208,7 @@ export function createHorseRepository(db: DatabaseConnection): HorseRepository {
         SELECT
           pe.id,
           pe.name,
+          pe.country,
           pe.generation,
           pe.position,
           pe.path,

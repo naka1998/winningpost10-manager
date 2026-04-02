@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHorseStore } from '../store';
 import { useLineageStore } from '@/features/lineages/store';
-import type { Horse } from '../types';
+import type { Horse, HorseFilter } from '../types';
 import type { LineageNode } from '@/features/lineages/types';
 
 function createTestHorse(overrides: Partial<Horse> = {}): Horse {
@@ -190,6 +190,88 @@ vi.mock('@/components/ui/select', () => {
   return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
 });
 
+vi.mock('@/components/ui/tabs', () => {
+  const TabsContext = React.createContext<{
+    value?: string;
+    onValueChange?: (v: string) => void;
+  }>({});
+  function Tabs({
+    defaultValue,
+    value,
+    onValueChange,
+    children,
+    ...props
+  }: {
+    defaultValue?: string;
+    value?: string;
+    onValueChange?: (v: string) => void;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const [internalValue, setInternalValue] = React.useState(defaultValue ?? '');
+    const currentValue = value ?? internalValue;
+    const handleChange = (v: string) => {
+      if (!value) setInternalValue(v);
+      onValueChange?.(v);
+    };
+    return (
+      <TabsContext.Provider value={{ value: currentValue, onValueChange: handleChange }}>
+        <div data-testid="tabs" {...props}>
+          {children}
+        </div>
+      </TabsContext.Provider>
+    );
+  }
+  function TabsList({ children, ...props }: { children: React.ReactNode; className?: string }) {
+    return (
+      <div role="tablist" {...props}>
+        {children}
+      </div>
+    );
+  }
+  function TabsTrigger({
+    value,
+    children,
+    ...props
+  }: {
+    value: string;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const ctx = React.useContext(TabsContext);
+    return (
+      <button
+        type="button"
+        role="tab"
+        data-state={ctx.value === value ? 'active' : 'inactive'}
+        aria-selected={ctx.value === value}
+        onClick={() => ctx.onValueChange?.(value)}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+  function TabsContent({
+    value,
+    children,
+    ...props
+  }: {
+    value: string;
+    children: React.ReactNode;
+    className?: string;
+  }) {
+    const ctx = React.useContext(TabsContext);
+    if (ctx.value !== value) return null;
+    return (
+      <div role="tabpanel" data-value={value} {...props}>
+        {children}
+      </div>
+    );
+  }
+  return { Tabs, TabsList, TabsTrigger, TabsContent };
+});
+
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({
     horseRepository: mockHorseRepo,
@@ -227,12 +309,38 @@ describe('HorseListPage', () => {
       status: '現役',
       lineageId: null,
     }),
+    createTestHorse({
+      id: 4,
+      name: 'オルフェーヴル',
+      sex: '牡',
+      birthYear: 2008,
+      country: '日',
+      status: '引退',
+      lineageId: 10,
+    }),
+    createTestHorse({
+      id: 5,
+      name: 'ジェンティルドンナ',
+      sex: '牝',
+      birthYear: 2009,
+      country: '日',
+      status: '売却済',
+      lineageId: null,
+    }),
   ];
   const hierarchy = createTestLineageHierarchy();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFindAll.mockResolvedValue(horses);
+    mockFindAll.mockImplementation(async (filter?: HorseFilter) => {
+      if (filter?.statuses && filter.statuses.length > 0) {
+        return horses.filter((h) => filter.statuses!.includes(h.status));
+      }
+      if (filter?.status) {
+        return horses.filter((h) => h.status === filter.status);
+      }
+      return horses;
+    });
     mockCreate.mockResolvedValue(createTestHorse({ id: 100 }));
     mockUpdate.mockResolvedValue(createTestHorse({ id: 1 }));
     mockDelete.mockResolvedValue(undefined);
@@ -241,7 +349,7 @@ describe('HorseListPage', () => {
       horses: [],
       isLoading: false,
       error: null,
-      filter: {},
+      filter: { status: '現役' },
     });
     useLineageStore.setState({
       hierarchy: [],
@@ -259,10 +367,11 @@ describe('HorseListPage', () => {
   async function renderAndWait() {
     const { HorseListPage } = await import('./HorseListPage');
     render(<HorseListPage />);
-    await screen.findByText('ディープインパクト');
+    // 初期タブ「現役」→ 現役馬のイクイノックスが表示されるまで待つ
+    await screen.findByText('イクイノックス');
   }
 
-  it('一覧テーブルに馬名・性別・生年・国・系統名・ステータスが表示される', async () => {
+  it('一覧テーブルに馬名・性別・生年・国・ステータスが表示される', async () => {
     await renderAndWait();
 
     // ヘッダー
@@ -278,20 +387,17 @@ describe('HorseListPage', () => {
     expect(headerTexts).toContain('系統');
     expect(headerTexts).toContain('ステータス');
 
-    // データ行
-    expect(screen.getByText('ディープインパクト')).toBeInTheDocument();
-    expect(screen.getByText('アーモンドアイ')).toBeInTheDocument();
+    // 現役タブなので現役馬のみ表示される
     expect(screen.getByText('イクイノックス')).toBeInTheDocument();
-
-    // 系統名がマッピングされて表示される
-    expect(screen.getAllByText('リファール系').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
+    expect(screen.queryByText('アーモンドアイ')).not.toBeInTheDocument();
   });
 
   it('馬名クリックで詳細画面へのリンクが存在する', async () => {
     await renderAndWait();
 
-    const link = screen.getByRole('link', { name: 'ディープインパクト' });
-    expect(link).toHaveAttribute('href', '/horses/1');
+    const link = screen.getByRole('link', { name: 'イクイノックス' });
+    expect(link).toHaveAttribute('href', '/horses/3');
   });
 
   it('新規登録ダイアログが開きフォーム入力→登録できる', async () => {
@@ -331,7 +437,7 @@ describe('HorseListPage', () => {
     await user.click(within(dialog).getByRole('button', { name: '更新' }));
 
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(mockUpdate).toHaveBeenCalledWith(1, expect.objectContaining({ name: '更新馬名' }));
+    expect(mockUpdate).toHaveBeenCalledWith(3, expect.objectContaining({ name: '更新馬名' }));
   });
 
   it('削除確認ダイアログで削除できる', async () => {
@@ -345,19 +451,7 @@ describe('HorseListPage', () => {
     expect(screen.getByText('馬の削除')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '削除する' }));
 
-    expect(mockDelete).toHaveBeenCalledWith(1);
-  });
-
-  it('フィルタでステータス絞り込みができる', async () => {
-    await renderAndWait();
-
-    // フィルタバー内のステータスselect（初期値 'all'）を変更
-    const selects = screen.getAllByRole('combobox');
-    const statusSelect = selects.find((s) => s.querySelector('option[value="現役"]'));
-    fireEvent.change(statusSelect!, { target: { value: '現役' } });
-    expect(useHorseStore.getState().filter.status).toBe('現役');
-    // loadHorses がフィルタ変更後に再呼び出しされる（初回 loadData + filter effect + filter変更後）
-    expect(mockFindAll.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(mockDelete).toHaveBeenCalledWith(3);
   });
 
   it('フィルタで性別絞り込みができる', async () => {
@@ -404,11 +498,25 @@ describe('HorseListPage', () => {
     expect(useHorseStore.getState().filter.sortBy).toBe('birth_year');
   });
 
+  it('初回マウントで findAll が1回だけ呼ばれる（並行アクセス防止）', async () => {
+    await renderAndWait();
+    expect(mockFindAll).toHaveBeenCalledTimes(1);
+  });
+
   it('ローディング状態が表示される', async () => {
     useHorseStore.setState({ isLoading: true, horses: [] });
     const { HorseListPage } = await import('./HorseListPage');
     render(<HorseListPage />);
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+  });
+
+  it('データがある状態でローディング中でも「読み込み中」が表示されない', async () => {
+    useHorseStore.setState({ isLoading: true, horses });
+    const { HorseListPage } = await import('./HorseListPage');
+    render(<HorseListPage />);
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    // 前のデータが表示され続ける
+    expect(screen.getByText('ディープインパクト')).toBeInTheDocument();
   });
 
   it('エラー状態が表示される', async () => {
@@ -437,5 +545,109 @@ describe('HorseListPage', () => {
 
     await screen.findByText('UNIQUE constraint failed');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  describe('タブ切り替え', () => {
+    it('4つのタブ（現役・引退・種牡馬・繁殖牝馬）が表示される', async () => {
+      await renderAndWait();
+
+      const tabs = screen.getAllByRole('tab');
+      const tabTexts = tabs.map((t) => t.textContent);
+      expect(tabTexts).toContain('現役');
+      expect(tabTexts).toContain('引退');
+      expect(tabTexts).toContain('種牡馬');
+      expect(tabTexts).toContain('繁殖牝馬');
+    });
+
+    it('デフォルトで「現役」タブがアクティブで現役馬のみ表示される', async () => {
+      await renderAndWait();
+
+      const activeTab = screen.getByRole('tab', { name: '現役' });
+      expect(activeTab).toHaveAttribute('data-state', 'active');
+
+      expect(screen.getByText('イクイノックス')).toBeInTheDocument();
+      expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
+      expect(screen.queryByText('アーモンドアイ')).not.toBeInTheDocument();
+      expect(screen.queryByText('オルフェーヴル')).not.toBeInTheDocument();
+    });
+
+    it('「引退」タブクリックで現役以外の馬が表示される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      await user.click(screen.getByRole('tab', { name: '引退' }));
+
+      // フィルタが正しく設定される
+      const filter = useHorseStore.getState().filter;
+      expect(filter.statuses).toEqual(
+        expect.arrayContaining(['引退', '種牡馬', '繁殖牝馬', '売却済']),
+      );
+      expect(filter.status).toBeUndefined();
+
+      // 引退タブに該当する馬が表示される
+      await screen.findByText('ディープインパクト');
+      expect(screen.getByText('アーモンドアイ')).toBeInTheDocument();
+      expect(screen.getByText('オルフェーヴル')).toBeInTheDocument();
+      expect(screen.getByText('ジェンティルドンナ')).toBeInTheDocument();
+      // 現役馬は表示されない
+      expect(screen.queryByText('イクイノックス')).not.toBeInTheDocument();
+    });
+
+    it('「種牡馬」タブクリックで種牡馬のみ表示される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      await user.click(screen.getByRole('tab', { name: '種牡馬' }));
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.status).toBe('種牡馬');
+      expect(filter.statuses).toBeUndefined();
+
+      await screen.findByText('ディープインパクト');
+      expect(screen.queryByText('イクイノックス')).not.toBeInTheDocument();
+      expect(screen.queryByText('アーモンドアイ')).not.toBeInTheDocument();
+    });
+
+    it('「繁殖牝馬」タブクリックで繁殖牝馬のみ表示される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      await user.click(screen.getByRole('tab', { name: '繁殖牝馬' }));
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.status).toBe('繁殖牝馬');
+      expect(filter.statuses).toBeUndefined();
+
+      await screen.findByText('アーモンドアイ');
+      expect(screen.queryByText('イクイノックス')).not.toBeInTheDocument();
+      expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
+    });
+
+    it('「現役」タブに戻ると現役馬のみ表示される', async () => {
+      const user = userEvent.setup();
+      await renderAndWait();
+
+      // 別のタブに切替
+      await user.click(screen.getByRole('tab', { name: '種牡馬' }));
+      await screen.findByText('ディープインパクト');
+
+      // 現役に戻る
+      await user.click(screen.getByRole('tab', { name: '現役' }));
+      await screen.findByText('イクイノックス');
+
+      const filter = useHorseStore.getState().filter;
+      expect(filter.status).toBe('現役');
+      expect(filter.statuses).toBeUndefined();
+      expect(screen.queryByText('ディープインパクト')).not.toBeInTheDocument();
+    });
+
+    it('ステータスフィルタのドロップダウンが表示されない', async () => {
+      await renderAndWait();
+
+      // ステータスドロップダウンに存在していた「すべて」のoption(ステータス)は無い
+      const selects = screen.getAllByRole('combobox');
+      const statusSelect = selects.find((s) => s.querySelector('option[value="現役"]'));
+      expect(statusSelect).toBeUndefined();
+    });
   });
 });

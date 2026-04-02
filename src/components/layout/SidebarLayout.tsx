@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { label: '馬一覧', to: '/horses', group: '馬管理' },
   { label: 'データインポート', to: '/horses/import', group: '馬管理' },
   { label: '系統マスタ', to: '/lineages', group: '血統' },
+  { label: '配合記録', to: '/breeding-records', group: '血統' },
   { label: '設定', to: '/settings', group: '設定' },
 ];
 

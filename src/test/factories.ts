@@ -2,6 +2,7 @@ import type { HorseCreateInput } from '@/features/horses/types';
 import type { LineageCreateInput } from '@/features/lineages/types';
 import type { PedigreeRow } from '@/features/horses/types';
 import type { ParsedHorseRow } from '@/features/import/types';
+import type { BreedingRecordCreateInput } from '@/features/breeding-records/types';
 
 export function buildHorse(overrides?: Partial<HorseCreateInput>): HorseCreateInput {
   return {
@@ -28,6 +29,7 @@ export function buildPedigreeRow(overrides?: Partial<PedigreeRow>): PedigreeRow 
   return {
     id: 1,
     name: 'テスト馬',
+    country: null,
     generation: 0,
     position: 'self',
     path: '',
@@ -71,6 +73,17 @@ export function buildParsedHorseRow(overrides?: Partial<ParsedHorseRow>): Parsed
     raceRecord: null,
     jockey: null,
     isHistorical: false,
+    ...overrides,
+  };
+}
+
+export function buildBreedingRecordCreateInput(
+  overrides?: Partial<BreedingRecordCreateInput>,
+): BreedingRecordCreateInput {
+  return {
+    mareId: 1,
+    sireId: 2,
+    year: 2024,
     ...overrides,
   };
 }
