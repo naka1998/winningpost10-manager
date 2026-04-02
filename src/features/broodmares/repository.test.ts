@@ -15,9 +15,10 @@ describe('BroodmareRepository', () => {
   });
 
   async function insertLineage(name: string): Promise<number> {
-    const result = await db.run("INSERT INTO lineages (name, lineage_type) VALUES (?, 'child')", [
-      name,
-    ]);
+    const result = await db.run(
+      "INSERT INTO lineages (name, lineage_type, parent_lineage_id) VALUES (?, 'parent', NULL)",
+      [name],
+    );
     return result.lastInsertRowId;
   }
 
