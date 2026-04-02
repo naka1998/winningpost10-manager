@@ -405,7 +405,6 @@ Lint → TypeCheck → Test (with coverage) → Build → E2E (main のみ)
 ### カバレッジ閾値の運用方針（2026-04-02）
 
 段階的に引き上げ、既存資産に対して無理なく品質を改善する。
-（導入トラッキング: Issue #38）
 
 1. **Phase 1（即時適用）**  
    グローバル閾値を `70 / 70 / 70 / 60`（Lines / Functions / Statements / Branches）に設定し、CI で常時チェックする。
