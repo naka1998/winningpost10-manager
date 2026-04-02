@@ -5,6 +5,7 @@ import type { YearlyStatus, YearlyStatusCreateInput, YearlyStatusUpdateInput } f
 export interface YearlyStatusRepository {
   findById(id: number): Promise<YearlyStatus | null>;
   findByHorseId(horseId: number): Promise<YearlyStatus[]>;
+  findByHorseAndYear(horseId: number, year: number): Promise<YearlyStatus | null>;
   create(data: YearlyStatusCreateInput): Promise<YearlyStatus>;
   update(id: number, data: YearlyStatusUpdateInput): Promise<YearlyStatus>;
   delete(id: number): Promise<void>;
@@ -80,6 +81,14 @@ export function createYearlyStatusRepository(db: DatabaseConnection): YearlyStat
         [horseId],
       );
       return rows.map(mapYearlyStatusRow);
+    },
+
+    async findByHorseAndYear(horseId: number, year: number) {
+      const row = await db.get<Record<string, unknown>>(
+        'SELECT * FROM yearly_statuses WHERE horse_id = ? AND year = ?',
+        [horseId, year],
+      );
+      return row ? mapYearlyStatusRow(row) : null;
     },
 
     async create(data: YearlyStatusCreateInput) {

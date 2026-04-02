@@ -54,6 +54,7 @@ export interface ImportPreviewRow {
 
 export interface ImportPreview {
   importYear: number;
+  importStatus?: string;
   rows: ImportPreviewRow[];
   summary: {
     newCount: number;
