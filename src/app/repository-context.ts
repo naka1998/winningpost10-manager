@@ -4,6 +4,7 @@ import type { YearlyStatusRepository } from '@/features/horses/yearly-status-rep
 import type { LineageRepository } from '@/features/lineages/repository';
 import type { SettingsRepository } from '@/features/settings/repository';
 import type { BreedingRecordRepository } from '@/features/breeding-records/repository';
+import type { BroodmareRepository } from '@/features/broodmares/repository';
 
 export interface RepositoryContextValue {
   horseRepository: HorseRepository;
@@ -11,6 +12,7 @@ export interface RepositoryContextValue {
   lineageRepository: LineageRepository;
   settingsRepository: SettingsRepository;
   breedingRecordRepository: BreedingRecordRepository;
+  broodmareRepository: BroodmareRepository;
 }
 
 export const RepositoryContext = createContext<RepositoryContextValue | null>(null);

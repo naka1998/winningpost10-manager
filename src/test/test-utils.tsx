@@ -13,6 +13,10 @@ import {
   createBreedingRecordRepository,
   type BreedingRecordRepository,
 } from '@/features/breeding-records/repository';
+import {
+  createBroodmareRepository,
+  type BroodmareRepository,
+} from '@/features/broodmares/repository';
 import { DatabaseContext } from '@/app/database-context';
 import { RepositoryContext, type RepositoryContextValue } from '@/app/repository-context';
 
@@ -49,6 +53,9 @@ export async function renderWithProviders(
     breedingRecordRepository:
       (options?.repositoryOverrides?.breedingRecordRepository as BreedingRecordRepository) ??
       createBreedingRecordRepository(db),
+    broodmareRepository:
+      (options?.repositoryOverrides?.broodmareRepository as BroodmareRepository) ??
+      createBroodmareRepository(db),
   };
 
   const { repositoryOverrides: _, ...renderOptions } = options ?? {};
