@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDatabaseContext } from '@/app/database-context';
 import { useRepositoryContext } from '@/app/repository-context';
+import { downloadBackupFile, exportDatabase, importDatabase } from '@/database/backup';
 import { seedTestHorses } from '@/database/seed/test-horses';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,10 +30,19 @@ export function SettingsPage() {
   const { settings, isLoading, error, loadSettings, updateCurrentYear, updatePedigreeDepth } =
     useSettingsStore();
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [yearInput, setYearInput] = useState('');
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [dbActionError, setDbActionError] = useState<string | null>(null);
+  const [dbActionMessage, setDbActionMessage] = useState<string | null>(null);
+  const [selectedRestoreFile, setSelectedRestoreFile] = useState<File | null>(null);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [finalConfirmDialogOpen, setFinalConfirmDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const isDbActionRunning = isExporting || isRestoring || seeding;
 
   useEffect(() => {
     loadSettings(settingsRepository);
@@ -72,6 +82,66 @@ export function SettingsPage() {
   async function handleDepthChange(value: string) {
     const depth = Number(value) as 4 | 5;
     await updatePedigreeDepth(settingsRepository, depth);
+  }
+
+  async function handleExportDatabase() {
+    setDbActionError(null);
+    setDbActionMessage(null);
+    setIsExporting(true);
+    try {
+      const { blob, filename } = await exportDatabase(db);
+      await downloadBackupFile(blob, filename);
+      setDbActionMessage(`バックアップを出力しました: ${filename}`);
+    } catch (err) {
+      setDbActionError(
+        `エクスポートに失敗しました: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  function handleRestoreFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setDbActionError(null);
+    setDbActionMessage(null);
+    setSelectedRestoreFile(file);
+    setRestoreDialogOpen(true);
+  }
+
+  async function executeRestore() {
+    if (!selectedRestoreFile) {
+      return;
+    }
+
+    setIsRestoring(true);
+    setDbActionError(null);
+    setDbActionMessage(null);
+
+    try {
+      await importDatabase(db, selectedRestoreFile);
+      setDbActionMessage(
+        'リストアが完了しました。画面を再読み込みしてアプリ状態とDB状態を同期します。',
+      );
+      window.location.reload();
+    } catch (err) {
+      setDbActionError(
+        `リストアに失敗しました。変更はロールバックされ元のDBを維持します: ${
+          err instanceof Error ? err.message : String(err)
+        }。バックアップファイルとアプリのバージョンを確認して再試行してください。`,
+      );
+    } finally {
+      setIsRestoring(false);
+      setFinalConfirmDialogOpen(false);
+      setRestoreDialogOpen(false);
+      setSelectedRestoreFile(null);
+    }
   }
 
   return (
@@ -139,13 +209,32 @@ export function SettingsPage() {
             <span className="text-sm font-medium">{settings.dbVersion}</span>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => alert('エクスポート機能は今後実装予定です')}>
-              エクスポート
+            <Button variant="outline" onClick={handleExportDatabase} disabled={isDbActionRunning}>
+              {isExporting ? 'エクスポート中...' : 'エクスポート'}
             </Button>
-            <Button variant="destructive" onClick={() => setResetDialogOpen(true)}>
-              データベースリセット
+            <Button
+              variant="destructive"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isDbActionRunning}
+            >
+              {isRestoring ? 'リストア中...' : 'データベースリストア'}
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,.sqlite,.sqlite3"
+              className="hidden"
+              onChange={handleRestoreFileSelected}
+              data-testid="restore-file-input"
+            />
           </div>
+          <p className="text-xs text-muted-foreground">
+            リストア失敗時はトランザクションをロールバックし、既存データを維持します。
+          </p>
+          {dbActionMessage ? (
+            <p className="text-sm text-muted-foreground">{dbActionMessage}</p>
+          ) : null}
+          {dbActionError ? <p className="text-sm text-destructive">{dbActionError}</p> : null}
         </CardContent>
       </Card>
 
@@ -157,7 +246,7 @@ export function SettingsPage() {
         <CardContent className="space-y-2">
           <Button
             variant="outline"
-            disabled={seeding}
+            disabled={seeding || isDbActionRunning}
             onClick={async () => {
               setSeeding(true);
               setSeedResult(null);
@@ -183,26 +272,56 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+      <Dialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>本当にリセットしますか？</DialogTitle>
+            <DialogTitle>バックアップをリストアしますか？</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            すべてのデータが削除されます。この操作は取り消せません。
+            選択ファイル: {selectedRestoreFile?.name}
+            <br />
+            現在のデータはバックアップ内容で上書きされます。
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setRestoreDialogOpen(false)}
+              disabled={isDbActionRunning}
+            >
               キャンセル
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
-                setResetDialogOpen(false);
-                alert('リセット機能は今後実装予定です');
+                setRestoreDialogOpen(false);
+                setFinalConfirmDialogOpen(true);
               }}
+              disabled={isDbActionRunning}
             >
-              リセット実行
+              次へ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={finalConfirmDialogOpen} onOpenChange={setFinalConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>最終確認: リストアを実行します</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            この操作は取り消せません。続行する場合はリストア実行を押してください。
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFinalConfirmDialogOpen(false)}
+              disabled={isDbActionRunning}
+            >
+              戻る
+            </Button>
+            <Button variant="destructive" onClick={executeRestore} disabled={isDbActionRunning}>
+              リストア実行
             </Button>
           </DialogFooter>
         </DialogContent>
