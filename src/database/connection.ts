@@ -41,18 +41,25 @@ export async function initDatabase(): Promise<DatabaseConnection> {
     }
   }
 
+  let vfsType: 'opfs' | 'idb' = 'idb';
+
   if (useOPFS) {
     const vfs = new OriginPrivateFileSystemVFS(DB_NAME);
     await sqlite3.vfs_register(vfs, true);
+    vfsType = 'opfs';
   } else {
     const vfs = new IDBBatchAtomicVFS(DB_NAME);
     await sqlite3.vfs_register(vfs, true);
+    vfsType = 'idb';
   }
 
   const db = await sqlite3.open_v2(DB_NAME);
 
-  // Enable WAL mode and foreign keys
-  await sqlite3.exec(db, 'PRAGMA journal_mode=WAL;');
+  // WAL is reliable on OPFS, but IDB fallback can raise runtime errors
+  // around `*-journal` file handling in headless environments.
+  // Use DELETE mode for IDB to keep browser compatibility (e.g. Playwright).
+  const journalMode = vfsType === 'opfs' ? 'WAL' : 'DELETE';
+  await sqlite3.exec(db, `PRAGMA journal_mode=${journalMode};`);
   await sqlite3.exec(db, 'PRAGMA foreign_keys=ON;');
 
   instance = createWaSqliteConnection(sqlite3, db);
