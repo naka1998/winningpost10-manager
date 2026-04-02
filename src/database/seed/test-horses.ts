@@ -758,6 +758,336 @@ export async function seedTestHorses(db: DatabaseConnection): Promise<number> {
       );
     }
 
-    return horses.length;
+    // ===== 繁殖牝馬評価画面用テストデータ =====
+
+    // 既存繁殖牝馬にmare_lineを設定
+    // リバティアイランド(horses[2]), スターズオンアース(horses[4])
+    await conn.run("UPDATE horses SET mare_line = 'フロリースカップ系' WHERE id = ?", [
+      horseIds[2],
+    ]);
+    await conn.run("UPDATE horses SET mare_line = 'ビューチフルドリーマー系' WHERE id = ?", [
+      horseIds[4],
+    ]);
+
+    // 追加の繁殖牝馬4頭
+    const broodmares = [
+      {
+        name: 'クロノジェネシス',
+        sex: '牝',
+        birthYear: 2016,
+        country: '日',
+        sireIdx: 4, // オルフェーヴル
+        damIdx: 1, // マンファス
+        lineageId: stayGoldLineage,
+        mareLine: 'パシフィカス系',
+      },
+      {
+        name: 'グランアレグリア',
+        sex: '牝',
+        birthYear: 2016,
+        country: '日',
+        sireIdx: 0, // ディープインパクト
+        damIdx: 3, // シーザリオ
+        lineageId: deepImpactLineage,
+        mareLine: 'フロリースカップ系',
+      },
+      {
+        name: 'デアリングタクト',
+        sex: '牝',
+        birthYear: 2017,
+        country: '日',
+        sireIdx: 4, // オルフェーヴル
+        damIdx: 0, // ウインドインハーヘア
+        lineageId: stayGoldLineage,
+        mareLine: 'ダイナカール系',
+      },
+      {
+        name: 'ソダシ',
+        sex: '牝',
+        birthYear: 2018,
+        country: '日',
+        sireIdx: 1, // キングカメハメハ
+        damIdx: 2, // レディブロンド
+        lineageId: kingKameLineage,
+        mareLine: 'ビューチフルドリーマー系',
+      },
+    ];
+
+    const broodmareIds: number[] = [];
+    for (const bm of broodmares) {
+      const result = await conn.run(
+        "INSERT INTO horses (name, sex, birth_year, country, status, sire_id, dam_id, lineage_id, mare_line, is_historical) VALUES (?, ?, ?, ?, '繁殖牝馬', ?, ?, ?, ?, 0)",
+        [
+          bm.name,
+          bm.sex,
+          bm.birthYear,
+          bm.country,
+          sireIds[bm.sireIdx],
+          damIds[bm.damIdx],
+          bm.lineageId,
+          bm.mareLine,
+        ],
+      );
+      broodmareIds.push(result.lastInsertRowId);
+    }
+
+    // 繁殖牝馬のグレード付きyearly_statuses（現役時代の実績）
+    const broodmareStatuses = [
+      // リバティアイランド: G1馬
+      { horseId: horseIds[2], year: 2023, grade: 'G1', record: '6-5-0-0' },
+      { horseId: horseIds[2], year: 2024, grade: 'G1', record: '8-6-1-0' },
+      // スターズオンアース: G1馬
+      { horseId: horseIds[4], year: 2022, grade: 'G1', record: '5-3-1-0' },
+      { horseId: horseIds[4], year: 2023, grade: 'G2', record: '8-4-2-1' },
+      // クロノジェネシス: G1馬
+      { horseId: broodmareIds[0], year: 2020, grade: 'G1', record: '7-5-1-0' },
+      { horseId: broodmareIds[0], year: 2021, grade: 'G1', record: '11-7-2-1' },
+      // グランアレグリア: G1馬
+      { horseId: broodmareIds[1], year: 2020, grade: 'G1', record: '6-5-0-0' },
+      { horseId: broodmareIds[1], year: 2021, grade: 'G1', record: '10-8-1-0' },
+      // デアリングタクト: G1馬
+      { horseId: broodmareIds[2], year: 2020, grade: 'G1', record: '5-5-0-0' },
+      { horseId: broodmareIds[2], year: 2021, grade: 'G2', record: '8-5-2-1' },
+      // ソダシ: G1馬
+      { horseId: broodmareIds[3], year: 2021, grade: 'G1', record: '5-4-0-0' },
+      { horseId: broodmareIds[3], year: 2022, grade: 'G3', record: '9-5-2-1' },
+    ];
+
+    for (const bs of broodmareStatuses) {
+      await conn.run(
+        'INSERT INTO yearly_statuses (horse_id, year, grade, race_record) VALUES (?, ?, ?, ?)',
+        [bs.horseId, bs.year, bs.grade, bs.record],
+      );
+    }
+
+    // 産駒データ: 繁殖牝馬ごとに2〜4頭
+    const offspringData = [
+      // リバティアイランドの産駒 (horses[2])
+      {
+        name: 'リバティスター',
+        sex: '牡',
+        birthYear: 2024,
+        damId: horseIds[2],
+        sireIdx: 0, // ディープインパクト
+        status: '現役',
+        lineageId: deepImpactLineage,
+      },
+      {
+        name: 'リバティクイーン',
+        sex: '牝',
+        birthYear: 2025,
+        damId: horseIds[2],
+        sireIdx: 1, // キングカメハメハ
+        status: '現役',
+        lineageId: kingKameLineage,
+      },
+      // スターズオンアースの産駒 (horses[4])
+      {
+        name: 'スターライトソング',
+        sex: '牡',
+        birthYear: 2023,
+        damId: horseIds[4],
+        sireIdx: 1, // キングカメハメハ
+        status: '現役',
+        lineageId: kingKameLineage,
+      },
+      {
+        name: 'スターダスト',
+        sex: '牝',
+        birthYear: 2024,
+        damId: horseIds[4],
+        sireIdx: 2, // ロードカナロア
+        status: '現役',
+        lineageId: lordKaguraLineage,
+      },
+      {
+        name: 'スターオブホープ',
+        sex: '牡',
+        birthYear: 2025,
+        damId: horseIds[4],
+        sireIdx: 0, // ディープインパクト
+        status: '現役',
+        lineageId: deepImpactLineage,
+      },
+      // クロノジェネシスの産駒
+      {
+        name: 'クロノスフィア',
+        sex: '牡',
+        birthYear: 2023,
+        damId: broodmareIds[0],
+        sireIdx: 0, // ディープインパクト
+        status: '現役',
+        lineageId: deepImpactLineage,
+      },
+      {
+        name: 'クロノレガシー',
+        sex: '牝',
+        birthYear: 2024,
+        damId: broodmareIds[0],
+        sireIdx: 1, // キングカメハメハ
+        status: '現役',
+        lineageId: kingKameLineage,
+      },
+      {
+        name: 'クロノブレイブ',
+        sex: '牡',
+        birthYear: 2025,
+        damId: broodmareIds[0],
+        sireIdx: 2, // ロードカナロア
+        status: '現役',
+        lineageId: lordKaguraLineage,
+      },
+      // グランアレグリアの産駒
+      {
+        name: 'グランフィナーレ',
+        sex: '牡',
+        birthYear: 2023,
+        damId: broodmareIds[1],
+        sireIdx: 1, // キングカメハメハ
+        status: '引退',
+        lineageId: kingKameLineage,
+      },
+      {
+        name: 'グランブリリアント',
+        sex: '牝',
+        birthYear: 2024,
+        damId: broodmareIds[1],
+        sireIdx: 0, // ディープインパクト
+        status: '現役',
+        lineageId: deepImpactLineage,
+      },
+      {
+        name: 'グランマジック',
+        sex: '牡',
+        birthYear: 2025,
+        damId: broodmareIds[1],
+        sireIdx: 3, // ハーツクライ
+        status: '現役',
+        lineageId: heartsCryLineage,
+      },
+      // デアリングタクトの産駒
+      {
+        name: 'デアリングスピリット',
+        sex: '牝',
+        birthYear: 2023,
+        damId: broodmareIds[2],
+        sireIdx: 0, // ディープインパクト
+        status: '現役',
+        lineageId: deepImpactLineage,
+      },
+      {
+        name: 'デアリングソウル',
+        sex: '牡',
+        birthYear: 2024,
+        damId: broodmareIds[2],
+        sireIdx: 2, // ロードカナロア
+        status: '現役',
+        lineageId: lordKaguraLineage,
+      },
+      // ソダシの産駒
+      {
+        name: 'ソダシスノー',
+        sex: '牝',
+        birthYear: 2023,
+        damId: broodmareIds[3],
+        sireIdx: 0, // ディープインパクト
+        status: '引退',
+        lineageId: deepImpactLineage,
+      },
+      {
+        name: 'ソダシブリーズ',
+        sex: '牡',
+        birthYear: 2024,
+        damId: broodmareIds[3],
+        sireIdx: 3, // ハーツクライ
+        status: '現役',
+        lineageId: heartsCryLineage,
+      },
+      {
+        name: 'ソダシブルーム',
+        sex: '牝',
+        birthYear: 2025,
+        damId: broodmareIds[3],
+        sireIdx: 1, // キングカメハメハ
+        status: '現役',
+        lineageId: kingKameLineage,
+      },
+      {
+        name: 'ソダシドリーム',
+        sex: '牡',
+        birthYear: 2026,
+        damId: broodmareIds[3],
+        sireIdx: 4, // オルフェーヴル
+        status: '現役',
+        lineageId: stayGoldLineage,
+      },
+    ];
+
+    const offspringIds: number[] = [];
+    for (const o of offspringData) {
+      const result = await conn.run(
+        'INSERT INTO horses (name, sex, birth_year, country, status, dam_id, sire_id, lineage_id, is_historical) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)',
+        [o.name, o.sex, o.birthYear, '日', o.status, o.damId, sireIds[o.sireIdx], o.lineageId],
+      );
+      offspringIds.push(result.lastInsertRowId);
+    }
+
+    // 産駒のグレード（一部の産駒に実績をつける）
+    const offspringGrades = [
+      { idx: 0, year: 2026, grade: 'G2', record: '4-3-0-0' }, // リバティスター
+      { idx: 2, year: 2025, grade: 'G1', record: '6-4-1-0' }, // スターライトソング
+      { idx: 2, year: 2026, grade: 'G1', record: '9-6-1-1' },
+      { idx: 3, year: 2026, grade: 'G3', record: '3-2-0-0' }, // スターダスト
+      { idx: 5, year: 2025, grade: 'G2', record: '5-3-1-0' }, // クロノスフィア
+      { idx: 5, year: 2026, grade: 'G1', record: '8-5-2-0' },
+      { idx: 8, year: 2025, grade: 'G3', record: '5-2-1-1' }, // グランフィナーレ
+      { idx: 9, year: 2026, grade: 'G2', record: '3-2-0-0' }, // グランブリリアント
+      { idx: 11, year: 2025, grade: 'G3', record: '4-2-1-0' }, // デアリングスピリット
+      { idx: 13, year: 2025, grade: 'OP', record: '4-1-1-1' }, // ソダシスノー
+      { idx: 14, year: 2026, grade: 'G3', record: '3-2-0-0' }, // ソダシブリーズ
+    ];
+
+    for (const og of offspringGrades) {
+      await conn.run(
+        'INSERT INTO yearly_statuses (horse_id, year, grade, race_record) VALUES (?, ?, ?, ?)',
+        [offspringIds[og.idx], og.year, og.grade, og.record],
+      );
+    }
+
+    // 配合記録: 繁殖牝馬 × 種牡馬の組み合わせ
+    const breedingRecords = [
+      // リバティアイランドの配合
+      { mareId: horseIds[2], sireIdx: 0, year: 2023, eval: 'A', power: 85 },
+      { mareId: horseIds[2], sireIdx: 1, year: 2024, eval: 'B', power: 70 },
+      // スターズオンアースの配合
+      { mareId: horseIds[4], sireIdx: 1, year: 2022, eval: 'S', power: 92 },
+      { mareId: horseIds[4], sireIdx: 2, year: 2023, eval: 'A', power: 80 },
+      { mareId: horseIds[4], sireIdx: 0, year: 2024, eval: 'A', power: 78 },
+      // クロノジェネシスの配合
+      { mareId: broodmareIds[0], sireIdx: 0, year: 2022, eval: 'A', power: 88 },
+      { mareId: broodmareIds[0], sireIdx: 1, year: 2023, eval: 'A', power: 82 },
+      { mareId: broodmareIds[0], sireIdx: 2, year: 2024, eval: 'B', power: 72 },
+      // グランアレグリアの配合
+      { mareId: broodmareIds[1], sireIdx: 1, year: 2022, eval: 'A', power: 86 },
+      { mareId: broodmareIds[1], sireIdx: 0, year: 2023, eval: 'S', power: 95 },
+      { mareId: broodmareIds[1], sireIdx: 3, year: 2024, eval: 'A', power: 84 },
+      // デアリングタクトの配合
+      { mareId: broodmareIds[2], sireIdx: 0, year: 2022, eval: 'B', power: 68 },
+      { mareId: broodmareIds[2], sireIdx: 2, year: 2023, eval: 'A', power: 76 },
+      // ソダシの配合
+      { mareId: broodmareIds[3], sireIdx: 0, year: 2022, eval: 'A', power: 80 },
+      { mareId: broodmareIds[3], sireIdx: 3, year: 2023, eval: 'B', power: 65 },
+      { mareId: broodmareIds[3], sireIdx: 1, year: 2024, eval: 'A', power: 78 },
+      { mareId: broodmareIds[3], sireIdx: 4, year: 2025, eval: 'A', power: 82 },
+    ];
+
+    for (const br of breedingRecords) {
+      await conn.run(
+        'INSERT INTO breeding_records (mare_id, sire_id, year, evaluation, total_power) VALUES (?, ?, ?, ?, ?)',
+        [br.mareId, sireIds[br.sireIdx], br.year, br.eval, br.power],
+      );
+    }
+
+    return horses.length + broodmares.length + offspringData.length;
   });
 }

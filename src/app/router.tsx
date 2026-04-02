@@ -14,6 +14,7 @@ import { PedigreePage } from '@/features/pedigree/pages/PedigreePage';
 import { LineageListPage } from '@/features/lineages/pages/LineageListPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
 import { BreedingRecordListPage } from '@/features/breeding-records/pages/BreedingRecordListPage';
+import { BroodmareListPage } from '@/features/broodmares/pages/BroodmareListPage';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -75,6 +76,12 @@ const breedingRecordsRoute = createRoute({
   component: BreedingRecordListPage,
 });
 
+const broodmaresRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/broodmares',
+  component: BroodmareListPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -89,6 +96,7 @@ const routeTree = rootRoute.addChildren([
   pedigreeRoute,
   lineagesRoute,
   breedingRecordsRoute,
+  broodmaresRoute,
   settingsRoute,
 ]);
 
