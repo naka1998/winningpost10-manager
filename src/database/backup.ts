@@ -252,6 +252,18 @@ async function getCurrentTableSet(db: DatabaseConnection): Promise<Set<string>> 
   return new Set(tables.map((table) => table.name));
 }
 
+async function getCurrentSchemaObjectSet(db: DatabaseConnection): Promise<Set<string>> {
+  const objects = await db.all<{ type: string; name: string }>(`
+    SELECT type, name
+    FROM sqlite_master
+    WHERE type IN ('index', 'trigger', 'view')
+      AND sql IS NOT NULL
+      AND name NOT LIKE 'sqlite_%'
+    ORDER BY type, name
+  `);
+  return new Set(objects.map((object) => `${object.type}:${object.name}`));
+}
+
 async function readBlobText(blob: Blob): Promise<string> {
   if (typeof blob.text === 'function') {
     return blob.text();
@@ -288,6 +300,22 @@ export async function importDatabase(db: DatabaseConnection, file: File): Promis
   if (missingFromSnapshot.length > 0 || unknownInSnapshot.length > 0) {
     throw new Error(
       `バックアップのテーブル構成が一致しません（不足: ${missingFromSnapshot.join(', ') || 'なし'}, 余剰: ${unknownInSnapshot.join(', ') || 'なし'}）。`,
+    );
+  }
+
+  const snapshotSchemaObjectSet = new Set(
+    parsed.schemaObjects.map((schemaObject) => `${schemaObject.type}:${schemaObject.name}`),
+  );
+  const currentSchemaObjectSet = await getCurrentSchemaObjectSet(db);
+  const missingSchemaObjects = [...currentSchemaObjectSet].filter(
+    (objectKey) => !snapshotSchemaObjectSet.has(objectKey),
+  );
+  const unknownSchemaObjects = [...snapshotSchemaObjectSet].filter(
+    (objectKey) => !currentSchemaObjectSet.has(objectKey),
+  );
+  if (missingSchemaObjects.length > 0 || unknownSchemaObjects.length > 0) {
+    throw new Error(
+      `バックアップのスキーマオブジェクト構成が一致しません（不足: ${missingSchemaObjects.join(', ') || 'なし'}, 余剰: ${unknownSchemaObjects.join(', ') || 'なし'}）。`,
     );
   }
 

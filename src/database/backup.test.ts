@@ -23,6 +23,11 @@ const fullTableSet = [
   'import_logs',
 ].map((name) => ({ name }));
 
+const fullSchemaObjectSet = [
+  { type: 'trigger', name: 'trg_lineages_insert_validate' },
+  { type: 'index', name: 'idx_breeding_records_mare_year_unique' },
+];
+
 describe('backup utilities', () => {
   it('バックアップファイル名の命名規則を満たす', () => {
     const name = createBackupFilename(new Date('2026-04-02T09:30:15Z'));
@@ -255,6 +260,34 @@ describe('backup utilities', () => {
     } as File;
 
     await expect(importDatabase(db, file)).rejects.toThrow('テーブル構成が一致しません');
+    expect(db.exec).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it('リストア前に現在DBとスキーマオブジェクト構成が一致しない場合は中断する', async () => {
+    const db = createDbMock();
+    vi.mocked(db.get).mockResolvedValueOnce({ value: '2' } as never);
+    vi.mocked(db.all)
+      .mockResolvedValueOnce(fullTableSet as never)
+      .mockResolvedValueOnce(fullSchemaObjectSet as never);
+    const file = {
+      text: async () =>
+        JSON.stringify({
+          format: 'wp10-manager-backup-v1',
+          exportedAt: '2026-04-02T00:00:00.000Z',
+          schemaVersion: 2,
+          tables: fullTableSet.map((table) => ({
+            name: table.name,
+            createSql: `CREATE TABLE ${table.name} (id INTEGER)`,
+            rows: [],
+          })),
+          schemaObjects: [],
+        }),
+    } as File;
+
+    await expect(importDatabase(db, file)).rejects.toThrow(
+      'スキーマオブジェクト構成が一致しません',
+    );
     expect(db.exec).not.toHaveBeenCalled();
     expect(db.transaction).not.toHaveBeenCalled();
   });
