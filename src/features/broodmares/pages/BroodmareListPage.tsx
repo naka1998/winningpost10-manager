@@ -201,24 +201,18 @@ export function BroodmareListPage() {
     loadSummaries,
     loadDistributions,
   } = useBroodmareStore();
-  const { settings, loadSettings } = useSettingsStore();
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (!settings) {
-      loadSettings(settingsRepository);
+    // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
+    async function loadData() {
+      await useSettingsStore.getState().loadSettings(settingsRepository);
+      const currentYear = useSettingsStore.getState().settings?.currentYear ?? 2025;
+      await loadSummaries(broodmareRepository, currentYear);
+      await loadDistributions(broodmareRepository);
     }
-  }, [settings, settingsRepository, loadSettings]);
-
-  useEffect(() => {
-    if (settings) {
-      loadSummaries(broodmareRepository, settings.currentYear);
-    }
-  }, [settings, broodmareRepository, loadSummaries]);
-
-  useEffect(() => {
-    loadDistributions(broodmareRepository);
-  }, [broodmareRepository, loadDistributions]);
+    loadData();
+  }, [broodmareRepository, settingsRepository, loadSummaries, loadDistributions]);
 
   const toggleExpanded = (id: number) => {
     setExpandedIds((prev) => {
