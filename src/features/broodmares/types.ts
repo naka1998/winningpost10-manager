@@ -1,3 +1,8 @@
+export interface GradeCount {
+  grade: string;
+  count: number;
+}
+
 export interface BroodmareSummary {
   id: number;
   name: string;
@@ -6,7 +11,7 @@ export interface BroodmareSummary {
   breedingStartYear: number | null;
   offspringCount: number;
   activeOffspringCount: number;
-  bestGrade: string | null;
+  gradeDistribution: GradeCount[];
   avgEvaluation: number | null;
   avgTotalPower: number | null;
 }

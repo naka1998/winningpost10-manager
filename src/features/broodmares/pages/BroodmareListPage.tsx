@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import type { BroodmareSummary, LineageDistribution } from '../types';
+import type { BroodmareSummary, GradeCount, LineageDistribution } from '../types';
 
 const PIE_COLORS = [
   '#8884d8',
@@ -179,8 +179,14 @@ function BroodmareRow({
         <TableCell>{summary.offspringCount}</TableCell>
         <TableCell>{summary.activeOffspringCount}</TableCell>
         <TableCell>
-          {summary.bestGrade ? (
-            <Badge className={gradeBadgeClass(summary.bestGrade)}>{summary.bestGrade}</Badge>
+          {summary.gradeDistribution.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {summary.gradeDistribution.map((gd: GradeCount) => (
+                <Badge key={gd.grade} className={gradeBadgeClass(gd.grade)}>
+                  {gd.grade} {gd.count}頭
+                </Badge>
+              ))}
+            </div>
           ) : (
             '-'
           )}

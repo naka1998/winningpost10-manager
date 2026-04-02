@@ -12,7 +12,7 @@ function createMockSummary(overrides: Partial<BroodmareSummary> = {}): Broodmare
     breedingStartYear: 2020,
     offspringCount: 3,
     activeOffspringCount: 2,
-    bestGrade: 'G1',
+    gradeDistribution: [{ grade: 'G1', count: 1 }],
     avgEvaluation: 4.0,
     avgTotalPower: 80,
     ...overrides,

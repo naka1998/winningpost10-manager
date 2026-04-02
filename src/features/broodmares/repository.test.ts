@@ -120,7 +120,7 @@ describe('BroodmareRepository', () => {
       expect(summaries[0].offspringCount).toBe(1);
     });
 
-    it('returns best grade from offspring yearly_statuses', async () => {
+    it('returns grade distribution from offspring yearly_statuses', async () => {
       const mareId = await insertHorse('実績牝馬', { status: '繁殖牝馬', birth_year: 2012 });
       const offspring1 = await insertHorse('産駒G3', {
         dam_id: mareId,
@@ -132,28 +132,52 @@ describe('BroodmareRepository', () => {
         status: '現役',
         birth_year: 2021,
       });
+      const offspring3 = await insertHorse('産駒G1b', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2022,
+      });
       await insertYearlyStatus(offspring1, 2023, 'G3');
       await insertYearlyStatus(offspring2, 2024, 'G1');
+      await insertYearlyStatus(offspring3, 2025, 'G1');
       // 繁殖牝馬自身のグレードは含めない
       await insertYearlyStatus(mareId, 2015, 'G2');
 
       const summaries = await repo.findAllSummaries(2026);
-      expect(summaries[0].bestGrade).toBe('G1');
+      expect(summaries[0].gradeDistribution).toEqual([
+        { grade: 'G1', count: 2 },
+        { grade: 'G3', count: 1 },
+      ]);
     });
 
-    it('returns null bestGrade when offspring have no grades', async () => {
+    it('returns empty gradeDistribution when offspring have no grades', async () => {
       const mareId = await insertHorse('無実績牝馬', { status: '繁殖牝馬', birth_year: 2018 });
       await insertHorse('産駒', { dam_id: mareId, status: '現役', birth_year: 2023 });
 
       const summaries = await repo.findAllSummaries(2026);
-      expect(summaries[0].bestGrade).toBeNull();
+      expect(summaries[0].gradeDistribution).toEqual([]);
     });
 
-    it('returns null bestGrade when no offspring', async () => {
+    it('returns empty gradeDistribution when no offspring', async () => {
       await insertHorse('子なし牝馬', { status: '繁殖牝馬', birth_year: 2018 });
 
       const summaries = await repo.findAllSummaries(2026);
-      expect(summaries[0].bestGrade).toBeNull();
+      expect(summaries[0].gradeDistribution).toEqual([]);
+    });
+
+    it('uses best grade per offspring not all grades', async () => {
+      const mareId = await insertHorse('実績牝馬2', { status: '繁殖牝馬', birth_year: 2012 });
+      const offspring1 = await insertHorse('産駒X', {
+        dam_id: mareId,
+        status: '現役',
+        birth_year: 2020,
+      });
+      // Same offspring has G3 and G1 → best is G1
+      await insertYearlyStatus(offspring1, 2023, 'G3');
+      await insertYearlyStatus(offspring1, 2024, 'G1');
+
+      const summaries = await repo.findAllSummaries(2026);
+      expect(summaries[0].gradeDistribution).toEqual([{ grade: 'G1', count: 1 }]);
     });
 
     it('excludes non-broodmare horses', async () => {

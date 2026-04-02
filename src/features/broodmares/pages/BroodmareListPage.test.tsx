@@ -29,7 +29,7 @@ function createTestSummary(overrides: Partial<BroodmareSummary> = {}): Broodmare
     breedingStartYear: 2020,
     offspringCount: 3,
     activeOffspringCount: 2,
-    bestGrade: 'G1',
+    gradeDistribution: [{ grade: 'G1', count: 1 }],
     avgEvaluation: 4.0,
     avgTotalPower: 80,
     ...overrides,
@@ -109,7 +109,7 @@ describe('BroodmareListPage', () => {
       breedingStartYear: 2021,
       offspringCount: 1,
       activeOffspringCount: 0,
-      bestGrade: 'G3',
+      gradeDistribution: [{ grade: 'G3', count: 1 }],
     }),
   ];
 
@@ -165,8 +165,8 @@ describe('BroodmareListPage', () => {
 
     expect(screen.getByText('牝馬A')).toBeInTheDocument();
     expect(screen.getByText('牝馬B')).toBeInTheDocument();
-    expect(screen.getByText('G1')).toBeInTheDocument();
-    expect(screen.getByText('G3')).toBeInTheDocument();
+    expect(screen.getByText('G1 1頭')).toBeInTheDocument();
+    expect(screen.getByText('G3 1頭')).toBeInTheDocument();
   });
 
   it('産駒数が表示される', async () => {

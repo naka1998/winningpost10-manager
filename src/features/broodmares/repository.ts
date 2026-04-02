@@ -4,6 +4,7 @@ import type {
   BroodmareOffspring,
   BroodmareFilter,
   LineageDistribution,
+  GradeCount,
 } from './types';
 
 export interface BroodmareRepository {
@@ -19,6 +20,20 @@ const GRADE_ORDER = ['G1', 'G2', 'G3', 'OP', 'Pre-OP', '3勝', '2勝', '1勝', '
 function bestGradeFromRank(rank: number | null): string | null {
   if (rank === null || rank < 0 || rank >= GRADE_ORDER.length) return null;
   return GRADE_ORDER[rank];
+}
+
+function parseGradeDistribution(concatStr: string | null): GradeCount[] {
+  if (!concatStr) return [];
+  const grades = concatStr.split(',');
+  const countMap = new Map<string, number>();
+  for (const g of grades) {
+    countMap.set(g, (countMap.get(g) ?? 0) + 1);
+  }
+  // Sort by GRADE_ORDER
+  const gradeIndex = new Map<string, number>(GRADE_ORDER.map((g, i) => [g, i]));
+  return [...countMap.entries()]
+    .sort((a, b) => (gradeIndex.get(a[0]) ?? 999) - (gradeIndex.get(b[0]) ?? 999))
+    .map(([grade, count]) => ({ grade, count }));
 }
 
 const SORT_COLUMN_MAP: Record<string, string> = {
@@ -40,18 +55,27 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         SELECT
           h.id, h.name, h.birth_year,
           (? - h.birth_year + 1) AS age,
-          MIN(br.year) AS breeding_start_year,
+          (SELECT MIN(br2.year) FROM breeding_records br2 WHERE br2.mare_id = h.id) AS breeding_start_year,
           COUNT(DISTINCT CASE WHEN offspring.status != 'ancestor' THEN offspring.id END) AS offspring_count,
           COUNT(DISTINCT CASE WHEN offspring.status = '現役' THEN offspring.id END) AS active_offspring_count,
-          MIN(CASE ys.grade ${gradeCase} ELSE 999 END) AS grade_rank,
+          (SELECT GROUP_CONCAT(bg.best_grade)
+           FROM (
+             SELECT MIN(CASE ys2.grade ${gradeCase} ELSE 999 END) AS best_rank,
+                    CASE MIN(CASE ys2.grade ${gradeCase} ELSE 999 END)
+                      ${GRADE_ORDER.map((g, i) => `WHEN ${i} THEN '${g}'`).join(' ')}
+                    END AS best_grade
+             FROM horses o2
+             JOIN yearly_statuses ys2 ON ys2.horse_id = o2.id AND ys2.grade IS NOT NULL
+             WHERE o2.dam_id = h.id AND o2.status != 'ancestor'
+             GROUP BY o2.id
+             HAVING best_rank < 999
+           ) bg) AS offspring_grades,
           (SELECT AVG(CASE bre.evaluation WHEN 'S' THEN 5 WHEN 'A' THEN 4 WHEN 'B' THEN 3 WHEN 'C' THEN 2 WHEN 'D' THEN 1 ELSE NULL END)
            FROM breeding_records bre WHERE bre.mare_id = h.id AND bre.evaluation IS NOT NULL) AS avg_evaluation,
           (SELECT AVG(bre2.total_power)
            FROM breeding_records bre2 WHERE bre2.mare_id = h.id AND bre2.total_power IS NOT NULL) AS avg_total_power
         FROM horses h
-        LEFT JOIN breeding_records br ON br.mare_id = h.id
         LEFT JOIN horses offspring ON offspring.dam_id = h.id AND offspring.status != 'ancestor'
-        LEFT JOIN yearly_statuses ys ON ys.horse_id = offspring.id AND ys.grade IS NOT NULL
         WHERE h.status = '繁殖牝馬'
         GROUP BY h.id
         ORDER BY ${sortCol} ${sortOrder}, h.name ASC
@@ -67,7 +91,7 @@ export function createBroodmareRepository(db: DatabaseConnection): BroodmareRepo
         breedingStartYear: (row.breeding_start_year as number) ?? null,
         offspringCount: (row.offspring_count as number) ?? 0,
         activeOffspringCount: (row.active_offspring_count as number) ?? 0,
-        bestGrade: bestGradeFromRank(row.grade_rank === 999 ? null : (row.grade_rank as number)),
+        gradeDistribution: parseGradeDistribution((row.offspring_grades as string) ?? null),
         avgEvaluation:
           row.avg_evaluation != null
             ? Math.round((row.avg_evaluation as number) * 100) / 100
