@@ -616,7 +616,7 @@ describe('ImportService', () => {
       expect(sires).toHaveLength(1);
     });
 
-    it('rolls back entire transaction on error', async () => {
+    it('rolls back entire transaction on error and records failed import log', async () => {
       await db.run("INSERT INTO horses (name, birth_year, status) VALUES ('既存馬', 2023, '現役')");
 
       const service = createServiceWithRealDb();
@@ -637,13 +637,24 @@ describe('ImportService', () => {
         summary: { newCount: 2, updateCount: 0, skipCount: 0, invalidCount: 0 },
       };
 
-      await expect(service.execute(preview)).rejects.toThrow();
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('phase=');
 
       const horse = await db.get<Record<string, unknown>>(
         'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
         ['正常馬', 2024],
       );
       expect(horse).toBeUndefined();
+
+      const failedLog = await db.get<Record<string, unknown>>(
+        "SELECT * FROM import_logs WHERE status = 'failed' ORDER BY id DESC LIMIT 1",
+      );
+      expect(failedLog).toBeDefined();
+      expect(failedLog!.status).toBe('failed');
+      expect(failedLog!.error_detail).not.toBeNull();
     });
   });
 });
