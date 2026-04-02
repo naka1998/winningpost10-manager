@@ -17,6 +17,7 @@ beforeAll(() => {
 });
 
 import { useBreedingRecordStore } from '../store';
+import { useSettingsStore } from '@/features/settings/store';
 import type { BreedingRecordWithNames } from '../types';
 import type { Horse } from '@/features/horses/types';
 
@@ -77,13 +78,15 @@ const mockBreedingRecordRepo = {
 };
 
 const mockHorseFindAll = vi.fn<() => Promise<Horse[]>>();
+const mockHorseCreate = vi.fn();
+const mockSettingsGetAll = vi.fn();
 
 const mockRepoContext = {
   breedingRecordRepository: mockBreedingRecordRepo,
-  horseRepository: { findAll: mockHorseFindAll },
+  horseRepository: { findAll: mockHorseFindAll, create: mockHorseCreate },
   yearlyStatusRepository: {},
   lineageRepository: {},
-  settingsRepository: {},
+  settingsRepository: { getAll: mockSettingsGetAll, get: vi.fn(), set: vi.fn() },
 };
 
 vi.mock('@/app/repository-context', () => ({
@@ -122,11 +125,20 @@ describe('BreedingRecordListPage', () => {
     mockUpdate.mockResolvedValue(createTestRecord({ id: 1 }));
     mockDelete.mockResolvedValue(undefined);
     mockHorseFindAll.mockResolvedValue(testHorses);
+    mockHorseCreate.mockResolvedValue(
+      createTestHorse({ id: 99, name: '新規種牡馬', sex: '牡', status: '種牡馬' }),
+    );
+    mockSettingsGetAll.mockResolvedValue({ current_year: '2026', pedigree_depth: '4' });
     useBreedingRecordStore.setState({
       records: [],
       isLoading: false,
       error: null,
       filter: {},
+    });
+    useSettingsStore.setState({
+      settings: { currentYear: 2026, pedigreeDepth: 4, rankSystem: [], dbVersion: 1 },
+      isLoading: false,
+      error: null,
     });
   });
 
@@ -200,6 +212,10 @@ describe('BreedingRecordListPage', () => {
     expect(within(dialog).getByLabelText('配合年')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('評価')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('爆発力')).toBeInTheDocument();
+
+    // Default year should be current app year
+    const yearInput = within(dialog).getByLabelText('配合年') as HTMLInputElement;
+    expect(yearInput.value).toBe('2026');
   });
 
   it('削除ボタンで確認ダイアログが開き、確認で削除される', async () => {

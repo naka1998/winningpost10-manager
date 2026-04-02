@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { useSettingsStore } from '@/features/settings/store';
 import { useBreedingRecordStore } from '../store';
 import type {
   BreedingRecordCreateInput,
@@ -34,6 +35,8 @@ import type {
   BreedingTheory,
 } from '../types';
 import type { Horse } from '@/features/horses/types';
+
+const EVALUATION_GRADES = ['S', 'A', 'B', 'C', 'D'] as const;
 
 function TheoryInput({
   theories,
@@ -93,7 +96,7 @@ function BreedingRecordFormDialog({
   editTarget,
   mares,
   stallions,
-  horses,
+  defaultYear,
   onSubmit,
 }: {
   open: boolean;
@@ -101,18 +104,19 @@ function BreedingRecordFormDialog({
   editTarget: BreedingRecordWithNames | null;
   mares: Horse[];
   stallions: Horse[];
-  horses: Horse[];
+  defaultYear: number;
   onSubmit: (
-    data: BreedingRecordCreateInput | (BreedingRecordUpdateInput & { id: number }),
+    data:
+      | (BreedingRecordCreateInput & { sireName?: string })
+      | (BreedingRecordUpdateInput & { id: number; sireName?: string }),
   ) => Promise<void>;
 }) {
   const [mareId, setMareId] = useState<string>('');
-  const [sireId, setSireId] = useState<string>('');
+  const [sireName, setSireName] = useState<string>('');
   const [year, setYear] = useState<string>('');
-  const [evaluation, setEvaluation] = useState<string>('');
+  const [evaluation, setEvaluation] = useState<string>('A');
   const [theories, setTheories] = useState<BreedingTheory[]>([]);
   const [totalPower, setTotalPower] = useState<string>('');
-  const [offspringId, setOffspringId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -120,47 +124,52 @@ function BreedingRecordFormDialog({
   useEffect(() => {
     if (editTarget) {
       setMareId(String(editTarget.mareId));
-      setSireId(String(editTarget.sireId));
+      setSireName(editTarget.sireName);
       setYear(String(editTarget.year));
-      setEvaluation(editTarget.evaluation ?? '');
+      setEvaluation(editTarget.evaluation ?? 'A');
       setTheories(editTarget.theories ?? []);
       setTotalPower(editTarget.totalPower != null ? String(editTarget.totalPower) : '');
-      setOffspringId(editTarget.offspringId != null ? String(editTarget.offspringId) : '');
       setNotes(editTarget.notes ?? '');
     } else {
       setMareId('');
-      setSireId('');
-      setYear('');
-      setEvaluation('');
+      setSireName('');
+      setYear(String(defaultYear));
+      setEvaluation('A');
       setTheories([]);
       setTotalPower('');
-      setOffspringId('');
       setNotes('');
     }
     setFormError(null);
-  }, [editTarget, open]);
+  }, [editTarget, open, defaultYear]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!sireName.trim()) {
+      setFormError('種牡馬を入力してください');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      const data = {
+      const matchedStallion = stallions.find((h) => h.name === sireName.trim());
+      const base = {
         mareId: Number(mareId),
-        sireId: Number(sireId),
+        sireId: matchedStallion?.id ?? 0,
+        sireName: matchedStallion ? undefined : sireName.trim(),
         year: Number(year),
         evaluation: evaluation || null,
         theories: theories.length > 0 ? theories : null,
         totalPower: totalPower ? Number(totalPower) : null,
-        offspringId: offspringId ? Number(offspringId) : null,
         notes: notes || null,
       };
 
       if (editTarget) {
-        await onSubmit({ id: editTarget.id, ...data });
+        await onSubmit({ id: editTarget.id, ...base });
       } else {
-        await onSubmit(data);
+        await onSubmit(base);
       }
       onOpenChange(false);
     } catch (err) {
@@ -194,18 +203,19 @@ function BreedingRecordFormDialog({
           </div>
           <div>
             <Label htmlFor="br-sire">種牡馬</Label>
-            <Select value={sireId} onValueChange={setSireId} required>
-              <SelectTrigger id="br-sire">
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {stallions.map((h) => (
-                  <SelectItem key={h.id} value={String(h.id)}>
-                    {h.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="br-sire"
+              list="stallion-list"
+              value={sireName}
+              onChange={(e) => setSireName(e.target.value)}
+              placeholder="種牡馬名を入力（候補から選択 or 新規入力）"
+              required
+            />
+            <datalist id="stallion-list">
+              {stallions.map((h) => (
+                <option key={h.id} value={h.name} />
+              ))}
+            </datalist>
           </div>
           <div>
             <Label htmlFor="br-year">配合年</Label>
@@ -219,12 +229,18 @@ function BreedingRecordFormDialog({
           </div>
           <div>
             <Label htmlFor="br-evaluation">評価</Label>
-            <Input
-              id="br-evaluation"
-              value={evaluation}
-              onChange={(e) => setEvaluation(e.target.value)}
-              placeholder="A, B, C..."
-            />
+            <Select value={evaluation} onValueChange={setEvaluation}>
+              <SelectTrigger id="br-evaluation">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EVALUATION_GRADES.map((grade) => (
+                  <SelectItem key={grade} value={grade}>
+                    {grade}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <TheoryInput theories={theories} onChange={setTheories} />
           <div>
@@ -235,25 +251,6 @@ function BreedingRecordFormDialog({
               value={totalPower}
               onChange={(e) => setTotalPower(e.target.value)}
             />
-          </div>
-          <div>
-            <Label htmlFor="br-offspring">産駒</Label>
-            <Select
-              value={offspringId || 'none'}
-              onValueChange={(v) => setOffspringId(v === 'none' ? '' : v)}
-            >
-              <SelectTrigger id="br-offspring">
-                <SelectValue placeholder="なし" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">なし</SelectItem>
-                {horses.map((h) => (
-                  <SelectItem key={h.id} value={String(h.id)}>
-                    {h.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div>
             <Label htmlFor="br-notes">メモ</Label>
@@ -275,11 +272,12 @@ function BreedingRecordFormDialog({
 }
 
 export function BreedingRecordListPage() {
-  const { breedingRecordRepository, horseRepository } = useRepositoryContext();
+  const { breedingRecordRepository, horseRepository, settingsRepository } = useRepositoryContext();
   const records = useBreedingRecordStore((s) => s.records);
   const isLoading = useBreedingRecordStore((s) => s.isLoading);
   const error = useBreedingRecordStore((s) => s.error);
   const filter = useBreedingRecordStore((s) => s.filter);
+  const settings = useSettingsStore((s) => s.settings);
 
   const [horses, setHorses] = useState<Horse[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -288,12 +286,13 @@ export function BreedingRecordListPage() {
 
   useEffect(() => {
     async function loadData() {
+      await useSettingsStore.getState().loadSettings(settingsRepository);
       const allHorses = await horseRepository.findAll();
       setHorses(allHorses);
       await useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
     }
     loadData();
-  }, [breedingRecordRepository, horseRepository]);
+  }, [breedingRecordRepository, horseRepository, settingsRepository]);
 
   const isInitialMount = useState(true);
   useEffect(() => {
@@ -304,8 +303,9 @@ export function BreedingRecordListPage() {
     useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
   }, [filter, breedingRecordRepository]);
 
-  const mares = useMemo(() => horses.filter((h) => h.sex === '牝'), [horses]);
-  const stallions = useMemo(() => horses.filter((h) => h.sex === '牡'), [horses]);
+  const mares = useMemo(() => horses.filter((h) => h.status === '繁殖牝馬'), [horses]);
+  const stallions = useMemo(() => horses.filter((h) => h.status === '種牡馬'), [horses]);
+  const currentYear = settings?.currentYear ?? 2025;
 
   const handleCreate = () => {
     setEditTarget(null);
@@ -318,14 +318,31 @@ export function BreedingRecordListPage() {
   };
 
   const handleSubmit = async (
-    data: BreedingRecordCreateInput | (BreedingRecordUpdateInput & { id: number }),
+    data:
+      | (BreedingRecordCreateInput & { sireName?: string })
+      | (BreedingRecordUpdateInput & { id: number; sireName?: string }),
   ) => {
     const store = useBreedingRecordStore.getState();
-    if ('id' in data) {
-      const { id, ...updateData } = data;
+    let { sireName: newSireName, ...recordData } = data;
+
+    // Auto-register stallion if name doesn't match existing horse
+    if (newSireName) {
+      const newHorse = await horseRepository.create({
+        name: newSireName,
+        sex: '牡',
+        status: '種牡馬',
+      });
+      recordData = { ...recordData, sireId: newHorse.id };
+      // Refresh horse list
+      const allHorses = await horseRepository.findAll();
+      setHorses(allHorses);
+    }
+
+    if ('id' in recordData) {
+      const { id, ...updateData } = recordData;
       await store.updateRecord(breedingRecordRepository, id, updateData);
     } else {
-      await store.createRecord(breedingRecordRepository, data);
+      await store.createRecord(breedingRecordRepository, recordData as BreedingRecordCreateInput);
     }
   };
 
@@ -465,7 +482,7 @@ export function BreedingRecordListPage() {
         editTarget={editTarget}
         mares={mares}
         stallions={stallions}
-        horses={horses}
+        defaultYear={currentYear}
         onSubmit={handleSubmit}
       />
 
