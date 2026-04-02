@@ -186,7 +186,7 @@ describe('ImportService', () => {
       expect(preview.summary.updateCount).toBe(1);
     });
 
-    it('marks row as "skip" when horse exists with same data', async () => {
+    it('marks row as "skip" when horse exists with same D1 data and no D2 data', async () => {
       const existing = buildExistingHorse({
         name: '同一馬',
         sex: '牡',
@@ -203,12 +203,60 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      const rows = [buildParsedRow({ name: '同一馬', birthYear: 2024, sex: '牡', country: '日' })];
+      // Row with matching D1, no D2, no D3 (all null)
+      const rows = [
+        buildParsedRow({
+          name: '同一馬',
+          birthYear: 2024,
+          sex: '牡',
+          country: '日',
+          sireName: null,
+          damName: null,
+          sireLineageName: null,
+          spRank: null,
+          spValue: null,
+          powerRank: null,
+          powerValue: null,
+          instantRank: null,
+          instantValue: null,
+          staminaRank: null,
+          staminaValue: null,
+          mentalRank: null,
+          mentalValue: null,
+          wisdomRank: null,
+          wisdomValue: null,
+        }),
+      ];
       const preview = await service.preview(rows, 2025, '現役');
 
       expect(preview.rows[0].action).toBe('skip');
       expect(preview.summary.skipCount).toBe(1);
-      expect(preview.summary.updateCount).toBe(0);
+    });
+
+    it('marks row as "update" when D2 data is present (yearly status)', async () => {
+      const existing = buildExistingHorse({
+        name: '同一馬',
+        sex: '牡',
+        country: '日',
+        status: '現役',
+      });
+      const horseRepo = createMockHorseRepo({
+        findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
+      });
+      const service = createImportService({
+        db: createMockDb(),
+        horseRepo,
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      // Same D1 but with D2 data → update
+      const rows = [buildParsedRow({ name: '同一馬', birthYear: 2024, sex: '牡', country: '日' })];
+      const preview = await service.preview(rows, 2025, '現役');
+
+      expect(preview.rows[0].action).toBe('update');
+      expect(preview.rows[0].changes).toHaveProperty('yearlyStatus');
+      expect(preview.summary.updateCount).toBe(1);
     });
 
     it('marks row as "invalid" when birthYear is null', async () => {

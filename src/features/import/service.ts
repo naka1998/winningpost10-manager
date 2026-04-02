@@ -306,26 +306,69 @@ function buildYearlyStatusInput(
 function detectChanges(
   existing: {
     sex: string | null;
+    birthYear: number | null;
     country: string | null;
+    isHistorical: boolean;
     mareLine: string | null;
     status: string;
+    sireId: number | null;
+    damId: number | null;
+    lineageId: number | null;
   },
   parsed: ParsedHorseRow,
   importStatus: ImportStatus,
 ): Record<string, { old: unknown; new: unknown }> {
   const changes: Record<string, { old: unknown; new: unknown }> = {};
 
+  // Ancestor horses always need a full update (they have minimal data)
+  if (existing.status === 'ancestor') {
+    changes.status = { old: existing.status, new: importStatus };
+    return changes;
+  }
+
+  // D1 field comparison
   if (parsed.sex !== null && parsed.sex !== existing.sex) {
     changes.sex = { old: existing.sex, new: parsed.sex };
   }
+  if (parsed.birthYear !== null && parsed.birthYear !== existing.birthYear) {
+    changes.birthYear = { old: existing.birthYear, new: parsed.birthYear };
+  }
   if (parsed.country !== null && parsed.country !== existing.country) {
     changes.country = { old: existing.country, new: parsed.country };
+  }
+  if (parsed.isHistorical !== existing.isHistorical) {
+    changes.isHistorical = { old: existing.isHistorical, new: parsed.isHistorical };
   }
   if (parsed.mareLineName !== null && parsed.mareLineName !== existing.mareLine) {
     changes.mareLine = { old: existing.mareLine, new: parsed.mareLineName };
   }
   if (importStatus !== existing.status) {
     changes.status = { old: existing.status, new: importStatus };
+  }
+
+  // D3: sire/dam/lineage names cannot be compared directly with IDs in preview,
+  // so detect change when the existing horse has no pedigree but the parsed row does
+  if (parsed.sireName !== null && existing.sireId === null) {
+    changes.sire = { old: null, new: parsed.sireName };
+  }
+  if (parsed.damName !== null && existing.damId === null) {
+    changes.dam = { old: null, new: parsed.damName };
+  }
+  if (parsed.sireLineageName !== null && existing.lineageId === null) {
+    changes.lineage = { old: null, new: parsed.sireLineageName };
+  }
+
+  // D2: yearly status data is always treated as an update since it's year-specific
+  // (we can't compare without querying the DB for the specific year's data)
+  if (
+    parsed.spValue !== null ||
+    parsed.powerRank !== null ||
+    parsed.instantRank !== null ||
+    parsed.staminaRank !== null ||
+    parsed.mentalRank !== null ||
+    parsed.wisdomRank !== null
+  ) {
+    changes.yearlyStatus = { old: 'existing', new: 'import data' };
   }
 
   return changes;
