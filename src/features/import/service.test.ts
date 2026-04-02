@@ -656,6 +656,8 @@ describe('ImportService', () => {
       );
       expect(failedLog).toBeDefined();
       expect(failedLog!.status).toBe('failed');
+      expect(failedLog!.new_count).toBe(0);
+      expect(failedLog!.updated_count).toBe(0);
       expect(failedLog!.error_detail).not.toBeNull();
     });
   });
