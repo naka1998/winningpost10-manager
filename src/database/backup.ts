@@ -16,11 +16,18 @@ interface SerializedTable {
   rows: Record<string, EncodedValue>[];
 }
 
+interface SerializedSchemaObject {
+  type: 'index' | 'trigger' | 'view';
+  name: string;
+  sql: string;
+}
+
 interface DatabaseSnapshot {
   format: 'wp10-manager-backup-v1';
   exportedAt: string;
   schemaVersion: number;
   tables: SerializedTable[];
+  schemaObjects: SerializedSchemaObject[];
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -85,7 +92,8 @@ function isDatabaseSnapshot(value: unknown): value is DatabaseSnapshot {
   return (
     candidate.format === 'wp10-manager-backup-v1' &&
     typeof candidate.schemaVersion === 'number' &&
-    Array.isArray(candidate.tables)
+    Array.isArray(candidate.tables) &&
+    Array.isArray(candidate.schemaObjects)
   );
 }
 
@@ -107,6 +115,20 @@ async function createSnapshot(db: DatabaseConnection): Promise<DatabaseSnapshot>
   `);
 
   const serializedTables: SerializedTable[] = [];
+  const schemaObjects = await db.all<SerializedSchemaObject>(`
+    SELECT type, name, sql
+    FROM sqlite_master
+    WHERE type IN ('index', 'trigger', 'view')
+      AND sql IS NOT NULL
+      AND name NOT LIKE 'sqlite_%'
+    ORDER BY
+      CASE type
+        WHEN 'view' THEN 1
+        WHEN 'index' THEN 2
+        WHEN 'trigger' THEN 3
+      END,
+      name
+  `);
 
   for (const table of tables) {
     const rows = await db.all<Record<string, unknown>>(`SELECT * FROM "${table.name}"`);
@@ -124,6 +146,7 @@ async function createSnapshot(db: DatabaseConnection): Promise<DatabaseSnapshot>
     exportedAt: new Date().toISOString(),
     schemaVersion,
     tables: serializedTables,
+    schemaObjects,
   };
 }
 
@@ -184,16 +207,29 @@ export async function importDatabase(db: DatabaseConnection, file: File): Promis
   await db.exec('PRAGMA foreign_keys = OFF;');
   try {
     await db.transaction(async (tx) => {
-      const existingTables = await tx.all<{ name: string }>(`
-      SELECT name
+      const existingObjects = await tx.all<{ type: string; name: string }>(`
+      SELECT type, name
       FROM sqlite_master
-      WHERE type = 'table'
+      WHERE type IN ('table', 'view', 'index', 'trigger')
         AND name NOT LIKE 'sqlite_%'
-      ORDER BY name
+      ORDER BY
+        CASE type
+          WHEN 'trigger' THEN 1
+          WHEN 'index' THEN 2
+          WHEN 'view' THEN 3
+          WHEN 'table' THEN 4
+        END,
+        name
     `);
 
-      for (const table of existingTables) {
-        await tx.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(table.name)};`);
+      for (const object of existingObjects) {
+        if (object.type === 'table') {
+          await tx.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(object.name)};`);
+          continue;
+        }
+        await tx.exec(
+          `DROP ${object.type.toUpperCase()} IF EXISTS ${quoteIdentifier(object.name)};`,
+        );
       }
 
       for (const table of parsed.tables) {
@@ -212,6 +248,10 @@ export async function importDatabase(db: DatabaseConnection, file: File): Promis
           const values = columns.map((column) => decodeValue(row[column]));
           await tx.run(sql, values);
         }
+      }
+
+      for (const schemaObject of parsed.schemaObjects) {
+        await tx.exec(schemaObject.sql);
       }
     });
   } finally {

@@ -29,6 +29,7 @@ describe('backup utilities', () => {
           sql: 'CREATE TABLE game_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
         },
       ] as never)
+      .mockResolvedValueOnce([] as never)
       .mockResolvedValueOnce([{ key: 'current_year', value: '2026' }] as never);
 
     const result = await exportDatabase(db);
@@ -48,6 +49,7 @@ describe('backup utilities', () => {
           exportedAt: '2026-04-02T00:00:00.000Z',
           schemaVersion: 2,
           tables: [],
+          schemaObjects: [],
         }),
     } as File;
 

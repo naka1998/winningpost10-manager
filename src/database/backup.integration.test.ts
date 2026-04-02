@@ -84,9 +84,23 @@ describe('backup restore integration', () => {
       LEFT JOIN lineages l ON h.lineage_id = l.id
       WHERE h.name = 'テスト馬'
     `);
+    const trigger = await db.get<{ name: string }>(`
+      SELECT name
+      FROM sqlite_master
+      WHERE type = 'trigger'
+        AND name = 'trg_lineages_insert_validate'
+    `);
+    const index = await db.get<{ name: string }>(`
+      SELECT name
+      FROM sqlite_master
+      WHERE type = 'index'
+        AND name = 'idx_breeding_records_mare_year_unique'
+    `);
 
     expect(horseCount?.count).toBe(expectedHorseCount?.count);
     expect(lineageCount?.count).toBe(expectedLineageCount?.count);
     expect(restored).toEqual({ name: 'テスト馬', lineage_name: 'A系' });
+    expect(trigger?.name).toBe('trg_lineages_insert_validate');
+    expect(index?.name).toBe('idx_breeding_records_mare_year_unique');
   });
 });
