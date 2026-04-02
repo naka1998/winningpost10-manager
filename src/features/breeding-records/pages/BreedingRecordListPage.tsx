@@ -229,7 +229,15 @@ function BreedingRecordFormDialog({
         <DialogHeader>
           <DialogTitle>{editTarget ? '配合記録を編集' : '配合記録を登録'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+            }
+          }}
+          className="space-y-4"
+        >
           <div>
             <Label htmlFor="br-year">配合年</Label>
             <Input
@@ -312,7 +320,6 @@ function BreedingRecordFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <TheoryInput theories={theories} onChange={setTheories} />
           <div>
             <Label htmlFor="br-total-power">爆発力</Label>
             <Input
@@ -326,12 +333,13 @@ function BreedingRecordFormDialog({
             <Label htmlFor="br-notes">メモ</Label>
             <Input id="br-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          <TheoryInput theories={theories} onChange={setTheories} />
           {formError && <p className="text-sm text-destructive">{formError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving} title="Ctrl+Enterで送信">
               {isSaving ? '保存中...' : editTarget ? '更新' : '登録'}
             </Button>
           </DialogFooter>
