@@ -159,6 +159,35 @@ describe('HorseRepository', () => {
     });
   });
 
+  describe('constraints', () => {
+    it('rejects invalid sex values', async () => {
+      await expect(
+        repo.create({
+          name: '不正性別馬',
+          sex: '不明',
+          status: '現役',
+        }),
+      ).rejects.toThrow(/horses.sex must be one of/);
+    });
+
+    it('rejects same sire and dam', async () => {
+      const parent = await repo.create({
+        name: '共通親',
+        sex: '牡',
+        status: '種牡馬',
+      });
+
+      await expect(
+        repo.create({
+          name: '不正血統馬',
+          status: '現役',
+          sireId: parent.id,
+          damId: parent.id,
+        }),
+      ).rejects.toThrow(/sire_id and dam_id must be different/);
+    });
+  });
+
   describe('getAncestorRows', () => {
     it('returns flat ancestor rows for a horse with parents', async () => {
       // Create a 3-generation pedigree: horse -> sire -> grandsire
