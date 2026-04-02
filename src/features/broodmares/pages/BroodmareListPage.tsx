@@ -108,14 +108,16 @@ function DistributionChart({ title, data }: { title: string; data: LineageDistri
               ))}
             </Pie>
             <Tooltip />
-            <Legend />
+            <Legend
+              formatter={(value: string) => <span style={{ color: 'currentColor' }}>{value}</span>}
+            />
           </PieChart>
         </ResponsiveContainer>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={data} layout="vertical" margin={{ left: 80 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" width={80} />
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.2} />
+            <XAxis type="number" tick={{ fill: 'currentColor' }} />
+            <YAxis dataKey="name" type="category" width={80} tick={{ fill: 'currentColor' }} />
             <Tooltip />
             <Bar dataKey="count" fill="#8884d8" />
           </BarChart>
