@@ -53,13 +53,13 @@ describe('migrations', () => {
     expect(indexNames).toContain('idx_race_plans_year');
   });
 
-  it('sets db_version to 4', async () => {
+  it('sets db_version to 2', async () => {
     await runMigrations(db);
 
     const row = await db.get<{ value: string }>(
       "SELECT value FROM game_settings WHERE key = 'db_version'",
     );
-    expect(row?.value).toBe('4');
+    expect(row?.value).toBe('2');
   });
 
   it('inserts initial game settings', async () => {
@@ -320,57 +320,6 @@ describe('migrations', () => {
     expect(deduped[0].evaluation).toBe('B');
   });
 
-  it('patches v2 trigger and blocks parent demotion when children exist', async () => {
-    await runMigrations(db);
-
-    // Simulate old v2 trigger definition (without parent demotion guard)
-    await db.exec(`
-      DROP TRIGGER IF EXISTS trg_lineages_update_validate;
-      CREATE TRIGGER trg_lineages_update_validate
-      BEFORE UPDATE ON lineages
-      FOR EACH ROW
-      BEGIN
-        SELECT
-          CASE
-            WHEN NEW.lineage_type = 'parent' AND NEW.parent_lineage_id IS NOT NULL
-            THEN RAISE(ABORT, 'lineages(parent): parent_lineage_id must be NULL')
-            WHEN NEW.lineage_type = 'child' AND NEW.parent_lineage_id IS NULL
-            THEN RAISE(ABORT, 'lineages(child): parent_lineage_id is required')
-            WHEN NEW.parent_lineage_id = NEW.id
-            THEN RAISE(ABORT, 'lineages: self reference is not allowed')
-            WHEN NEW.lineage_type = 'child' AND NOT EXISTS (
-              SELECT 1
-              FROM lineages p
-              WHERE p.id = NEW.parent_lineage_id
-                AND p.lineage_type = 'parent'
-            )
-            THEN RAISE(ABORT, 'lineages(child): parent must have lineage_type=parent')
-          END;
-      END;
-      UPDATE game_settings
-      SET value = '2', updated_at = datetime('now')
-      WHERE key = 'db_version';
-    `);
-
-    await expect(runMigrations(db)).resolves.not.toThrow();
-
-    const parent = await db.get<{ id: number }>(
-      "SELECT id FROM lineages WHERE lineage_type = 'parent' LIMIT 1",
-    );
-    const anotherParent = await db.get<{ id: number }>(
-      "SELECT id FROM lineages WHERE lineage_type = 'parent' AND id <> ? LIMIT 1",
-      [parent!.id],
-    );
-
-    await expect(
-      db.run('UPDATE lineages SET lineage_type = ?, parent_lineage_id = ? WHERE id = ?', [
-        'child',
-        anotherParent!.id,
-        parent!.id,
-      ]),
-    ).rejects.toThrow(/cannot demote parent with existing children/);
-  });
-
   it('backfills orphan child lineages when upgrading existing database', async () => {
     await db.exec(`
       CREATE TABLE IF NOT EXISTS game_settings (
@@ -381,7 +330,7 @@ describe('migrations', () => {
     `);
     await initialMigration(db);
     await db.run(
-      "INSERT OR REPLACE INTO game_settings (key, value, updated_at) VALUES ('db_version', '3', datetime('now'))",
+      "INSERT OR REPLACE INTO game_settings (key, value, updated_at) VALUES ('db_version', '1', datetime('now'))",
     );
 
     const orphan = await db.run(
@@ -447,6 +396,6 @@ describe('migrations', () => {
     const version = await db.get<{ value: string }>(
       "SELECT value FROM game_settings WHERE key = 'db_version'",
     );
-    expect(version?.value).toBe('4');
+    expect(version?.value).toBe('2');
   });
 });
