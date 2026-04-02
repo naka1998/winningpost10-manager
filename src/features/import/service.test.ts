@@ -361,6 +361,30 @@ describe('ImportService', () => {
       expect(status!.sp_value).toBe(79);
     });
 
+    it('auto-creates unknown lineage as parent without failing import', async () => {
+      const service = createServiceWithRealDb();
+
+      const rows = [
+        buildParsedRow({
+          name: '未知系統テスト馬',
+          birthYear: 2023,
+          sireLineageName: '未知の系統',
+        }),
+      ];
+      const preview = await service.preview(rows, 2026, '現役');
+      const result = await service.execute(preview);
+
+      expect(result.success).toBe(true);
+
+      const lineage = await db.get<Record<string, unknown>>(
+        'SELECT * FROM lineages WHERE name = ?',
+        ['未知の系統'],
+      );
+      expect(lineage).toBeDefined();
+      expect(lineage!.lineage_type).toBe('parent');
+      expect(lineage!.parent_lineage_id).toBeNull();
+    });
+
     it('overwrites existing horse data on update (name-based match)', async () => {
       const service = createServiceWithRealDb();
 
