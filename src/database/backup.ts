@@ -30,6 +30,14 @@ interface DatabaseSnapshot {
   schemaObjects: SerializedSchemaObject[];
 }
 
+const MANDATORY_TABLES = [
+  'game_settings',
+  'lineages',
+  'horses',
+  'yearly_statuses',
+  'breeding_records',
+] as const;
+
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) {
@@ -95,6 +103,45 @@ function isDatabaseSnapshot(value: unknown): value is DatabaseSnapshot {
     Array.isArray(candidate.tables) &&
     Array.isArray(candidate.schemaObjects)
   );
+}
+
+function validateSnapshot(snapshot: DatabaseSnapshot): void {
+  if (snapshot.tables.length === 0) {
+    throw new Error('バックアップにテーブル定義が含まれていません。');
+  }
+
+  for (const table of snapshot.tables) {
+    if (typeof table.name !== 'string' || table.name.length === 0) {
+      throw new Error('バックアップ内に不正なテーブル名があります。');
+    }
+    if (
+      typeof table.createSql !== 'string' ||
+      !table.createSql.trim().toUpperCase().startsWith('CREATE TABLE')
+    ) {
+      throw new Error(`バックアップ内のテーブル定義が不正です: ${table.name}`);
+    }
+    if (!Array.isArray(table.rows)) {
+      throw new Error(`バックアップ内のテーブル行データが不正です: ${table.name}`);
+    }
+  }
+
+  const tableNames = new Set(snapshot.tables.map((table) => table.name));
+  const missingMandatory = MANDATORY_TABLES.filter((name) => !tableNames.has(name));
+  if (missingMandatory.length > 0) {
+    throw new Error(`必須テーブルが不足しています: ${missingMandatory.join(', ')}`);
+  }
+
+  for (const schemaObject of snapshot.schemaObjects) {
+    if (
+      !['index', 'trigger', 'view'].includes(schemaObject.type) ||
+      typeof schemaObject.name !== 'string' ||
+      schemaObject.name.length === 0 ||
+      typeof schemaObject.sql !== 'string' ||
+      schemaObject.sql.trim().length === 0
+    ) {
+      throw new Error('バックアップ内のスキーマオブジェクト定義が不正です。');
+    }
+  }
 }
 
 async function createSnapshot(db: DatabaseConnection): Promise<DatabaseSnapshot> {
@@ -196,6 +243,7 @@ export async function importDatabase(db: DatabaseConnection, file: File): Promis
   if (!isDatabaseSnapshot(parsed)) {
     throw new Error('サポートされていないバックアップ形式です。');
   }
+  validateSnapshot(parsed);
 
   const currentVersion = await getCurrentSchemaVersion(db);
   if (currentVersion !== parsed.schemaVersion) {
