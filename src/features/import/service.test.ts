@@ -72,9 +72,8 @@ function buildExistingHorse(overrides?: Partial<Horse>): Horse {
 function createMockHorseRepo(overrides?: Partial<HorseRepository>): HorseRepository {
   return {
     findById: vi.fn(),
-    findByName: vi.fn().mockResolvedValue(null),
     findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
-    findAncestorByName: vi.fn(),
+    findAncestorByName: vi.fn().mockResolvedValue(null),
     findAll: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -142,8 +141,8 @@ describe('ImportService', () => {
       expect(preview.summary.newCount).toBe(1);
     });
 
-    it('marks row as "update" when horse exists by name+birthYear', async () => {
-      const existing = buildExistingHorse({ name: '既存馬' });
+    it('marks row as "update" when horse exists with different data', async () => {
+      const existing = buildExistingHorse({ name: '既存馬', country: '日' });
       const horseRepo = createMockHorseRepo({
         findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
       });
@@ -154,15 +153,15 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024 })];
+      const rows = [buildParsedRow({ name: '既存馬', birthYear: 2024, country: '米' })];
       const preview = await service.preview(rows, 2025, '現役');
 
       expect(preview.rows[0].action).toBe('update');
-      expect(preview.rows[0].existingHorse).toBeDefined();
+      expect(preview.rows[0].changes).toHaveProperty('country');
       expect(preview.summary.updateCount).toBe(1);
     });
 
-    it('marks row as "update" when horse exists by name only (ancestor match)', async () => {
+    it('marks row as "update" when ancestor exists by name (ancestor match)', async () => {
       const ancestor = buildExistingHorse({
         name: '既存祖先馬',
         birthYear: null,
@@ -170,7 +169,7 @@ describe('ImportService', () => {
       });
       const horseRepo = createMockHorseRepo({
         findByNameAndBirthYear: vi.fn().mockResolvedValue(null),
-        findByName: vi.fn().mockResolvedValue(ancestor),
+        findAncestorByName: vi.fn().mockResolvedValue(ancestor),
       });
       const service = createImportService({
         db: createMockDb(),
@@ -184,6 +183,90 @@ describe('ImportService', () => {
 
       expect(preview.rows[0].action).toBe('update');
       expect(preview.rows[0].existingHorse!.status).toBe('ancestor');
+      expect(preview.summary.updateCount).toBe(1);
+    });
+
+    it('marks row as "skip" when horse exists with same D1 data and no D2 data', async () => {
+      const existing = buildExistingHorse({
+        name: '同一馬',
+        sex: '牡',
+        country: '日',
+        status: '現役',
+      });
+      const horseRepo = createMockHorseRepo({
+        findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
+      });
+      const service = createImportService({
+        db: createMockDb(),
+        horseRepo,
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      // Row with matching D1, no D2, no D3 (everything null)
+      const rows = [
+        {
+          name: '同一馬',
+          sex: '牡' as string | null,
+          birthYear: 2024 as number | null,
+          country: '日' as string | null,
+          isHistorical: false,
+          sireName: null,
+          damName: null,
+          sireLineageName: null,
+          mareLineName: null,
+          spRank: null,
+          spValue: null,
+          powerRank: null,
+          powerValue: null,
+          instantRank: null,
+          instantValue: null,
+          staminaRank: null,
+          staminaValue: null,
+          mentalRank: null,
+          mentalValue: null,
+          wisdomRank: null,
+          wisdomValue: null,
+          turfAptitude: null,
+          dirtAptitude: null,
+          distanceMin: null,
+          distanceMax: null,
+          growthType: null,
+          runningStyle: null,
+          traits: null,
+          raceRecord: null,
+          jockey: null,
+        },
+      ];
+      const preview = await service.preview(rows, 2025, '現役');
+
+      expect(preview.rows[0].action).toBe('skip');
+      expect(preview.summary.skipCount).toBe(1);
+    });
+
+    it('marks row as "update" when D2 data is present (yearly status)', async () => {
+      const existing = buildExistingHorse({
+        name: '同一馬',
+        sex: '牡',
+        country: '日',
+        status: '現役',
+      });
+      const horseRepo = createMockHorseRepo({
+        findByNameAndBirthYear: vi.fn().mockResolvedValue(existing),
+      });
+      const service = createImportService({
+        db: createMockDb(),
+        horseRepo,
+        yearlyStatusRepo: createMockYearlyStatusRepo(),
+        lineageRepo: createMockLineageRepo(),
+      });
+
+      // Same D1 but with D2 data → update
+      const rows = [buildParsedRow({ name: '同一馬', birthYear: 2024, sex: '牡', country: '日' })];
+      const preview = await service.preview(rows, 2025, '現役');
+
+      expect(preview.rows[0].action).toBe('update');
+      expect(preview.rows[0].changes).toHaveProperty('yearlyStatus');
       expect(preview.summary.updateCount).toBe(1);
     });
 
@@ -352,6 +435,47 @@ describe('ImportService', () => {
       expect(updated!.sex).toBe('牡');
       expect(updated!.country).toBe('米');
       expect(updated!.status).toBe('種牡馬');
+    });
+
+    it('preserves existing pedigree when parsed data has null sire/dam', async () => {
+      const service = createServiceWithRealDb();
+
+      // First import: create horse with sire and dam
+      const rows1 = [buildParsedRow({ name: '血統保持馬', birthYear: 2023 })];
+      const preview1 = await service.preview(rows1, 2025, '現役');
+      await service.execute(preview1);
+
+      // Verify sire was created
+      const horse1 = await db.get<Record<string, unknown>>(
+        'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
+        ['血統保持馬', 2023],
+      );
+      expect(horse1!.sire_id).not.toBeNull();
+      expect(horse1!.dam_id).not.toBeNull();
+      const originalSireId = horse1!.sire_id;
+      const originalDamId = horse1!.dam_id;
+
+      // Second import: same horse but with null sire/dam (partial data)
+      const rows2 = [
+        buildParsedRow({
+          name: '血統保持馬',
+          birthYear: 2023,
+          sireName: null,
+          damName: null,
+          sireLineageName: null,
+          spValue: 90,
+        }),
+      ];
+      const preview2 = await service.preview(rows2, 2026, '現役');
+      await service.execute(preview2);
+
+      // Verify pedigree was NOT cleared
+      const horse2 = await db.get<Record<string, unknown>>(
+        'SELECT * FROM horses WHERE name = ? AND birth_year = ?',
+        ['血統保持馬', 2023],
+      );
+      expect(horse2!.sire_id).toBe(originalSireId);
+      expect(horse2!.dam_id).toBe(originalDamId);
     });
 
     it('records import log on success', async () => {
