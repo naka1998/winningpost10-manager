@@ -303,6 +303,32 @@ function buildYearlyStatusInput(
   };
 }
 
+function hasAnyD2Data(parsed: ParsedHorseRow): boolean {
+  return (
+    parsed.spRank !== null ||
+    parsed.spValue !== null ||
+    parsed.powerRank !== null ||
+    parsed.powerValue !== null ||
+    parsed.instantRank !== null ||
+    parsed.instantValue !== null ||
+    parsed.staminaRank !== null ||
+    parsed.staminaValue !== null ||
+    parsed.mentalRank !== null ||
+    parsed.mentalValue !== null ||
+    parsed.wisdomRank !== null ||
+    parsed.wisdomValue !== null ||
+    parsed.turfAptitude !== null ||
+    parsed.dirtAptitude !== null ||
+    parsed.distanceMin !== null ||
+    parsed.distanceMax !== null ||
+    parsed.growthType !== null ||
+    parsed.runningStyle !== null ||
+    parsed.traits !== null ||
+    parsed.jockey !== null ||
+    parsed.raceRecord !== null
+  );
+}
+
 function detectChanges(
   existing: {
     sex: string | null;
@@ -346,28 +372,21 @@ function detectChanges(
     changes.status = { old: existing.status, new: importStatus };
   }
 
-  // D3: sire/dam/lineage names cannot be compared directly with IDs in preview,
-  // so detect change when the existing horse has no pedigree but the parsed row does
-  if (parsed.sireName !== null && existing.sireId === null) {
-    changes.sire = { old: null, new: parsed.sireName };
+  // D3: sire/dam/lineage — preview cannot compare names with IDs,
+  // so any non-null pedigree name triggers update (execute will resolve)
+  if (parsed.sireName !== null) {
+    changes.sire = { old: existing.sireId, new: parsed.sireName };
   }
-  if (parsed.damName !== null && existing.damId === null) {
-    changes.dam = { old: null, new: parsed.damName };
+  if (parsed.damName !== null) {
+    changes.dam = { old: existing.damId, new: parsed.damName };
   }
-  if (parsed.sireLineageName !== null && existing.lineageId === null) {
-    changes.lineage = { old: null, new: parsed.sireLineageName };
+  if (parsed.sireLineageName !== null) {
+    changes.lineage = { old: existing.lineageId, new: parsed.sireLineageName };
   }
 
-  // D2: yearly status data is always treated as an update since it's year-specific
-  // (we can't compare without querying the DB for the specific year's data)
-  if (
-    parsed.spValue !== null ||
-    parsed.powerRank !== null ||
-    parsed.instantRank !== null ||
-    parsed.staminaRank !== null ||
-    parsed.mentalRank !== null ||
-    parsed.wisdomRank !== null
-  ) {
+  // D2: yearly status — any non-null D2 field triggers update
+  // (year-specific data cannot be compared without DB query)
+  if (hasAnyD2Data(parsed)) {
     changes.yearlyStatus = { old: 'existing', new: 'import data' };
   }
 

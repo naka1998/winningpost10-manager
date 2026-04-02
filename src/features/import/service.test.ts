@@ -203,16 +203,18 @@ describe('ImportService', () => {
         lineageRepo: createMockLineageRepo(),
       });
 
-      // Row with matching D1, no D2, no D3 (all null)
+      // Row with matching D1, no D2, no D3 (everything null)
       const rows = [
-        buildParsedRow({
+        {
           name: '同一馬',
-          birthYear: 2024,
-          sex: '牡',
-          country: '日',
+          sex: '牡' as string | null,
+          birthYear: 2024 as number | null,
+          country: '日' as string | null,
+          isHistorical: false,
           sireName: null,
           damName: null,
           sireLineageName: null,
+          mareLineName: null,
           spRank: null,
           spValue: null,
           powerRank: null,
@@ -225,7 +227,16 @@ describe('ImportService', () => {
           mentalValue: null,
           wisdomRank: null,
           wisdomValue: null,
-        }),
+          turfAptitude: null,
+          dirtAptitude: null,
+          distanceMin: null,
+          distanceMax: null,
+          growthType: null,
+          runningStyle: null,
+          traits: null,
+          raceRecord: null,
+          jockey: null,
+        },
       ];
       const preview = await service.preview(rows, 2025, '現役');
 
