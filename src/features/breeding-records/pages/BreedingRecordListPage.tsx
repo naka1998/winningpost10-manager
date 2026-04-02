@@ -97,6 +97,7 @@ function BreedingRecordFormDialog({
   mares,
   stallions,
   defaultYear,
+  records,
   onSubmit,
 }: {
   open: boolean;
@@ -105,6 +106,7 @@ function BreedingRecordFormDialog({
   mares: Horse[];
   stallions: Horse[];
   defaultYear: number;
+  records: BreedingRecordWithNames[];
   onSubmit: (
     data:
       | (BreedingRecordCreateInput & { sireName?: string })
@@ -141,6 +143,18 @@ function BreedingRecordFormDialog({
     }
     setFormError(null);
   }, [editTarget, open, defaultYear]);
+
+  // Exclude mares already bred in the selected year (except the current edit target's mare)
+  const availableMares = useMemo(() => {
+    const selectedYear = Number(year);
+    if (!selectedYear) return mares;
+    const bredMareIds = new Set(
+      records
+        .filter((r) => r.year === selectedYear && r.id !== editTarget?.id)
+        .map((r) => r.mareId),
+    );
+    return mares.filter((m) => !bredMareIds.has(m.id));
+  }, [mares, year, records, editTarget]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,13 +201,26 @@ function BreedingRecordFormDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <Label htmlFor="br-year">配合年</Label>
+            <Input
+              id="br-year"
+              type="number"
+              value={year}
+              onChange={(e) => {
+                setYear(e.target.value);
+                setMareId('');
+              }}
+              required
+            />
+          </div>
+          <div>
             <Label htmlFor="br-mare">繁殖牝馬</Label>
             <Select value={mareId} onValueChange={setMareId} required>
               <SelectTrigger id="br-mare">
                 <SelectValue placeholder="選択してください" />
               </SelectTrigger>
               <SelectContent>
-                {mares.map((h) => (
+                {availableMares.map((h) => (
                   <SelectItem key={h.id} value={String(h.id)}>
                     {h.name}
                   </SelectItem>
@@ -216,16 +243,6 @@ function BreedingRecordFormDialog({
                 <option key={h.id} value={h.name} />
               ))}
             </datalist>
-          </div>
-          <div>
-            <Label htmlFor="br-year">配合年</Label>
-            <Input
-              id="br-year"
-              type="number"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              required
-            />
           </div>
           <div>
             <Label htmlFor="br-evaluation">評価</Label>
@@ -483,6 +500,7 @@ export function BreedingRecordListPage() {
         mares={mares}
         stallions={stallions}
         defaultYear={currentYear}
+        records={records}
         onSubmit={handleSubmit}
       />
 
