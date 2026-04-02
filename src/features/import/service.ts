@@ -51,6 +51,12 @@ export function createImportService(deps: ImportServiceDeps): ImportService {
         if (!existing) {
           existing = await deps.horseRepo.findAncestorByName(parsed.name);
         }
+        if (!existing) {
+          const sameNameHorses = await deps.horseRepo.findByName(parsed.name);
+          if (sameNameHorses.length === 1) {
+            existing = sameNameHorses[0];
+          }
+        }
 
         if (!existing) {
           previewRows.push({ parsed, action: 'create' });
@@ -243,10 +249,11 @@ async function resolveLineage(
   const existing = await lineageRepo.findByName(lineageName);
   if (existing) return existing.id;
 
-  // Auto-create lineage as child type
+  // Auto-create lineage as parent type.
+  // parentLineageId が不明な状態で child を作ると DB 制約に違反するため。
   const lineage = await lineageRepo.create({
     name: lineageName,
-    lineageType: 'child',
+    lineageType: 'parent',
   });
   return lineage.id;
 }

@@ -64,6 +64,7 @@ const mockGetHierarchy = vi.fn<() => Promise<LineageNode[]>>();
 
 const mockHorseRepo = {
   findById: vi.fn(),
+  findByName: vi.fn(),
   findByNameAndBirthYear: vi.fn(),
   findAncestorByName: vi.fn(),
   findAll: mockFindAll,
@@ -75,6 +76,7 @@ const mockHorseRepo = {
 
 const mockLineageRepo = {
   findById: vi.fn(),
+  findByName: vi.fn(),
   findAll: vi.fn(),
   getChildren: vi.fn(),
   getHierarchy: mockGetHierarchy,

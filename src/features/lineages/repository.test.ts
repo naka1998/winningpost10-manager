@@ -76,9 +76,11 @@ describe('LineageRepository', () => {
 
   describe('create', () => {
     it('creates a new lineage', async () => {
+      const parent = await repo.findByName('ノーザンダンサー系');
       const lineage = await repo.create({
         name: 'テスト系',
         lineageType: 'child',
+        parentLineageId: parent!.id,
         spStType: 'SP',
       });
 
@@ -99,6 +101,17 @@ describe('LineageRepository', () => {
       const updated = await repo.update(lineage.id, { spStType: 'ST' });
       expect(updated.spStType).toBe('ST');
       expect(updated.name).toBe('更新系');
+    });
+  });
+
+  describe('constraints', () => {
+    it('rejects child lineage without parent', async () => {
+      await expect(
+        repo.create({
+          name: '制約違反子系統',
+          lineageType: 'child',
+        }),
+      ).rejects.toThrow(/parent_lineage_id is required/);
     });
   });
 });

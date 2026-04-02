@@ -1,5 +1,6 @@
 import type { DatabaseConnection } from '../connection';
 import { up as initialMigration } from './001_initial';
+import { up as constraintsHardeningMigration } from './002_constraints_hardening';
 
 interface Migration {
   version: number;
@@ -12,6 +13,11 @@ const migrations: Migration[] = [
     version: 1,
     description: '初期スキーマ作成',
     up: initialMigration,
+  },
+  {
+    version: 2,
+    description: '制約強化・データ補正・updated_at トリガー追加',
+    up: constraintsHardeningMigration,
   },
 ];
 

@@ -167,6 +167,37 @@ describe('BreedingRecordRepository', () => {
     });
   });
 
+  describe('constraints', () => {
+    it('rejects duplicate mare/year records', async () => {
+      await repo.create({ mareId, sireId, year: 2024 });
+
+      await expect(repo.create({ mareId, sireId, year: 2024 })).rejects.toThrow(
+        /UNIQUE constraint failed/,
+      );
+    });
+
+    it('rejects role mismatches for mare and sire', async () => {
+      const invalidMare = await horseRepo.create({
+        name: '不正繁殖牝馬候補',
+        sex: '牡',
+        status: '現役',
+      });
+      const invalidSire = await horseRepo.create({
+        name: '不正種牡馬候補',
+        sex: '牝',
+        status: '現役',
+      });
+
+      await expect(repo.create({ mareId: invalidMare.id, sireId, year: 2026 })).rejects.toThrow(
+        /mare_id must reference/,
+      );
+
+      await expect(repo.create({ mareId, sireId: invalidSire.id, year: 2027 })).rejects.toThrow(
+        /sire_id must reference/,
+      );
+    });
+  });
+
   describe('findAll with filters', () => {
     beforeEach(async () => {
       const mare2 = await horseRepo.create({
