@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDatabaseContext } from '@/app/database-context';
-import { useRepositoryContext } from '@/app/repository-context';
+import { useServiceContext } from '@/app/service-context';
 import { downloadBackupFile, exportDatabase, importDatabase } from '@/database/backup';
 import { seedTestHorses } from '@/database/seed/test-horses';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,7 @@ import { useSettingsStore } from '../store';
 
 export function SettingsPage() {
   const { db } = useDatabaseContext();
-  const { settingsRepository } = useRepositoryContext();
+  const { settingsService } = useServiceContext();
   const { settings, isLoading, error, loadSettings, updateCurrentYear, updatePedigreeDepth } =
     useSettingsStore();
 
@@ -45,8 +45,8 @@ export function SettingsPage() {
   const isDbActionRunning = isExporting || isRestoring || seeding;
 
   useEffect(() => {
-    loadSettings(settingsRepository);
-  }, [loadSettings, settingsRepository]);
+    loadSettings(settingsService);
+  }, [loadSettings, settingsService]);
 
   useEffect(() => {
     if (settings) {
@@ -75,13 +75,13 @@ export function SettingsPage() {
   async function handleSaveYear() {
     const year = Number(yearInput);
     if (!Number.isNaN(year) && year > 0) {
-      await updateCurrentYear(settingsRepository, year);
+      await updateCurrentYear(settingsService, year);
     }
   }
 
   async function handleDepthChange(value: string) {
     const depth = Number(value) as 4 | 5;
-    await updatePedigreeDepth(settingsRepository, depth);
+    await updatePedigreeDepth(settingsService, depth);
   }
 
   async function handleExportDatabase() {

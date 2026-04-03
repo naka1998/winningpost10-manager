@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createAppContainer, type AppContainer } from './container';
 import { DatabaseContext } from './database-context';
 import { RepositoryContext } from './repository-context';
+import { ServiceContext } from './service-context';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -55,7 +56,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <DatabaseContext.Provider value={{ db: container.db }}>
       <RepositoryContext.Provider value={container.repositories}>
-        {children}
+        <ServiceContext.Provider value={container.services}>{children}</ServiceContext.Provider>
       </RepositoryContext.Provider>
     </DatabaseContext.Provider>
   );

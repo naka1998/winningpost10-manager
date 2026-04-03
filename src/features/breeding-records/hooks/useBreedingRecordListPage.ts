@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRepositoryContext } from '@/app/repository-context';
+import { useServiceContext } from '@/app/service-context';
 import { useSettingsStore } from '@/features/settings/store';
 import { useBreedingRecordStore } from '../store';
 import type {
@@ -10,7 +11,8 @@ import type {
 import type { Horse } from '@/features/horses/types';
 
 export function useBreedingRecordListPage() {
-  const { breedingRecordRepository, horseRepository, settingsRepository } = useRepositoryContext();
+  const { horseRepository, breedingRecordRepository } = useRepositoryContext();
+  const { breedingRecordService, settingsService } = useServiceContext();
   const records = useBreedingRecordStore((s) => s.records);
   const isLoading = useBreedingRecordStore((s) => s.isLoading);
   const error = useBreedingRecordStore((s) => s.error);
@@ -34,14 +36,14 @@ export function useBreedingRecordListPage() {
 
   useEffect(() => {
     async function loadData() {
-      await useSettingsStore.getState().loadSettings(settingsRepository);
+      await useSettingsStore.getState().loadSettings(settingsService);
       const allHorses = await horseRepository.findAll();
       setHorses(allHorses);
       await refreshAllRecords();
-      await useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
+      await useBreedingRecordStore.getState().loadRecords(breedingRecordService);
     }
     loadData();
-  }, [breedingRecordRepository, horseRepository, settingsRepository, refreshAllRecords]);
+  }, [breedingRecordService, horseRepository, settingsService, refreshAllRecords]);
 
   const isInitialMount = useRef(true);
   useEffect(() => {
@@ -49,8 +51,8 @@ export function useBreedingRecordListPage() {
       isInitialMount.current = false;
       return;
     }
-    useBreedingRecordStore.getState().loadRecords(breedingRecordRepository);
-  }, [filter, breedingRecordRepository]);
+    useBreedingRecordStore.getState().loadRecords(breedingRecordService);
+  }, [filter, breedingRecordService]);
 
   const mares = useMemo(() => horses.filter((h) => h.status === '繁殖牝馬'), [horses]);
   const stallions = useMemo(() => horses.filter((h) => h.status === '種牡馬'), [horses]);
@@ -87,16 +89,16 @@ export function useBreedingRecordListPage() {
 
     if ('id' in recordData) {
       const { id, ...updateData } = recordData;
-      await store.updateRecord(breedingRecordRepository, id, updateData);
+      await store.updateRecord(breedingRecordService, id, updateData);
     } else {
-      await store.createRecord(breedingRecordRepository, recordData as BreedingRecordCreateInput);
+      await store.createRecord(breedingRecordService, recordData as BreedingRecordCreateInput);
     }
     await refreshAllRecords();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await useBreedingRecordStore.getState().deleteRecord(breedingRecordRepository, deleteTarget.id);
+    await useBreedingRecordStore.getState().deleteRecord(breedingRecordService, deleteTarget.id);
     setDeleteTarget(null);
     await refreshAllRecords();
   };

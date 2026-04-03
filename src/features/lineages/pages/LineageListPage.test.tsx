@@ -95,24 +95,16 @@ const mockGetHierarchy = vi.fn<() => Promise<LineageNode[]>>();
 const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
 
-const mockLineageRepo = {
-  findById: vi.fn(),
-  findByName: vi.fn(),
-  findAll: vi.fn(),
-  getChildren: vi.fn(),
+const mockLineageService = {
   getHierarchy: mockGetHierarchy,
   create: mockCreate,
   update: mockUpdate,
 };
 
-const mockRepoContext = {
-  lineageRepository: mockLineageRepo,
-  horseRepository: {},
-  yearlyStatusRepository: {},
-};
-
-vi.mock('@/app/repository-context', () => ({
-  useRepositoryContext: () => mockRepoContext,
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => ({
+    lineageService: mockLineageService,
+  }),
 }));
 
 describe('LineageListPage', () => {

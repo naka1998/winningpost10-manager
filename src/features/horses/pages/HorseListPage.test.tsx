@@ -62,23 +62,14 @@ const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
 const mockGetHierarchy = vi.fn<() => Promise<LineageNode[]>>();
 
-const mockHorseRepo = {
-  findById: vi.fn(),
-  findByName: vi.fn(),
-  findByNameAndBirthYear: vi.fn(),
-  findAncestorByName: vi.fn(),
+const mockHorseService = {
   findAll: mockFindAll,
   create: mockCreate,
   update: mockUpdate,
   delete: mockDelete,
-  getAncestorRows: vi.fn(),
 };
 
-const mockLineageRepo = {
-  findById: vi.fn(),
-  findByName: vi.fn(),
-  findAll: vi.fn(),
-  getChildren: vi.fn(),
+const mockLineageService = {
   getHierarchy: mockGetHierarchy,
   create: vi.fn(),
   update: vi.fn(),
@@ -273,11 +264,10 @@ vi.mock('@/components/ui/tabs', () => {
   return { Tabs, TabsList, TabsTrigger, TabsContent };
 });
 
-vi.mock('@/app/repository-context', () => ({
-  useRepositoryContext: () => ({
-    horseRepository: mockHorseRepo,
-    yearlyStatusRepository: {},
-    lineageRepository: mockLineageRepo,
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => ({
+    horseService: mockHorseService,
+    lineageService: mockLineageService,
   }),
 }));
 

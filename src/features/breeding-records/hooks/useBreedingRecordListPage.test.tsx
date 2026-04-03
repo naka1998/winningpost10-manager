@@ -53,8 +53,7 @@ const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
 
-const mockBreedingRecordRepo = {
-  findById: vi.fn(),
+const mockBreedingRecordService = {
   findAll: mockFindAll,
   create: mockCreate,
   update: mockUpdate,
@@ -64,18 +63,33 @@ const mockBreedingRecordRepo = {
 const mockHorseFindAll = vi.fn<() => Promise<Horse[]>>();
 const mockHorseCreate = vi.fn();
 
+const mockSettingsService = {
+  getAll: vi.fn().mockResolvedValue({
+    currentYear: 2026,
+    pedigreeDepth: 4,
+    rankSystem: [],
+    dbVersion: 1,
+  }),
+  updateCurrentYear: vi.fn(),
+  updatePedigreeDepth: vi.fn(),
+};
+
 // IMPORTANT: Return a stable object reference to prevent infinite re-renders
 // from useCallback/useEffect dependency chains
 const mockRepoContext = {
-  breedingRecordRepository: mockBreedingRecordRepo,
   horseRepository: { findAll: mockHorseFindAll, create: mockHorseCreate },
-  yearlyStatusRepository: {},
-  lineageRepository: {},
-  settingsRepository: { getAll: vi.fn().mockResolvedValue({}), get: vi.fn(), set: vi.fn() },
+  breedingRecordRepository: { findAll: mockFindAll },
 };
 
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => mockRepoContext,
+}));
+
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => ({
+    breedingRecordService: mockBreedingRecordService,
+    settingsService: mockSettingsService,
+  }),
 }));
 
 const testRecords = [createTestRecord({ id: 1 }), createTestRecord({ id: 2, year: 2025 })];

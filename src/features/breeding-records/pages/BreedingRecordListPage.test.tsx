@@ -69,8 +69,7 @@ const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
 const mockDelete = vi.fn();
 
-const mockBreedingRecordRepo = {
-  findById: vi.fn(),
+const mockBreedingRecordService = {
   findAll: mockFindAll,
   create: mockCreate,
   update: mockUpdate,
@@ -79,18 +78,29 @@ const mockBreedingRecordRepo = {
 
 const mockHorseFindAll = vi.fn<() => Promise<Horse[]>>();
 const mockHorseCreate = vi.fn();
-const mockSettingsGetAll = vi.fn();
+
+const mockSettingsService = {
+  getAll: vi.fn(),
+  updateCurrentYear: vi.fn(),
+  updatePedigreeDepth: vi.fn(),
+};
 
 const mockRepoContext = {
-  breedingRecordRepository: mockBreedingRecordRepo,
   horseRepository: { findAll: mockHorseFindAll, create: mockHorseCreate },
-  yearlyStatusRepository: {},
-  lineageRepository: {},
-  settingsRepository: { getAll: mockSettingsGetAll, get: vi.fn(), set: vi.fn() },
+  breedingRecordRepository: { findAll: mockFindAll },
 };
 
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => mockRepoContext,
+}));
+
+const mockServiceContext = {
+  breedingRecordService: mockBreedingRecordService,
+  settingsService: mockSettingsService,
+};
+
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => mockServiceContext,
 }));
 
 describe('BreedingRecordListPage', () => {
@@ -128,7 +138,12 @@ describe('BreedingRecordListPage', () => {
     mockHorseCreate.mockResolvedValue(
       createTestHorse({ id: 99, name: '新規種牡馬', sex: '牡', status: '種牡馬' }),
     );
-    mockSettingsGetAll.mockResolvedValue({ current_year: '2026', pedigree_depth: '4' });
+    mockSettingsService.getAll.mockResolvedValue({
+      currentYear: 2026,
+      pedigreeDepth: 4,
+      rankSystem: [],
+      dbVersion: 1,
+    });
     useBreedingRecordStore.setState({
       records: [],
       isLoading: false,

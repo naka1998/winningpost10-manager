@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { LineageRepository } from './repository';
+import type { LineageService } from './service';
 import type { Lineage, LineageCreateInput, LineageNode, LineageUpdateInput } from './types';
 
 export function filterHierarchy(hierarchy: LineageNode[], searchQuery: string): LineageNode[] {
@@ -31,9 +31,9 @@ export interface LineageState {
   error: string | null;
   searchQuery: string;
 
-  loadHierarchy: (repo: LineageRepository) => Promise<void>;
-  createLineage: (repo: LineageRepository, data: LineageCreateInput) => Promise<void>;
-  updateLineage: (repo: LineageRepository, id: number, data: LineageUpdateInput) => Promise<void>;
+  loadHierarchy: (service: LineageService) => Promise<void>;
+  createLineage: (service: LineageService, data: LineageCreateInput) => Promise<void>;
+  updateLineage: (service: LineageService, id: number, data: LineageUpdateInput) => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
 
@@ -44,10 +44,10 @@ export const useLineageStore = create<LineageState>((set, get) => ({
   error: null,
   searchQuery: '',
 
-  async loadHierarchy(repo: LineageRepository) {
+  async loadHierarchy(service: LineageService) {
     set({ isLoading: true, error: null });
     try {
-      const hierarchy = await repo.getHierarchy();
+      const hierarchy = await service.getHierarchy();
       const parentLineages = hierarchy.map(({ children: _children, ...parent }) => parent);
       set({ hierarchy, parentLineages, isLoading: false });
     } catch (err) {
@@ -58,14 +58,14 @@ export const useLineageStore = create<LineageState>((set, get) => ({
     }
   },
 
-  async createLineage(repo: LineageRepository, data: LineageCreateInput) {
-    await repo.create(data);
-    await get().loadHierarchy(repo);
+  async createLineage(service: LineageService, data: LineageCreateInput) {
+    await service.create(data);
+    await get().loadHierarchy(service);
   },
 
-  async updateLineage(repo: LineageRepository, id: number, data: LineageUpdateInput) {
-    await repo.update(id, data);
-    await get().loadHierarchy(repo);
+  async updateLineage(service: LineageService, id: number, data: LineageUpdateInput) {
+    await service.update(id, data);
+    await get().loadHierarchy(service);
   },
 
   setSearchQuery(query: string) {

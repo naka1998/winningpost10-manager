@@ -1,20 +1,27 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSettingsStore } from './store';
-import type { SettingsRepository } from './repository';
+import type { SettingsService } from './service';
+import type { GameSettings } from './types';
 
-function createMockRepo(
-  data: Record<string, string> = {
-    current_year: '2025',
-    pedigree_depth: '4',
-    rank_system: '{"ranks":["S+","S","A+","A","B+","B","C+","C","D+","D","E+","E"]}',
-    db_version: '1',
-  },
-): SettingsRepository {
+function createMockSettings(overrides: Partial<GameSettings> = {}): GameSettings {
   return {
-    get: vi.fn(async (key: string) => data[key] ?? null),
+    currentYear: 2025,
+    pedigreeDepth: 4,
+    rankSystem: ['S+', 'S', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E+', 'E'],
+    dbVersion: 1,
+    ...overrides,
+  };
+}
+
+function createMockService(settings: GameSettings = createMockSettings()): SettingsService {
+  const data = { ...settings };
+  return {
     getAll: vi.fn(async () => ({ ...data })),
-    set: vi.fn(async (key: string, value: string) => {
-      data[key] = value;
+    updateCurrentYear: vi.fn(async (year: number) => {
+      data.currentYear = year;
+    }),
+    updatePedigreeDepth: vi.fn(async (depth: 4 | 5) => {
+      data.pedigreeDepth = depth;
     }),
   };
 }
@@ -29,9 +36,9 @@ describe('useSettingsStore', () => {
   });
 
   describe('loadSettings', () => {
-    it('設定を読み込み、GameSettingsにパースされる', async () => {
-      const repo = createMockRepo();
-      await useSettingsStore.getState().loadSettings(repo);
+    it('設定を読み込み、GameSettingsとしてセットされる', async () => {
+      const service = createMockService();
+      await useSettingsStore.getState().loadSettings(service);
 
       const state = useSettingsStore.getState();
       expect(state.settings).not.toBeNull();
@@ -57,10 +64,10 @@ describe('useSettingsStore', () => {
     });
 
     it('エラー時にerrorがセットされる', async () => {
-      const repo = createMockRepo();
-      repo.getAll = vi.fn().mockRejectedValue(new Error('DB error'));
+      const service = createMockService();
+      service.getAll = vi.fn().mockRejectedValue(new Error('DB error'));
 
-      await useSettingsStore.getState().loadSettings(repo);
+      await useSettingsStore.getState().loadSettings(service);
 
       const state = useSettingsStore.getState();
       expect(state.error).toBe('DB error');
@@ -69,41 +76,36 @@ describe('useSettingsStore', () => {
     });
 
     it('読み込み中はisLoadingがtrueになる', async () => {
-      const repo = createMockRepo();
+      const service = createMockService();
       let loadingDuringCall = false;
-      repo.getAll = vi.fn(async () => {
+      service.getAll = vi.fn(async () => {
         loadingDuringCall = useSettingsStore.getState().isLoading;
-        return {
-          current_year: '2025',
-          pedigree_depth: '4',
-          rank_system: '{"ranks":[]}',
-          db_version: '1',
-        };
+        return createMockSettings();
       });
 
-      await useSettingsStore.getState().loadSettings(repo);
+      await useSettingsStore.getState().loadSettings(service);
       expect(loadingDuringCall).toBe(true);
     });
   });
 
   describe('updateCurrentYear', () => {
-    it('repo.setが正しい引数で呼ばれ、リロードされる', async () => {
-      const repo = createMockRepo();
-      await useSettingsStore.getState().loadSettings(repo);
-      await useSettingsStore.getState().updateCurrentYear(repo, 2030);
+    it('service.updateCurrentYearが正しい引数で呼ばれ、リロードされる', async () => {
+      const service = createMockService();
+      await useSettingsStore.getState().loadSettings(service);
+      await useSettingsStore.getState().updateCurrentYear(service, 2030);
 
-      expect(repo.set).toHaveBeenCalledWith('current_year', '2030');
+      expect(service.updateCurrentYear).toHaveBeenCalledWith(2030);
       expect(useSettingsStore.getState().settings!.currentYear).toBe(2030);
     });
   });
 
   describe('updatePedigreeDepth', () => {
-    it('repo.setが正しい引数で呼ばれ、リロードされる', async () => {
-      const repo = createMockRepo();
-      await useSettingsStore.getState().loadSettings(repo);
-      await useSettingsStore.getState().updatePedigreeDepth(repo, 5);
+    it('service.updatePedigreeDepthが正しい引数で呼ばれ、リロードされる', async () => {
+      const service = createMockService();
+      await useSettingsStore.getState().loadSettings(service);
+      await useSettingsStore.getState().updatePedigreeDepth(service, 5);
 
-      expect(repo.set).toHaveBeenCalledWith('pedigree_depth', '5');
+      expect(service.updatePedigreeDepth).toHaveBeenCalledWith(5);
       expect(useSettingsStore.getState().settings!.pedigreeDepth).toBe(5);
     });
   });

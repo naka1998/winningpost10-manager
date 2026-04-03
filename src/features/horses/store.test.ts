@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHorseStore } from './store';
-import type { HorseRepository } from './repository';
+import type { HorseService } from './service';
 import type { Horse } from './types';
 
 function createMockHorse(overrides: Partial<Horse> = {}): Horse {
@@ -24,17 +24,12 @@ function createMockHorse(overrides: Partial<Horse> = {}): Horse {
   };
 }
 
-function createMockRepo(horses: Horse[] = [createMockHorse()]): HorseRepository {
+function createMockService(horses: Horse[] = [createMockHorse()]): HorseService {
   return {
-    findById: vi.fn(),
-    findByName: vi.fn(),
-    findByNameAndBirthYear: vi.fn(),
-    findAncestorByName: vi.fn(),
     findAll: vi.fn().mockResolvedValue(horses),
     create: vi.fn().mockResolvedValue(createMockHorse({ id: 100, name: '新規馬' })),
     update: vi.fn().mockResolvedValue(createMockHorse({ id: 1, name: '更新馬' })),
     delete: vi.fn().mockResolvedValue(undefined),
-    getAncestorRows: vi.fn(),
   };
 }
 
@@ -49,14 +44,14 @@ describe('useHorseStore', () => {
   });
 
   describe('loadHorses', () => {
-    it('loads horses from repository', async () => {
+    it('loads horses from service', async () => {
       const horses = [
         createMockHorse({ id: 1, name: 'ディープインパクト' }),
         createMockHorse({ id: 2, name: 'キタサンブラック' }),
       ];
-      const repo = createMockRepo(horses);
+      const service = createMockService(horses);
 
-      await useHorseStore.getState().loadHorses(repo);
+      await useHorseStore.getState().loadHorses(service);
 
       const state = useHorseStore.getState();
       expect(state.horses).toHaveLength(2);
@@ -71,10 +66,10 @@ describe('useHorseStore', () => {
       const pendingPromise = new Promise<Horse[]>((resolve) => {
         resolveHorses = resolve;
       });
-      const repo = createMockRepo();
-      repo.findAll = vi.fn().mockReturnValue(pendingPromise);
+      const service = createMockService();
+      service.findAll = vi.fn().mockReturnValue(pendingPromise);
 
-      const loadPromise = useHorseStore.getState().loadHorses(repo);
+      const loadPromise = useHorseStore.getState().loadHorses(service);
       expect(useHorseStore.getState().isLoading).toBe(true);
 
       resolveHorses!([createMockHorse()]);
@@ -83,53 +78,53 @@ describe('useHorseStore', () => {
     });
 
     it('sets error on failure', async () => {
-      const repo = createMockRepo();
-      repo.findAll = vi.fn().mockRejectedValue(new Error('DB error'));
+      const service = createMockService();
+      service.findAll = vi.fn().mockRejectedValue(new Error('DB error'));
 
-      await useHorseStore.getState().loadHorses(repo);
+      await useHorseStore.getState().loadHorses(service);
 
       const state = useHorseStore.getState();
       expect(state.error).toBe('DB error');
       expect(state.isLoading).toBe(false);
     });
 
-    it('passes current filter to repository', async () => {
-      const repo = createMockRepo();
+    it('passes current filter to service', async () => {
+      const service = createMockService();
       useHorseStore.setState({ filter: { status: '現役', sex: '牡' } });
 
-      await useHorseStore.getState().loadHorses(repo);
+      await useHorseStore.getState().loadHorses(service);
 
-      expect(repo.findAll).toHaveBeenCalledWith({ status: '現役', sex: '牡' });
+      expect(service.findAll).toHaveBeenCalledWith({ status: '現役', sex: '牡' });
     });
   });
 
   describe('createHorse', () => {
     it('creates a horse and reloads list', async () => {
-      const repo = createMockRepo();
-      await useHorseStore.getState().createHorse(repo, { name: '新規馬', sex: '牝' });
+      const service = createMockService();
+      await useHorseStore.getState().createHorse(service, { name: '新規馬', sex: '牝' });
 
-      expect(repo.create).toHaveBeenCalledWith({ name: '新規馬', sex: '牝' });
-      expect(repo.findAll).toHaveBeenCalledTimes(1);
+      expect(service.create).toHaveBeenCalledWith({ name: '新規馬', sex: '牝' });
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('updateHorse', () => {
     it('updates a horse and reloads list', async () => {
-      const repo = createMockRepo();
-      await useHorseStore.getState().updateHorse(repo, 1, { name: '更新馬' });
+      const service = createMockService();
+      await useHorseStore.getState().updateHorse(service, 1, { name: '更新馬' });
 
-      expect(repo.update).toHaveBeenCalledWith(1, { name: '更新馬' });
-      expect(repo.findAll).toHaveBeenCalledTimes(1);
+      expect(service.update).toHaveBeenCalledWith(1, { name: '更新馬' });
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('deleteHorse', () => {
     it('deletes a horse and reloads list', async () => {
-      const repo = createMockRepo();
-      await useHorseStore.getState().deleteHorse(repo, 1);
+      const service = createMockService();
+      await useHorseStore.getState().deleteHorse(service, 1);
 
-      expect(repo.delete).toHaveBeenCalledWith(1);
-      expect(repo.findAll).toHaveBeenCalledTimes(1);
+      expect(service.delete).toHaveBeenCalledWith(1);
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 

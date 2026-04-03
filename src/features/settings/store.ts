@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SettingsRepository } from './repository';
+import type { SettingsService } from './service';
 import type { GameSettings } from './types';
 
 export interface SettingsState {
@@ -7,19 +7,9 @@ export interface SettingsState {
   isLoading: boolean;
   error: string | null;
 
-  loadSettings: (repo: SettingsRepository) => Promise<void>;
-  updateCurrentYear: (repo: SettingsRepository, year: number) => Promise<void>;
-  updatePedigreeDepth: (repo: SettingsRepository, depth: 4 | 5) => Promise<void>;
-}
-
-function parseSettings(raw: Record<string, string>): GameSettings {
-  const rankSystem = raw.rank_system ? JSON.parse(raw.rank_system).ranks : [];
-  return {
-    currentYear: Number(raw.current_year) || 2025,
-    pedigreeDepth: (Number(raw.pedigree_depth) === 5 ? 5 : 4) as 4 | 5,
-    rankSystem,
-    dbVersion: Number(raw.db_version) || 1,
-  };
+  loadSettings: (service: SettingsService) => Promise<void>;
+  updateCurrentYear: (service: SettingsService, year: number) => Promise<void>;
+  updatePedigreeDepth: (service: SettingsService, depth: 4 | 5) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -27,11 +17,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  async loadSettings(repo: SettingsRepository) {
+  async loadSettings(service: SettingsService) {
     set({ isLoading: true, error: null });
     try {
-      const raw = await repo.getAll();
-      const settings = parseSettings(raw);
+      const settings = await service.getAll();
       set({ settings, isLoading: false });
     } catch (err) {
       set({
@@ -41,13 +30,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  async updateCurrentYear(repo: SettingsRepository, year: number) {
-    await repo.set('current_year', String(year));
-    await get().loadSettings(repo);
+  async updateCurrentYear(service: SettingsService, year: number) {
+    await service.updateCurrentYear(year);
+    await get().loadSettings(service);
   },
 
-  async updatePedigreeDepth(repo: SettingsRepository, depth: 4 | 5) {
-    await repo.set('pedigree_depth', String(depth));
-    await get().loadSettings(repo);
+  async updatePedigreeDepth(service: SettingsService, depth: 4 | 5) {
+    await service.updatePedigreeDepth(depth);
+    await get().loadSettings(service);
   },
 }));
