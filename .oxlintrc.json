@@ -12,7 +12,16 @@
     ],
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "max-lines": ["warn", { "max": 300, "skipBlankLines": true, "skipComments": true }]
   },
-  "ignorePatterns": ["dist"]
+  "ignorePatterns": ["dist"],
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.test.tsx", "test-fixtures.ts"],
+      "rules": {
+        "max-lines": "off"
+      }
+    }
+  ]
 }
