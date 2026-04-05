@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HorseRepository } from '@/features/horses/repository';
-import type { Horse } from '@/features/horses/types';
+import type { YearlyStatusRepository } from '@/features/horses/yearly-status-repository';
+import type { Horse, YearlyStatus } from '@/features/horses/types';
 import type {
   RacePlanWithHorseName,
   Country,
@@ -12,6 +13,8 @@ import type {
 import {
   COUNTRIES,
   DISTANCE_BANDS,
+  DISTANCE_BAND_RANGES,
+  GOOD_SURFACE_APTITUDES,
   GRADES,
   COUNTRY_SURFACES,
   COUNTRY_SURFACE_CLASSIC_PATHS,
@@ -43,9 +46,30 @@ function getBadgeClassName(
   return 'cursor-pointer border-transparent bg-pink-100 text-pink-800 hover:bg-pink-100/80';
 }
 
+/** 馬場適性でフィルタ: 適性が△・×なら非表示。データなし(null)は表示 */
+function hasSurfaceAptitude(status: YearlyStatus | undefined, surface: Surface): boolean {
+  if (!status) return true;
+  const aptitude = surface === '芝' ? status.turfAptitude : status.dirtAptitude;
+  if (!aptitude) return true;
+  return GOOD_SURFACE_APTITUDES.includes(aptitude);
+}
+
+/** 距離適性でフィルタ: 馬の距離範囲と距離帯が重なるもののみ表示。データなし(null)は表示 */
+function hasDistanceAptitude(
+  status: YearlyStatus | undefined,
+  distanceBand: DistanceBand,
+): boolean {
+  if (!status) return true;
+  const { distanceMin, distanceMax } = status;
+  if (distanceMin === null || distanceMax === null) return true;
+  const range = DISTANCE_BAND_RANGES[distanceBand];
+  return distanceMin <= range.max && distanceMax >= range.min;
+}
+
 interface RacePlanMatrixProps {
   plans: RacePlanWithHorseName[];
   horseRepository: HorseRepository;
+  yearlyStatusRepository: YearlyStatusRepository;
   year: number;
   onAdd: (data: {
     horseId: number;
@@ -158,6 +182,7 @@ function InlineCellSelect({
 export function RacePlanMatrix({
   plans,
   horseRepository,
+  yearlyStatusRepository,
   year,
   onAdd,
   onDelete,
@@ -169,18 +194,36 @@ export function RacePlanMatrix({
 
   useEffect(() => {
     if (!activeCellTarget) return;
-    horseRepository.findAll({ status: '現役' }).then((allHorses) => {
+
+    Promise.all([
+      horseRepository.findAll({ status: '現役' }),
+      yearlyStatusRepository.findByYear(year),
+    ]).then(([allHorses, yearlyStatuses]) => {
+      const statusByHorseId = new Map<number, YearlyStatus>();
+      for (const s of yearlyStatuses) {
+        statusByHorseId.set(s.horseId, s);
+      }
+
       const sortHorses = (horses: Horse[]) =>
         [...horses].sort((a, b) => {
-          // 1. 馬齢降順（birthYear昇順 = 年上が先）
           const aBirth = a.birthYear ?? 0;
           const bBirth = b.birthYear ?? 0;
           if (aBirth !== bBirth) return aBirth - bBirth;
-          // 2. 牡馬が先、牝馬が後
           const sexOrder = (sex: string | null) => (sex === '牡' ? 0 : 1);
           if (a.sex !== b.sex) return sexOrder(a.sex) - sexOrder(b.sex);
-          // 3. 馬名あいうえお順
           return a.name.localeCompare(b.name, 'ja');
+        });
+
+      const filterByAptitude = (horses: Horse[]) =>
+        horses.filter((h) => {
+          const status = statusByHorseId.get(h.id);
+          // 馬場適性フィルタ
+          if (!hasSurfaceAptitude(status, activeCellTarget.surface)) return false;
+          // 距離適性フィルタ（通常セルのみ、クラシック路線は距離帯なし）
+          if (activeCellTarget.distanceBand) {
+            if (!hasDistanceAptitude(status, activeCellTarget.distanceBand)) return false;
+          }
+          return true;
         });
 
       if (activeCellTarget.classicPath) {
@@ -190,18 +233,20 @@ export function RacePlanMatrix({
         );
         setFilteredHorses(
           sortHorses(
-            allHorses.filter((h) => {
-              if (h.birthYear !== targetBirthYear) return false;
-              if (isFillyOnly && h.sex !== '牝') return false;
-              return true;
-            }),
+            filterByAptitude(
+              allHorses.filter((h) => {
+                if (h.birthYear !== targetBirthYear) return false;
+                if (isFillyOnly && h.sex !== '牝') return false;
+                return true;
+              }),
+            ),
           ),
         );
       } else {
-        setFilteredHorses(sortHorses(allHorses));
+        setFilteredHorses(sortHorses(filterByAptitude(allHorses)));
       }
     });
-  }, [activeCellTarget, horseRepository, year]);
+  }, [activeCellTarget, horseRepository, yearlyStatusRepository, year]);
 
   const handleCellClick = (target: CellTarget) => {
     const key = cellKey(target);

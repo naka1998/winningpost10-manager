@@ -9,6 +9,18 @@ export const SURFACES: Surface[] = ['芝', 'ダート'];
 export const DISTANCE_BANDS: DistanceBand[] = ['短距離', 'マイル', '中距離', '中長距離', '長距離'];
 export const GRADES: Grade[] = ['G1', 'G2', '~G3'];
 
+/** 距離帯ごとの距離範囲（メートル） */
+export const DISTANCE_BAND_RANGES: Record<DistanceBand, { min: number; max: number }> = {
+  短距離: { min: 0, max: 1400 },
+  マイル: { min: 1400, max: 1800 },
+  中距離: { min: 1800, max: 2200 },
+  中長距離: { min: 2000, max: 2600 },
+  長距離: { min: 2400, max: 9999 },
+};
+
+/** 馬場適性で表示対象とする値（◎ と ○ のみ表示、△ と × は非表示） */
+export const GOOD_SURFACE_APTITUDES = ['◎', '○'];
+
 /** 国ごとに使える馬場 */
 export const COUNTRY_SURFACES: Record<Country, Surface[]> = {
   日: ['芝', 'ダート'],

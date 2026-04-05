@@ -87,7 +87,15 @@ vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => ({
     racePlanRepository: mockRacePlanRepo,
     horseRepository: mockHorseRepo,
-    yearlyStatusRepository: {},
+    yearlyStatusRepository: {
+      findById: vi.fn(),
+      findByHorseId: vi.fn(),
+      findByHorseAndYear: vi.fn(),
+      findByYear: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
     lineageRepository: {},
     settingsRepository: {},
     breedingRecordRepository: {},
