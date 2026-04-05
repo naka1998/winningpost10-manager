@@ -115,18 +115,11 @@ export function InlineCellSelect({
   onSelect: (horseId: number, notes?: string) => void | Promise<void>;
   onCancel: () => void;
 }) {
-  const [selectKey, setSelectKey] = useState(0);
   const [pendingHorseId, setPendingHorseId] = useState<number | null>(null);
-  const justSelected = useRef(false);
+  const [selectOpen, setSelectOpen] = useState(true);
   const submittedRef = useRef(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const selectedRef = useRef(false);
   const notesInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (pendingHorseId === null) {
-      triggerRef.current?.click();
-    }
-  }, [selectKey, pendingHorseId]);
 
   useEffect(() => {
     if (pendingHorseId !== null) {
@@ -135,17 +128,19 @@ export function InlineCellSelect({
   }, [pendingHorseId]);
 
   const handleValueChange = (value: string) => {
-    justSelected.current = true;
+    selectedRef.current = true;
     submittedRef.current = false;
     setPendingHorseId(Number(value));
+    setSelectOpen(false);
   };
 
   const handleOpenChange = (open: boolean) => {
+    setSelectOpen(open);
+    if (!open && !selectedRef.current) {
+      onCancel();
+    }
     if (!open) {
-      if (!justSelected.current) {
-        onCancel();
-      }
-      justSelected.current = false;
+      selectedRef.current = false;
     }
   };
 
@@ -154,7 +149,7 @@ export function InlineCellSelect({
     submittedRef.current = true;
     onSelect(pendingHorseId, notes || undefined);
     setPendingHorseId(null);
-    setSelectKey((k) => k + 1);
+    setSelectOpen(true);
   };
 
   if (pendingHorseId !== null) {
@@ -184,8 +179,8 @@ export function InlineCellSelect({
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-      <Select key={selectKey} onValueChange={handleValueChange} onOpenChange={handleOpenChange}>
-        <SelectTrigger ref={triggerRef} className="h-7 text-xs">
+      <Select open={selectOpen} onValueChange={handleValueChange} onOpenChange={handleOpenChange}>
+        <SelectTrigger className="h-7 text-xs">
           <SelectValue placeholder="馬を選択..." />
         </SelectTrigger>
         <SelectContent>
