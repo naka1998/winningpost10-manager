@@ -29,6 +29,8 @@ function createTestPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
     createdAt: '2026-01-01',
     updatedAt: '2026-01-01',
     horseName: 'テスト馬',
+    horseSex: '牡',
+    horseBirthYear: 2022,
     ...overrides,
   };
 }
@@ -240,6 +242,38 @@ describe('RacePlanMatrix', () => {
     // (onAdd mock resolves immediately)
     // The select resets via key change, so placeholder should reappear
     expect(within(cell).getByRole('combobox')).toBeInTheDocument();
+  });
+
+  it('applies correct badge color for 3歳牡馬 (dark blue)', async () => {
+    const plans = [
+      createTestPlan({
+        id: 1,
+        horseName: '若駒',
+        horseSex: '牡',
+        horseBirthYear: 2023, // 3歳 in year=2026
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    const badge = within(cell).getByText(/若駒/);
+    expect(badge.closest('[class]')?.className).toMatch(/bg-blue-600/);
+  });
+
+  it('applies correct badge color for 古馬牝馬 (light pink)', async () => {
+    const plans = [
+      createTestPlan({
+        id: 1,
+        horseName: 'ベテラン',
+        horseSex: '牝',
+        horseBirthYear: 2021, // 5歳 in year=2026
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    const badge = within(cell).getByText(/ベテラン/);
+    expect(badge.closest('[class]')?.className).toMatch(/bg-pink-100/);
   });
 
   it('sorts horses: age desc, male first, then name asc', async () => {

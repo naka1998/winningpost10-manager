@@ -18,7 +18,9 @@ export interface RacePlanRepository {
 
 const SELECT_WITH_NAMES = `
   SELECT rp.*,
-         h.name AS horse_name
+         h.name AS horse_name,
+         h.sex AS horse_sex,
+         h.birth_year AS horse_birth_year
   FROM race_plans rp
   JOIN horses h ON h.id = rp.horse_id
 `;

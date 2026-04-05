@@ -16,6 +16,8 @@ function createMockPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
     createdAt: '2026-01-01 00:00:00',
     updatedAt: '2026-01-01 00:00:00',
     horseName: 'テスト馬',
+    horseSex: '牡',
+    horseBirthYear: 2022,
     ...overrides,
   };
 }

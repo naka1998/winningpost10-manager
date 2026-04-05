@@ -41,6 +41,8 @@ export interface RacePlan {
 
 export interface RacePlanWithHorseName extends RacePlan {
   horseName: string;
+  horseSex: string | null;
+  horseBirthYear: number | null;
 }
 
 export interface RacePlanCreateInput {

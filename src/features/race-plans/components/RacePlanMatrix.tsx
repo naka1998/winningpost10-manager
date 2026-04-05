@@ -27,6 +27,22 @@ import {
 
 const FILLY_ONLY_CLASSICS: ClassicPath[] = ['牝馬三冠', 'トリプルティアラ'];
 
+function getBadgeClassName(
+  horseSex: string | null,
+  horseBirthYear: number | null,
+  currentYear: number,
+): string {
+  const isYoung = horseBirthYear !== null && horseBirthYear >= currentYear - 3;
+  const isMale = horseSex === '牡';
+  if (isYoung && isMale)
+    return 'cursor-pointer border-transparent bg-blue-600 text-white hover:bg-blue-600/80';
+  if (isYoung && !isMale)
+    return 'cursor-pointer border-transparent bg-pink-600 text-white hover:bg-pink-600/80';
+  if (!isYoung && isMale)
+    return 'cursor-pointer border-transparent bg-blue-100 text-blue-800 hover:bg-blue-100/80';
+  return 'cursor-pointer border-transparent bg-pink-100 text-pink-800 hover:bg-pink-100/80';
+}
+
 interface RacePlanMatrixProps {
   plans: RacePlanWithHorseName[];
   horseRepository: HorseRepository;
@@ -212,8 +228,7 @@ export function RacePlanMatrix({
           {cellPlans.map((plan) => (
             <Badge
               key={plan.id}
-              variant="secondary"
-              className="cursor-pointer"
+              className={getBadgeClassName(plan.horseSex, plan.horseBirthYear, year)}
               title={plan.notes ?? undefined}
               onClick={(e) => {
                 e.stopPropagation();

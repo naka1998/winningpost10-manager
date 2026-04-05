@@ -30,6 +30,8 @@ function createTestPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
     createdAt: '2026-01-01',
     updatedAt: '2026-01-01',
     horseName: 'テスト馬',
+    horseSex: '牡',
+    horseBirthYear: 2022,
     ...overrides,
   };
 }
