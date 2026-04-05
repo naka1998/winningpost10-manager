@@ -70,6 +70,7 @@ export const useRacePlanStore = create<RacePlanState>((set, get) => ({
         country: plan.country,
         surface: plan.surface,
         distanceBand: plan.distanceBand,
+        classicPath: !plan.grade ? (plan.distanceBand as CellLocation['classicPath']) : undefined,
         grade: plan.grade,
       };
       const existing = horseMap.get(plan.horseId);

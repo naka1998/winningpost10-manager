@@ -31,6 +31,30 @@ describe('OverlapWarning', () => {
     expect(screen.getByText(/日\/芝\/中距離\/G2/)).toBeInTheDocument();
   });
 
+  it('renders classic path cell location correctly', () => {
+    const duplicates: DuplicateHorseWarning[] = [
+      {
+        horseId: 1,
+        horseName: 'クラシック馬',
+        cells: [
+          {
+            country: '日',
+            surface: '芝',
+            distanceBand: '三冠' as DuplicateHorseWarning['cells'][number]['distanceBand'],
+            classicPath: '三冠',
+            grade: null,
+          },
+          { country: '日', surface: '芝', distanceBand: 'マイル', grade: 'G1' },
+        ],
+      },
+    ];
+
+    render(<OverlapWarning duplicates={duplicates} />);
+
+    expect(screen.getByText(/日\/芝\/三冠/)).toBeInTheDocument();
+    expect(screen.getByText(/日\/芝\/マイル\/G1/)).toBeInTheDocument();
+  });
+
   it('renders multiple duplicate horses', () => {
     const duplicates: DuplicateHorseWarning[] = [
       {

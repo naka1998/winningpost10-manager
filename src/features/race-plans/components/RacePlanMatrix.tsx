@@ -112,23 +112,30 @@ function InlineCellSelect({
   onCancel,
 }: {
   horses: Horse[];
-  onSelect: (horseId: number) => void;
+  onSelect: (horseId: number, notes?: string) => void;
   onCancel: () => void;
 }) {
   const [selectKey, setSelectKey] = useState(0);
+  const [pendingHorseId, setPendingHorseId] = useState<number | null>(null);
   const justSelected = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const notesInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Auto-open: click the trigger programmatically on mount and after each selection
-    triggerRef.current?.click();
-  }, [selectKey]);
+    if (pendingHorseId === null) {
+      triggerRef.current?.click();
+    }
+  }, [selectKey, pendingHorseId]);
+
+  useEffect(() => {
+    if (pendingHorseId !== null) {
+      notesInputRef.current?.focus();
+    }
+  }, [pendingHorseId]);
 
   const handleValueChange = (value: string) => {
     justSelected.current = true;
-    onSelect(Number(value));
-    // Remount Select to reset and reopen immediately for next selection
-    setSelectKey((k) => k + 1);
+    setPendingHorseId(Number(value));
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -139,6 +146,35 @@ function InlineCellSelect({
       justSelected.current = false;
     }
   };
+
+  const handleNotesSubmit = (notes: string) => {
+    if (pendingHorseId === null) return;
+    onSelect(pendingHorseId, notes || undefined);
+    setPendingHorseId(null);
+    setSelectKey((k) => k + 1);
+  };
+
+  if (pendingHorseId !== null) {
+    const horseName = horses.find((h) => h.id === pendingHorseId)?.name ?? '';
+    return (
+      <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-1 text-xs text-muted-foreground">{horseName} のメモ (任意)</div>
+        <input
+          ref={notesInputRef}
+          type="text"
+          className="h-7 w-full rounded-md border px-2 text-xs"
+          placeholder="メモを入力してEnter（空でもOK）"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              handleNotesSubmit((e.target as HTMLInputElement).value);
+            } else if (e.key === 'Escape') {
+              handleNotesSubmit('');
+            }
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
@@ -238,7 +274,7 @@ export function RacePlanMatrix({
     }
   };
 
-  const handleHorseSelect = async (horseId: number) => {
+  const handleHorseSelect = async (horseId: number, notes?: string) => {
     if (!activeCellTarget) return;
     await onAdd({
       horseId,
@@ -247,8 +283,8 @@ export function RacePlanMatrix({
       distanceBand: activeCellTarget.distanceBand,
       classicPath: activeCellTarget.classicPath,
       grade: activeCellTarget.grade,
+      notes,
     });
-    // セルを開いたままにして連続で馬を追加可能にする
   };
 
   const handleCancel = () => {

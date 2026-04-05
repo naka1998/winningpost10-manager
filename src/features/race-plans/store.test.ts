@@ -251,5 +251,36 @@ describe('useRacePlanStore', () => {
       const duplicates = useRacePlanStore.getState().getDuplicateHorses();
       expect(duplicates).toHaveLength(2);
     });
+
+    it('includes classicPath for classic cells (grade=null)', () => {
+      useRacePlanStore.setState({
+        plans: [
+          createMockPlan({
+            id: 1,
+            horseId: 10,
+            horseName: '馬A',
+            country: '日',
+            surface: '芝',
+            distanceBand: '三冠' as RacePlanWithHorseName['distanceBand'],
+            grade: null,
+          }),
+          createMockPlan({
+            id: 2,
+            horseId: 10,
+            horseName: '馬A',
+            country: '日',
+            surface: '芝',
+            distanceBand: 'マイル',
+            grade: 'G1',
+          }),
+        ],
+      });
+
+      const duplicates = useRacePlanStore.getState().getDuplicateHorses();
+      expect(duplicates).toHaveLength(1);
+      const classicCell = duplicates[0].cells.find((c) => !c.grade);
+      expect(classicCell).toBeDefined();
+      expect(classicCell!.classicPath).toBe('三冠');
+    });
   });
 });
