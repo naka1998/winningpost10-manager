@@ -55,6 +55,10 @@ export function RacePlanPage() {
     });
   };
 
+  const handleUpdate = async (id: number, data: { notes: string }) => {
+    await useRacePlanStore.getState().updatePlan(racePlanRepository, id, data);
+  };
+
   const handleDelete = async (id: number) => {
     await useRacePlanStore.getState().deletePlan(racePlanRepository, id);
   };
@@ -111,6 +115,7 @@ export function RacePlanPage() {
         year={year}
         onAdd={handleCreate}
         onDelete={handleDelete}
+        onUpdate={handleUpdate}
       />
     </div>
   );

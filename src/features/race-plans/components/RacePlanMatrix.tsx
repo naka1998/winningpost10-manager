@@ -60,6 +60,7 @@ interface RacePlanMatrixProps {
     notes?: string;
   }) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onUpdate: (id: number, data: { notes: string }) => Promise<void>;
 }
 
 interface CellTarget {
@@ -102,6 +103,53 @@ function getPlansForClassic(
       p.surface === surface &&
       p.distanceBand === classicPath &&
       p.grade === null,
+  );
+}
+
+/** Inline memo edit input for existing horse badges. */
+function MemoEditInput({
+  initialNotes,
+  onSubmit,
+  onCancel,
+}: {
+  initialNotes: string;
+  onSubmit: (notes: string) => void;
+  onCancel: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const handleSubmit = (value: string) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    onSubmit(value);
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      defaultValue={initialNotes}
+      className="h-6 w-full rounded border px-1 text-xs"
+      placeholder="メモを入力してEnter"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+          handleSubmit((e.target as HTMLInputElement).value);
+        } else if (e.key === 'Escape') {
+          onCancel();
+        }
+      }}
+      onBlur={(e) => {
+        handleSubmit(e.target.value);
+      }}
+    />
   );
 }
 
@@ -185,11 +233,14 @@ export function RacePlanMatrix({
   year,
   onAdd,
   onDelete,
+  onUpdate,
 }: RacePlanMatrixProps) {
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const [activeCellTarget, setActiveCellTarget] = useState<CellTarget | null>(null);
   const [activeSurface, setActiveSurface] = useState<Surface>('芝');
   const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!activeCellTarget) return;
@@ -271,26 +322,53 @@ export function RacePlanMatrix({
     });
   };
 
+  const handleMemoSubmit = (planId: number, notes: string) => {
+    setEditingPlanId(null);
+    onUpdate(planId, { notes });
+  };
+
   const renderCellContent = (cellPlans: RacePlanWithHorseName[], target: CellTarget) => {
     const key = cellKey(target);
     const isActive = activeCell === key;
     return (
       <>
         <div className="flex flex-col gap-1">
-          {cellPlans.map((plan) => (
-            <Badge
-              key={plan.id}
-              className={getBadgeClassName(plan.horseSex, plan.horseBirthYear, year)}
-              title={plan.notes ?? undefined}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(plan.id);
-              }}
-            >
-              {plan.horseName}
-              {plan.notes && <span className="ml-1 text-xs opacity-70">({plan.notes})</span>} ✕
-            </Badge>
-          ))}
+          {cellPlans.map((plan) =>
+            editingPlanId === plan.id ? (
+              <MemoEditInput
+                key={plan.id}
+                initialNotes={plan.notes ?? ''}
+                onSubmit={(notes) => handleMemoSubmit(plan.id, notes)}
+                onCancel={() => setEditingPlanId(null)}
+              />
+            ) : (
+              <Badge
+                key={plan.id}
+                className={getBadgeClassName(plan.horseSex, plan.horseBirthYear, year)}
+                title={plan.notes ?? undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Delay single click to distinguish from double click
+                  if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+                  clickTimerRef.current = setTimeout(() => {
+                    clickTimerRef.current = null;
+                    setEditingPlanId(plan.id);
+                  }, 250);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  if (clickTimerRef.current) {
+                    clearTimeout(clickTimerRef.current);
+                    clickTimerRef.current = null;
+                  }
+                  onDelete(plan.id);
+                }}
+              >
+                {plan.horseName}
+                {plan.notes && <span className="ml-1 text-xs opacity-70">({plan.notes})</span>}
+              </Badge>
+            ),
+          )}
         </div>
         {isActive ? (
           <InlineCellSelect horses={filteredHorses} onSelect={handleHorseSelect} />

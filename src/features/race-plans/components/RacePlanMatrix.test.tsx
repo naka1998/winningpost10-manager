@@ -38,6 +38,7 @@ function createTestPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
 
 const mockOnAdd = vi.fn();
 const mockOnDelete = vi.fn();
+const mockOnUpdate = vi.fn();
 
 function makeHorse(id: number, name: string, sex: '牡' | '牝', birthYear: number) {
   return {
@@ -201,6 +202,7 @@ describe('RacePlanMatrix', () => {
         year={2026}
         onAdd={mockOnAdd}
         onDelete={mockOnDelete}
+        onUpdate={mockOnUpdate}
       />,
     );
   }
@@ -298,7 +300,7 @@ describe('RacePlanMatrix', () => {
     expect(within(cell).getByText(/馬B/)).toBeInTheDocument();
   });
 
-  it('calls onDelete when horse badge is clicked', async () => {
+  it('calls onDelete when horse badge is double-clicked', async () => {
     const user = userEvent.setup();
     const plans = [
       createTestPlan({
@@ -313,9 +315,74 @@ describe('RacePlanMatrix', () => {
     await renderMatrix(plans);
 
     const badge = screen.getByText(/削除対象馬/);
-    await user.click(badge);
+    await user.dblClick(badge);
 
     expect(mockOnDelete).toHaveBeenCalledWith(42);
+  });
+
+  it('shows memo edit input when horse badge is clicked', async () => {
+    const user = userEvent.setup();
+    const plans = [
+      createTestPlan({
+        id: 42,
+        country: '日',
+        surface: '芝',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseName: 'メモ編集馬',
+        notes: '既存メモ',
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/メモ編集馬/);
+    await user.click(badge);
+
+    // Wait for single-click delay (250ms)
+    const input = await screen.findByDisplayValue('既存メモ');
+    expect(input).toBeInTheDocument();
+  });
+
+  it('calls onUpdate with new notes when memo edit is submitted', async () => {
+    const user = userEvent.setup();
+    const plans = [
+      createTestPlan({
+        id: 42,
+        country: '日',
+        surface: '芝',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseName: 'メモ更新馬',
+        notes: '古いメモ',
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/メモ更新馬/);
+    await user.click(badge);
+
+    const input = await screen.findByDisplayValue('古いメモ');
+    await user.clear(input);
+    await user.type(input, '新しいメモ{Enter}');
+
+    expect(mockOnUpdate).toHaveBeenCalledWith(42, { notes: '新しいメモ' });
+  });
+
+  it('does not show delete button (✕) on badge', async () => {
+    const plans = [
+      createTestPlan({
+        id: 1,
+        country: '日',
+        surface: '芝',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseName: 'バッジ馬',
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    expect(within(cell).queryByText(/✕/)).toBeNull();
   });
 
   it('shows inline select on cell click', async () => {
