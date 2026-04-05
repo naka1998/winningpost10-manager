@@ -7,6 +7,7 @@ export interface YearlyStatusRepository {
   findByHorseId(horseId: number): Promise<YearlyStatus[]>;
   findByHorseAndYear(horseId: number, year: number): Promise<YearlyStatus | null>;
   findByYear(year: number): Promise<YearlyStatus[]>;
+  findLatestByYear(year: number): Promise<YearlyStatus[]>;
   create(data: YearlyStatusCreateInput): Promise<YearlyStatus>;
   update(id: number, data: YearlyStatusUpdateInput): Promise<YearlyStatus>;
   delete(id: number): Promise<void>;
@@ -95,6 +96,22 @@ export function createYearlyStatusRepository(db: DatabaseConnection): YearlyStat
     async findByYear(year: number) {
       const rows = await db.all<Record<string, unknown>>(
         'SELECT * FROM yearly_statuses WHERE year = ? ORDER BY horse_id',
+        [year],
+      );
+      return rows.map(mapYearlyStatusRow);
+    },
+
+    async findLatestByYear(year: number) {
+      const rows = await db.all<Record<string, unknown>>(
+        `SELECT ys.*
+         FROM yearly_statuses ys
+         INNER JOIN (
+           SELECT horse_id, MAX(year) AS max_year
+           FROM yearly_statuses
+           WHERE year <= ?
+           GROUP BY horse_id
+         ) latest ON ys.horse_id = latest.horse_id AND ys.year = latest.max_year
+         ORDER BY ys.horse_id`,
         [year],
       );
       return rows.map(mapYearlyStatusRow);

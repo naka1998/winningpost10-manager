@@ -147,4 +147,82 @@ describe('YearlyStatusRepository', () => {
       await expect(repo.create({ horseId, year: 2023 })).rejects.toThrow();
     });
   });
+
+  describe('findLatestByYear', () => {
+    it('returns data from exact year match', async () => {
+      await repo.create({ horseId, year: 2026, turfAptitude: '◎' });
+
+      const results = await repo.findLatestByYear(2026);
+      expect(results).toHaveLength(1);
+      expect(results[0].horseId).toBe(horseId);
+      expect(results[0].turfAptitude).toBe('◎');
+    });
+
+    it('falls back to earlier year when exact year has no data', async () => {
+      await repo.create({ horseId, year: 2025, turfAptitude: '○' });
+
+      const results = await repo.findLatestByYear(2026);
+      expect(results).toHaveLength(1);
+      expect(results[0].year).toBe(2025);
+      expect(results[0].turfAptitude).toBe('○');
+    });
+
+    it('uses most recent year within bound', async () => {
+      await repo.create({ horseId, year: 2024, turfAptitude: '△' });
+      await repo.create({ horseId, year: 2025, turfAptitude: '◎' });
+
+      const results = await repo.findLatestByYear(2026);
+      expect(results).toHaveLength(1);
+      expect(results[0].year).toBe(2025);
+      expect(results[0].turfAptitude).toBe('◎');
+    });
+
+    it('does not return future data', async () => {
+      await repo.create({ horseId, year: 2027, turfAptitude: '◎' });
+
+      const results = await repo.findLatestByYear(2026);
+      expect(results).toHaveLength(0);
+    });
+
+    it('returns data for multiple horses with different years', async () => {
+      const horse2 = await horseRepo.create({
+        name: '馬B',
+        sex: '牝',
+        birthYear: 2021,
+        status: '現役',
+      });
+      await repo.create({ horseId, year: 2025, turfAptitude: '◎' });
+      await repo.create({ horseId: horse2.id, year: 2026, dirtAptitude: '○' });
+
+      const results = await repo.findLatestByYear(2026);
+      expect(results).toHaveLength(2);
+      const ids = results.map((r) => r.horseId);
+      expect(ids).toContain(horseId);
+      expect(ids).toContain(horse2.id);
+    });
+
+    it('returns empty array when no data exists', async () => {
+      const results = await repo.findLatestByYear(2026);
+      expect(results).toHaveLength(0);
+    });
+
+    it('bug reproduction: findByYear misses data from different year, findLatestByYear finds it', async () => {
+      await repo.create({
+        horseId,
+        year: 2025,
+        turfAptitude: '×',
+        distanceMin: 1400,
+        distanceMax: 1800,
+      });
+
+      // findByYear(2026) returns empty — this is the bug
+      const byYear = await repo.findByYear(2026);
+      expect(byYear).toHaveLength(0);
+
+      // findLatestByYear(2026) returns the 2025 data — this is the fix
+      const latest = await repo.findLatestByYear(2026);
+      expect(latest).toHaveLength(1);
+      expect(latest[0].turfAptitude).toBe('×');
+    });
+  });
 });

@@ -72,13 +72,14 @@ const mockHorseRepo = {
   getAncestorRows: vi.fn(),
 };
 
-const mockYearlyStatusFindByYear = vi.fn().mockResolvedValue([]);
+const mockYearlyStatusFindLatestByYear = vi.fn().mockResolvedValue([]);
 
 const mockYearlyStatusRepo = {
   findById: vi.fn(),
   findByHorseId: vi.fn(),
   findByHorseAndYear: vi.fn(),
-  findByYear: mockYearlyStatusFindByYear,
+  findByYear: vi.fn(),
+  findLatestByYear: mockYearlyStatusFindLatestByYear,
   create: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
@@ -337,7 +338,7 @@ describe('RacePlanMatrix', () => {
       makeHorse(4, '芝×馬', '牡', 2022),
       makeHorse(5, '適性なし馬', '牡', 2022),
     ]);
-    mockYearlyStatusFindByYear.mockResolvedValueOnce([
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([
       makeYearlyStatus(1, { turfAptitude: '◎' }),
       makeYearlyStatus(2, { turfAptitude: '○' }),
       makeYearlyStatus(3, { turfAptitude: '△' }),
@@ -369,7 +370,7 @@ describe('RacePlanMatrix', () => {
       makeHorse(3, 'オールラウンダー', '牡', 2022), // 1200-2400 → overlaps
       makeHorse(4, '距離なし馬', '牡', 2022), // no distance data
     ]);
-    mockYearlyStatusFindByYear.mockResolvedValueOnce([
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([
       makeYearlyStatus(1, { distanceMin: 1400, distanceMax: 1800 }),
       makeYearlyStatus(2, { distanceMin: 2400, distanceMax: 3200 }),
       makeYearlyStatus(3, { distanceMin: 1200, distanceMax: 2400 }),
@@ -396,7 +397,7 @@ describe('RacePlanMatrix', () => {
       makeHorse(1, 'スプリンター', '牡', 2023), // 3歳 sprinter
       makeHorse(2, 'ステイヤー', '牡', 2023), // 3歳 stayer
     ]);
-    mockYearlyStatusFindByYear.mockResolvedValueOnce([
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([
       makeYearlyStatus(1, { turfAptitude: '◎', distanceMin: 1000, distanceMax: 1200 }),
       makeYearlyStatus(2, { turfAptitude: '◎', distanceMin: 2400, distanceMax: 3200 }),
     ]);
