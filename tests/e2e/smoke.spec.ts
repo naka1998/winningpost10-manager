@@ -104,7 +104,7 @@ test.describe('E2E smoke', () => {
     await runImport(page, 'E2EテストホースC');
 
     await page.getByRole('button', { name: '新しいインポート' }).click();
-    await expect(page.getByText('ファイル選択', { exact: true })).toBeVisible();
+    await expect(page.getByText('データ入力', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '次へ' })).toBeDisabled();
   });
 });
