@@ -2,12 +2,12 @@ export type Country = '日' | '米' | '欧';
 export type Surface = '芝' | 'ダート';
 export type DistanceBand = '短距離' | 'マイル' | '中距離' | '中長距離' | '長距離';
 export type ClassicPath = '三冠' | '牝馬三冠' | 'マイル' | 'トリプルティアラ' | 'その他三冠';
-export type Grade = 'G1' | 'G2' | 'G3' | 'OP';
+export type Grade = 'G1' | 'G2' | '~G3';
 
 export const COUNTRIES: Country[] = ['日', '米', '欧'];
 export const SURFACES: Surface[] = ['芝', 'ダート'];
 export const DISTANCE_BANDS: DistanceBand[] = ['短距離', 'マイル', '中距離', '中長距離', '長距離'];
-export const GRADES: Grade[] = ['G1', 'G2', 'G3', 'OP'];
+export const GRADES: Grade[] = ['G1', 'G2', '~G3'];
 
 /** 国ごとに使える馬場 */
 export const COUNTRY_SURFACES: Record<Country, Surface[]> = {
@@ -16,11 +16,14 @@ export const COUNTRY_SURFACES: Record<Country, Surface[]> = {
   欧: ['芝'],
 };
 
-/** 国ごとの3歳クラシック路線 */
-export const COUNTRY_CLASSIC_PATHS: Record<Country, ClassicPath[]> = {
-  日: ['三冠', '牝馬三冠', 'マイル'],
-  米: ['三冠', 'トリプルティアラ'],
-  欧: ['三冠', 'その他三冠'],
+/** 国×馬場ごとの3歳クラシック路線 */
+export const COUNTRY_SURFACE_CLASSIC_PATHS: Record<
+  Country,
+  Partial<Record<Surface, ClassicPath[]>>
+> = {
+  日: { 芝: ['三冠', '牝馬三冠', 'マイル'] },
+  米: { ダート: ['三冠', 'トリプルティアラ'] },
+  欧: { 芝: ['三冠', 'その他三冠'] },
 };
 
 export interface RacePlan {

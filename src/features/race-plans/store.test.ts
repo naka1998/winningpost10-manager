@@ -241,7 +241,7 @@ describe('useRacePlanStore', () => {
             country: '日',
             surface: 'ダート',
             distanceBand: '短距離',
-            grade: 'G3',
+            grade: '~G3',
           }),
         ],
       });

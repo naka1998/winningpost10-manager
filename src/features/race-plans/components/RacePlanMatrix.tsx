@@ -14,7 +14,7 @@ import {
   DISTANCE_BANDS,
   GRADES,
   COUNTRY_SURFACES,
-  COUNTRY_CLASSIC_PATHS,
+  COUNTRY_SURFACE_CLASSIC_PATHS,
 } from '../types';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -241,7 +241,7 @@ export function RacePlanMatrix({
         const surfaces = COUNTRY_SURFACES[country];
         if (!surfaces.includes(activeSurface)) return null;
 
-        const classicPaths = COUNTRY_CLASSIC_PATHS[country];
+        const classicPaths = COUNTRY_SURFACE_CLASSIC_PATHS[country]?.[activeSurface] ?? [];
 
         return (
           <div key={country}>

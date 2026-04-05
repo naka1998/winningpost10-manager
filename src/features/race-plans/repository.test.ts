@@ -166,7 +166,7 @@ describe('RacePlanRepository', () => {
         country: '日',
         surface: 'ダート',
         distanceBand: '短距離',
-        grade: 'G3',
+        grade: '~G3',
       });
 
       const plans2026 = await repo.findByYear(2026);
@@ -226,7 +226,7 @@ describe('RacePlanRepository', () => {
     });
 
     it('throws for non-existent id', async () => {
-      await expect(repo.update(9999, { grade: 'G3' })).rejects.toThrow();
+      await expect(repo.update(9999, { grade: '~G3' })).rejects.toThrow();
     });
   });
 
