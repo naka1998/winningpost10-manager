@@ -21,7 +21,7 @@ export const STATUS_OPTIONS: { value: ImportStatus; label: string }[] = [
 ];
 
 export const STEPS: { key: ImportStep; label: string }[] = [
-  { key: 'file', label: '1. ファイル選択' },
+  { key: 'file', label: '1. データ入力' },
   { key: 'settings', label: '2. 設定' },
   { key: 'preview', label: '3. プレビュー' },
   { key: 'result', label: '4. 結果' },
