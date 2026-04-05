@@ -228,20 +228,16 @@ describe('RacePlanMatrix', () => {
     expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
   });
 
-  it('keeps inline select open after adding a horse for continuous adding', async () => {
+  it('keeps inline select visible after adding a horse for continuous adding', async () => {
     const user = userEvent.setup();
     await renderMatrix();
 
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    // Select should be visible
+    // InlineCellSelect should remain visible for continuous adding
+    // (when dropdown is open the trigger is aria-hidden, so we check by text)
     expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
-
-    // After onAdd is called, select should remain in the cell
-    // (onAdd mock resolves immediately)
-    // The select resets via key change, so placeholder should reappear
-    expect(within(cell).getByRole('combobox')).toBeInTheDocument();
   });
 
   it('applies correct badge color for 3歳牡馬 (dark blue)', async () => {
@@ -291,13 +287,8 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    // Wait for horses to load
-    await screen.findByText('馬を選択...');
-
-    // Open the select to see options
-    await user.click(within(cell).getByRole('combobox'));
-
-    const options = screen.getAllByRole('option');
+    // Wait for options to appear (dropdown opens automatically)
+    const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     expect(names).toEqual(['A', 'B', 'C', 'D']);
   });

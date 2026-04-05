@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { HorseRepository } from '@/features/horses/repository';
 import type { Horse } from '@/features/horses/types';
 import type {
@@ -102,7 +102,7 @@ function getPlansForClassic(
   );
 }
 
-/** Inline select that appears inside a cell. Supports continuous adding via key reset. */
+/** Inline select that appears inside a cell. Opens immediately and supports continuous adding. */
 function InlineCellSelect({
   horses,
   onSelect,
@@ -113,21 +113,34 @@ function InlineCellSelect({
   onCancel: () => void;
 }) {
   const [selectKey, setSelectKey] = useState(0);
+  const justSelected = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    // Auto-open: click the trigger programmatically on mount and after each selection
+    triggerRef.current?.click();
+  }, [selectKey]);
 
   const handleValueChange = (value: string) => {
+    justSelected.current = true;
     onSelect(Number(value));
-    // Remount Select to reset and allow next selection
+    // Remount Select to reset and reopen immediately for next selection
     setSelectKey((k) => k + 1);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      if (!justSelected.current) {
+        onCancel();
+      }
+      justSelected.current = false;
+    }
   };
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-      <Select
-        key={selectKey}
-        onValueChange={handleValueChange}
-        onOpenChange={(open) => !open && onCancel()}
-      >
-        <SelectTrigger className="h-7 text-xs">
+      <Select key={selectKey} onValueChange={handleValueChange} onOpenChange={handleOpenChange}>
+        <SelectTrigger ref={triggerRef} className="h-7 text-xs">
           <SelectValue placeholder="馬を選択..." />
         </SelectTrigger>
         <SelectContent>
