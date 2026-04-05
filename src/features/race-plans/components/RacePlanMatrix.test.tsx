@@ -740,6 +740,27 @@ describe('RacePlanMatrix', () => {
     });
   });
 
+  it('prevents duplicate onAdd when horse option is clicked rapidly', async () => {
+    const user = userEvent.setup();
+    // Make onAdd resolve slowly
+    mockOnAdd.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    mockHorseFindAll.mockResolvedValueOnce([makeHorse(10, 'テスト馬', '牡', 2022)]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    const option = await screen.findByRole('option', { name: 'テスト馬' });
+    // Rapid clicks
+    await user.click(option);
+    await user.click(option);
+    await user.click(option);
+
+    expect(mockOnAdd).toHaveBeenCalledTimes(1);
+  });
+
   it('sorts horses: age desc, male first, then name asc', async () => {
     const user = userEvent.setup();
     // 5歳牝馬C, 5歳牡馬A, 5歳牡馬B, 4歳牡馬D → 5歳牡馬A, 5歳牡馬B, 5歳牝馬C, 4歳牡馬D

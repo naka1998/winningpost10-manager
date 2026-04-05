@@ -191,6 +191,7 @@ export function SearchableHorseSelect({
   onSelect: (horseId: number) => void | Promise<void>;
 }) {
   const [query, setQuery] = useState('');
+  const [adding, setAdding] = useState(false);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -254,8 +255,20 @@ export function SearchableHorseSelect({
             <button
               key={horse.id}
               role="option"
-              onClick={() => onSelect(horse.id)}
-              className="relative flex w-full cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground"
+              disabled={adding}
+              onClick={async () => {
+                if (adding) return;
+                setAdding(true);
+                try {
+                  await onSelect(horse.id);
+                } finally {
+                  setAdding(false);
+                }
+              }}
+              className={cn(
+                'relative flex w-full cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground',
+                adding && 'pointer-events-none opacity-50',
+              )}
             >
               {horse.name}
             </button>
