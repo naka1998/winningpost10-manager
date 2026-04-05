@@ -15,6 +15,7 @@ import { LineageListPage } from '@/features/lineages/pages/LineageListPage';
 import { SettingsPage } from '@/features/settings/pages/SettingsPage';
 import { BreedingRecordListPage } from '@/features/breeding-records/pages/BreedingRecordListPage';
 import { BroodmareListPage } from '@/features/broodmares/pages/BroodmareListPage';
+import { RacePlanPage } from '@/features/race-plans/pages/RacePlanPage';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -82,6 +83,19 @@ const broodmaresRoute = createRoute({
   component: BroodmareListPage,
 });
 
+const parseYear = (params: Record<string, string>) => {
+  const year = Number(params.year);
+  if (Number.isNaN(year)) throw notFound();
+  return { year };
+};
+
+const racePlansRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/race-plans/$year',
+  params: { parse: parseYear },
+  component: RacePlanPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -97,6 +111,7 @@ const routeTree = rootRoute.addChildren([
   lineagesRoute,
   breedingRecordsRoute,
   broodmaresRoute,
+  racePlansRoute,
   settingsRoute,
 ]);
 

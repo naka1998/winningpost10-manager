@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { label: '系統マスタ', to: '/lineages', group: '血統' },
   { label: '配合記録', to: '/breeding-records', group: '血統' },
   { label: '繁殖牝馬評価', to: '/broodmares', group: '血統' },
+  { label: 'レース計画', to: '/race-plans/2026', group: '年度管理' },
   { label: '設定', to: '/settings', group: '設定' },
 ];
 

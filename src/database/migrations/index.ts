@@ -1,6 +1,7 @@
 import type { DatabaseConnection } from '../connection';
 import { up as initialMigration } from './001_initial';
 import { up as constraintsHardeningMigration } from './002_constraints_hardening';
+import { up as addSurfaceToRacePlansMigration } from './003_add_surface_to_race_plans';
 
 interface Migration {
   version: number;
@@ -18,6 +19,11 @@ const migrations: Migration[] = [
     version: 2,
     description: '制約強化・データ補正・updated_at トリガー追加',
     up: constraintsHardeningMigration,
+  },
+  {
+    version: 3,
+    description: 'race_plans に surface カラム追加',
+    up: addSurfaceToRacePlansMigration,
   },
 ];
 

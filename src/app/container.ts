@@ -6,6 +6,7 @@ import { createLineageRepository } from '@/features/lineages/repository';
 import { createSettingsRepository } from '@/features/settings/repository';
 import { createBreedingRecordRepository } from '@/features/breeding-records/repository';
 import { createBroodmareRepository } from '@/features/broodmares/repository';
+import { createRacePlanRepository } from '@/features/race-plans/repository';
 import type { RepositoryContextValue } from './repository-context';
 
 export interface AppContainer {
@@ -21,6 +22,7 @@ export function createRepositories(db: DatabaseConnection): RepositoryContextVal
     settingsRepository: createSettingsRepository(db),
     breedingRecordRepository: createBreedingRecordRepository(db),
     broodmareRepository: createBroodmareRepository(db),
+    racePlanRepository: createRacePlanRepository(db),
   };
 }
 
