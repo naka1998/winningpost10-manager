@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toKatakana } from 'wanakana';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { HorseRepository } from '@/features/horses/repository';
 import type { YearlyStatusRepository } from '@/features/horses/yearly-status-repository';
 import type { Horse, YearlyStatus } from '@/features/horses/types';
@@ -190,11 +191,29 @@ export function SearchableHorseSelect({
   onSelect: (horseId: number) => void | Promise<void>;
 }) {
   const [query, setQuery] = useState('');
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  const updateScrollState = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    setCanScrollUp(el.scrollTop > 0);
+    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+  }, [updateScrollState, query, horses]);
+
+  const scrollBy = (delta: number) => {
+    listRef.current?.scrollBy({ top: delta, behavior: 'smooth' });
+  };
 
   const filtered = query
     ? horses.filter((h) => {
@@ -214,22 +233,46 @@ export function SearchableHorseSelect({
         onChange={(e) => setQuery(e.target.value)}
         className="h-7 w-full rounded border border-input bg-transparent px-2 text-xs shadow-sm focus:ring-1 focus:ring-ring focus:outline-none"
       />
-      <div
-        role="listbox"
-        className="relative z-50 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-      >
-        {filtered.map((horse) => (
+      <div className="relative z-50 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+        {canScrollUp && (
           <button
-            key={horse.id}
-            role="option"
-            onClick={() => onSelect(horse.id)}
-            className="relative flex w-full cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground"
+            aria-hidden
+            tabIndex={-1}
+            className="flex w-full cursor-default items-center justify-center py-1"
+            onClick={() => scrollBy(-100)}
           >
-            {horse.name}
+            <ChevronUp className="h-4 w-4" />
           </button>
-        ))}
-        {filtered.length === 0 && (
-          <div className="px-2 py-1.5 text-sm text-muted-foreground">該当なし</div>
+        )}
+        <div
+          ref={listRef}
+          role="listbox"
+          className="max-h-48 overflow-y-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={updateScrollState}
+        >
+          {filtered.map((horse) => (
+            <button
+              key={horse.id}
+              role="option"
+              onClick={() => onSelect(horse.id)}
+              className="relative flex w-full cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground"
+            >
+              {horse.name}
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">該当なし</div>
+          )}
+        </div>
+        {canScrollDown && (
+          <button
+            aria-hidden
+            tabIndex={-1}
+            className="flex w-full cursor-default items-center justify-center py-1"
+            onClick={() => scrollBy(100)}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
         )}
       </div>
     </div>
