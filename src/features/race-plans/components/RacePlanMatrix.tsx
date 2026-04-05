@@ -153,60 +153,17 @@ function MemoEditInput({
   );
 }
 
-/** Inline select that appears inside a cell. Supports continuous adding. */
+/** Inline select that appears inside a cell. Selects a horse and adds it immediately. */
 export function InlineCellSelect({
   horses,
   onSelect,
 }: {
   horses: Horse[];
-  onSelect: (horseId: number, notes?: string) => void | Promise<void>;
+  onSelect: (horseId: number) => void | Promise<void>;
 }) {
-  const [pendingHorseId, setPendingHorseId] = useState<number | null>(null);
-  const submittedRef = useRef(false);
-  const notesInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (pendingHorseId !== null) {
-      notesInputRef.current?.focus();
-    }
-  }, [pendingHorseId]);
-
   const handleValueChange = (value: string) => {
-    submittedRef.current = false;
-    setPendingHorseId(Number(value));
+    onSelect(Number(value));
   };
-
-  const handleNotesSubmit = (notes: string) => {
-    if (pendingHorseId === null || submittedRef.current) return;
-    submittedRef.current = true;
-    onSelect(pendingHorseId, notes || undefined);
-    setPendingHorseId(null);
-  };
-
-  if (pendingHorseId !== null) {
-    const horseName = horses.find((h) => h.id === pendingHorseId)?.name ?? '';
-    return (
-      <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-1 text-xs text-muted-foreground">{horseName} のメモ (任意)</div>
-        <input
-          ref={notesInputRef}
-          type="text"
-          className="h-7 w-full rounded-md border px-2 text-xs"
-          placeholder="メモを入力してEnter（空でもOK）"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              handleNotesSubmit((e.target as HTMLInputElement).value);
-            } else if (e.key === 'Escape') {
-              handleNotesSubmit('');
-            }
-          }}
-          onBlur={(e) => {
-            handleNotesSubmit(e.target.value);
-          }}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
@@ -309,7 +266,7 @@ export function RacePlanMatrix({
     }
   };
 
-  const handleHorseSelect = async (horseId: number, notes?: string) => {
+  const handleHorseSelect = async (horseId: number) => {
     if (!activeCellTarget) return;
     await onAdd({
       horseId,
@@ -318,7 +275,6 @@ export function RacePlanMatrix({
       distanceBand: activeCellTarget.distanceBand,
       classicPath: activeCellTarget.classicPath,
       grade: activeCellTarget.grade,
-      notes,
     });
   };
 

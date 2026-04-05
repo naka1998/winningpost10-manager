@@ -1,6 +1,6 @@
 /**
  * InlineCellSelect の馬選択フローをテスト。
- * セルクリック後のドロップダウン操作とメモ入力を検証。
+ * セルクリック後のドロップダウンで馬を選択すると即座に onSelect が呼ばれる。
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -53,28 +53,21 @@ describe('InlineCellSelect', () => {
     expect(screen.getByText('馬を選択...')).toBeInTheDocument();
   });
 
-  it('selecting a horse shows memo input then calls onSelect on Enter', async () => {
+  it('calls onSelect immediately when a horse is selected', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     render(<InlineCellSelect horses={horses} onSelect={onSelect} />);
 
-    // Open dropdown and select a horse
     const trigger = screen.getByRole('combobox');
     await user.click(trigger);
     const option = await screen.findByRole('option', { name: 'テスト馬A' });
     await user.click(option);
 
-    // Memo input should appear
-    const notesInput = await screen.findByPlaceholderText(/メモを入力/);
-    expect(notesInput).toBeInTheDocument();
-
-    await user.type(notesInput, 'テストメモ{Enter}');
-
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith(10, 'テストメモ');
+    expect(onSelect).toHaveBeenCalledWith(10);
   });
 
-  it('onSelect is called exactly once (no double-fire from blur)', async () => {
+  it('calls onSelect with correct id for second horse', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     render(<InlineCellSelect horses={horses} onSelect={onSelect} />);
@@ -84,10 +77,7 @@ describe('InlineCellSelect', () => {
     const option = await screen.findByRole('option', { name: 'テスト馬B' });
     await user.click(option);
 
-    const notesInput = await screen.findByPlaceholderText(/メモを入力/);
-    await user.type(notesInput, '{Enter}');
-
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith(20, undefined);
+    expect(onSelect).toHaveBeenCalledWith(20);
   });
 });
