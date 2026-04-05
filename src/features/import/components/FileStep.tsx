@@ -47,9 +47,17 @@ export function FileStep() {
       <CardContent className="space-y-4">
         <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as InputMode)}>
           <TabsList>
-            <TabsTrigger value="file">ファイルアップロード</TabsTrigger>
             <TabsTrigger value="text">テキスト入力</TabsTrigger>
+            <TabsTrigger value="file">ファイルアップロード</TabsTrigger>
           </TabsList>
+          <TabsContent value="text">
+            <Textarea
+              placeholder="TSVデータをここに貼り付けてください"
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              className="min-h-[200px] font-mono text-xs"
+            />
+          </TabsContent>
           <TabsContent value="file">
             <div
               onDrop={handleDrop}
@@ -73,14 +81,6 @@ export function FileStep() {
                 className="hidden"
               />
             </div>
-          </TabsContent>
-          <TabsContent value="text">
-            <Textarea
-              placeholder="TSVデータをここに貼り付けてください"
-              value={textContent}
-              onChange={(e) => setTextContent(e.target.value)}
-              className="min-h-[200px] font-mono text-xs"
-            />
           </TabsContent>
         </Tabs>
 

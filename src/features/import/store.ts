@@ -32,7 +32,7 @@ export interface ImportState {
 
 const initialState = {
   step: 'file' as ImportStep,
-  inputMode: 'file' as InputMode,
+  inputMode: 'text' as InputMode,
   file: null as File | null,
   textContent: '',
   importYear: new Date().getFullYear(),

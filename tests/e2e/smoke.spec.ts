@@ -31,7 +31,7 @@ function createMinimalTsvRow(values: Record<string, string>): string {
   return `${headers.join('\t')}\n${row}\n`;
 }
 
-async function uploadAndMoveToSettings(page: Page, horseName: string) {
+async function pasteTextAndMoveToSettings(page: Page, horseName: string) {
   const tsv = createMinimalTsvRow({
     馬名: horseName,
     国: '日',
@@ -58,18 +58,14 @@ async function uploadAndMoveToSettings(page: Page, horseName: string) {
   });
 
   await page.goto('/horses/import');
-  await page.locator('input[type="file"]').setInputFiles({
-    name: 'import-smoke.tsv',
-    mimeType: 'text/tab-separated-values',
-    buffer: Buffer.from(tsv, 'utf-8'),
-  });
+  await page.locator('textarea').fill(tsv);
 
   await page.getByRole('button', { name: '次へ' }).click();
   await expect(page.getByText('インポート設定')).toBeVisible();
 }
 
 async function runImport(page: Page, horseName: string) {
-  await uploadAndMoveToSettings(page, horseName);
+  await pasteTextAndMoveToSettings(page, horseName);
 
   await page.getByRole('button', { name: 'パース実行' }).click();
   await expect(page.getByText('パース完了: 1 行')).toBeVisible();
@@ -89,7 +85,7 @@ test.describe('E2E smoke', () => {
   });
 
   test('インポート設定（年度）を更新してプレビューに反映できる', async ({ page }) => {
-    await uploadAndMoveToSettings(page, 'E2EテストホースB');
+    await pasteTextAndMoveToSettings(page, 'E2EテストホースB');
 
     const yearInput = page.locator('#import-year');
     await yearInput.fill('2030');

@@ -91,6 +91,7 @@ describe('useImportStore', () => {
     it('reads file in file mode', async () => {
       const { readFileAsText } = await import('./parser');
 
+      useImportStore.getState().setInputMode('file');
       const testFile = new File(['test'], 'test.txt');
       useImportStore.getState().setFile(testFile);
 
@@ -110,6 +111,7 @@ describe('useImportStore', () => {
     });
 
     it('does nothing in file mode with no file', async () => {
+      useImportStore.getState().setInputMode('file');
       await useImportStore.getState().parseFile(2026);
 
       expect(useImportStore.getState().parseResult).toBeNull();
@@ -123,7 +125,7 @@ describe('useImportStore', () => {
 
       useImportStore.getState().reset();
       const state = useImportStore.getState();
-      expect(state.inputMode).toBe('file');
+      expect(state.inputMode).toBe('text');
       expect(state.textContent).toBe('');
     });
   });

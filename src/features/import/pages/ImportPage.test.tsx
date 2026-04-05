@@ -49,7 +49,8 @@ describe('ImportPage step transitions', () => {
     const { ImportPage } = await import('./ImportPage');
     render(<ImportPage />);
 
-    // Set a file in the store
+    // Switch to file mode and set a file in the store
+    useImportStore.getState().setInputMode('file');
     const testFile = new File(['test content'], 'horses.txt', { type: 'text/plain' });
     useImportStore.getState().setFile(testFile);
 
