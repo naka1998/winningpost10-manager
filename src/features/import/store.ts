@@ -3,10 +3,13 @@ import type { ImportPreview, ImportResult, ParseResult } from './types';
 import type { ImportService, ImportStatus } from './service';
 
 export type ImportStep = 'file' | 'settings' | 'preview' | 'result';
+export type InputMode = 'file' | 'text';
 
 export interface ImportState {
   step: ImportStep;
+  inputMode: InputMode;
   file: File | null;
+  textContent: string;
   importYear: number;
   importStatus: ImportStatus;
   parseResult: ParseResult | null;
@@ -16,7 +19,9 @@ export interface ImportState {
   error: string | null;
 
   setStep: (step: ImportStep) => void;
+  setInputMode: (mode: InputMode) => void;
   setFile: (file: File | null) => void;
+  setTextContent: (content: string) => void;
   setImportYear: (year: number) => void;
   setImportStatus: (status: ImportStatus) => void;
   parseFile: (importYear: number) => Promise<void>;
@@ -27,7 +32,9 @@ export interface ImportState {
 
 const initialState = {
   step: 'file' as ImportStep,
+  inputMode: 'file' as InputMode,
   file: null as File | null,
+  textContent: '',
   importYear: new Date().getFullYear(),
   importStatus: '現役' as ImportStatus,
   parseResult: null as ParseResult | null,
@@ -44,8 +51,34 @@ export const useImportStore = create<ImportState>((set, get) => ({
     set({ step });
   },
 
+  setInputMode(mode: InputMode) {
+    if (mode === 'text') {
+      set({
+        inputMode: mode,
+        file: null,
+        parseResult: null,
+        preview: null,
+        result: null,
+        error: null,
+      });
+    } else {
+      set({
+        inputMode: mode,
+        textContent: '',
+        parseResult: null,
+        preview: null,
+        result: null,
+        error: null,
+      });
+    }
+  },
+
   setFile(file: File | null) {
     set({ file, parseResult: null, preview: null, result: null, error: null });
+  },
+
+  setTextContent(content: string) {
+    set({ textContent: content, parseResult: null, preview: null, result: null, error: null });
   },
 
   setImportYear(year: number) {
@@ -57,13 +90,15 @@ export const useImportStore = create<ImportState>((set, get) => ({
   },
 
   async parseFile(importYear: number) {
-    const { file } = get();
-    if (!file) return;
+    const { inputMode, file, textContent } = get();
+
+    if (inputMode === 'file' && !file) return;
+    if (inputMode === 'text' && !textContent.trim()) return;
 
     set({ isLoading: true, error: null });
     try {
       const { parseTsv, readFileAsText } = await import('./parser');
-      const content = await readFileAsText(file);
+      const content = inputMode === 'text' ? textContent : await readFileAsText(file!);
       const parseResult = parseTsv(content, importYear);
       set({ parseResult, importYear, isLoading: false });
     } catch (err) {

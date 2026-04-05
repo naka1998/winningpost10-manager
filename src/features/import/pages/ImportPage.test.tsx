@@ -39,7 +39,7 @@ describe('ImportPage step transitions', () => {
     render(<ImportPage />);
 
     expect(screen.getByText('データインポート')).toBeInTheDocument();
-    expect(screen.getByText('ファイル選択')).toBeInTheDocument();
+    expect(screen.getByText('データ入力')).toBeInTheDocument();
     // The "次へ" button should be disabled when no file is selected
     expect(screen.getByRole('button', { name: '次へ' })).toBeDisabled();
   });
@@ -81,7 +81,7 @@ describe('ImportPage step transitions', () => {
 
     await user.click(screen.getByRole('button', { name: '戻る' }));
 
-    expect(screen.getByText('ファイル選択')).toBeInTheDocument();
+    expect(screen.getByText('データ入力')).toBeInTheDocument();
   });
 
   it('can navigate back from preview to settings step', async () => {
@@ -133,7 +133,7 @@ describe('ImportPage step transitions', () => {
     await user.click(screen.getByRole('button', { name: '新しいインポート' }));
 
     // Should be back to file step
-    expect(screen.getByText('ファイル選択')).toBeInTheDocument();
+    expect(screen.getByText('データ入力')).toBeInTheDocument();
   });
 
   it('shows error result step correctly', async () => {
@@ -153,5 +153,62 @@ describe('ImportPage step transitions', () => {
 
     expect(screen.getByText('インポートエラー')).toBeInTheDocument();
     expect(screen.getByText(/行3.*エラー馬.*不正なデータ/)).toBeInTheDocument();
+  });
+});
+
+describe('ImportPage text input mode', () => {
+  beforeEach(() => {
+    useImportStore.getState().reset();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('enables 次へ button when text content is entered in text mode', async () => {
+    // Switch to text mode and set content
+    useImportStore.getState().setInputMode('text');
+    useImportStore.getState().setTextContent('馬名\tSP\nテスト馬\t80');
+
+    const { ImportPage } = await import('./ImportPage');
+    render(<ImportPage />);
+
+    const nextButton = screen.getByRole('button', { name: '次へ' });
+    expect(nextButton).toBeEnabled();
+  });
+
+  it('disables 次へ button when text mode is active but textContent is empty', async () => {
+    useImportStore.getState().setInputMode('text');
+
+    const { ImportPage } = await import('./ImportPage');
+    render(<ImportPage />);
+
+    const nextButton = screen.getByRole('button', { name: '次へ' });
+    expect(nextButton).toBeDisabled();
+  });
+
+  it('transitions to settings step from text input mode', async () => {
+    const user = userEvent.setup();
+
+    useImportStore.getState().setInputMode('text');
+    useImportStore.getState().setTextContent('馬名\tSP\nテスト馬\t80');
+
+    const { ImportPage } = await import('./ImportPage');
+    render(<ImportPage />);
+
+    await user.click(screen.getByRole('button', { name: '次へ' }));
+
+    expect(screen.getByText('インポート設定')).toBeInTheDocument();
+  });
+
+  it('disables 次へ button when text content is only whitespace', async () => {
+    useImportStore.getState().setInputMode('text');
+    useImportStore.getState().setTextContent('   \n  \t  ');
+
+    const { ImportPage } = await import('./ImportPage');
+    render(<ImportPage />);
+
+    const nextButton = screen.getByRole('button', { name: '次へ' });
+    expect(nextButton).toBeDisabled();
   });
 });
