@@ -106,18 +106,19 @@ function getPlansForClassic(
 }
 
 /** Inline select that appears inside a cell. Opens immediately and supports continuous adding. */
-function InlineCellSelect({
+export function InlineCellSelect({
   horses,
   onSelect,
   onCancel,
 }: {
   horses: Horse[];
-  onSelect: (horseId: number, notes?: string) => void;
+  onSelect: (horseId: number, notes?: string) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [selectKey, setSelectKey] = useState(0);
   const [pendingHorseId, setPendingHorseId] = useState<number | null>(null);
   const justSelected = useRef(false);
+  const submittedRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const notesInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,6 +136,7 @@ function InlineCellSelect({
 
   const handleValueChange = (value: string) => {
     justSelected.current = true;
+    submittedRef.current = false;
     setPendingHorseId(Number(value));
   };
 
@@ -148,7 +150,8 @@ function InlineCellSelect({
   };
 
   const handleNotesSubmit = (notes: string) => {
-    if (pendingHorseId === null) return;
+    if (pendingHorseId === null || submittedRef.current) return;
+    submittedRef.current = true;
     onSelect(pendingHorseId, notes || undefined);
     setPendingHorseId(null);
     setSelectKey((k) => k + 1);

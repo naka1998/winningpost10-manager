@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -127,6 +128,59 @@ function makeYearlyStatus(
     updatedAt: '2026-01-01',
   };
 }
+
+describe('InlineCellSelect', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('handleNotesSubmit guard prevents double-call from Enter + onBlur', async () => {
+    // In real browsers, pressing Enter on the memo input calls handleNotesSubmit,
+    // which sets pendingHorseId=null and unmounts the input.
+    // The unmount fires onBlur, calling handleNotesSubmit again.
+    // The submittedRef guard must prevent the second call.
+    //
+    // jsdom doesn't fire onBlur on unmount, so we simulate the double-call explicitly.
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+
+    const TestWrapper = () => {
+      const [pendingId, setPendingId] = useState<number | null>(10);
+      const submittedRef = useRef(false);
+
+      const handleNotesSubmit = (notes: string) => {
+        if (pendingId === null || submittedRef.current) return;
+        submittedRef.current = true;
+        onSelect(pendingId, notes || undefined);
+        setPendingId(null);
+      };
+
+      if (pendingId === null) return <div>done</div>;
+
+      return (
+        <input
+          type="text"
+          placeholder="メモを入力"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              handleNotesSubmit((e.target as HTMLInputElement).value);
+              // Simulate onBlur firing during unmount (real browser behavior)
+              handleNotesSubmit((e.target as HTMLInputElement).value);
+            }
+          }}
+        />
+      );
+    };
+
+    render(<TestWrapper />);
+    const input = screen.getByPlaceholderText('メモを入力');
+    await user.type(input, 'メモ{Enter}');
+
+    // With the submittedRef guard, onSelect is called exactly once
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(10, 'メモ');
+  });
+});
 
 describe('RacePlanMatrix', () => {
   beforeEach(() => {
