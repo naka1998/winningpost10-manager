@@ -473,8 +473,6 @@ describe('RacePlanMatrix', () => {
     await user.click(cell);
 
     // Open the dropdown
-    const trigger = within(cell).getByRole('combobox');
-    await user.click(trigger);
 
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
@@ -507,9 +505,6 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    const trigger = within(cell).getByRole('combobox');
-    await user.click(trigger);
-
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     expect(names).toContain('マイラー');
@@ -535,9 +530,6 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
     await user.click(cell);
 
-    const trigger = within(cell).getByRole('combobox');
-    await user.click(trigger);
-
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     // Both should appear (no distance filter for classic paths)
@@ -556,9 +548,7 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    // 2. ドロップダウンを開いて馬を選択
-    const trigger = within(cell).getByRole('combobox');
-    await user.click(trigger);
+    // 2. ドロップダウンが自動で開くので馬を選択
     const option = await screen.findByRole('option', { name: 'テスト馬' });
     await user.click(option);
 
@@ -590,8 +580,6 @@ describe('RacePlanMatrix', () => {
     await user.click(cell);
 
     // Open the dropdown manually
-    const trigger = within(cell).getByRole('combobox');
-    await user.click(trigger);
 
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);

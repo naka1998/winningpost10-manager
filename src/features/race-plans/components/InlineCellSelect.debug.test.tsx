@@ -58,8 +58,7 @@ describe('InlineCellSelect', () => {
     const onSelect = vi.fn();
     render(<InlineCellSelect horses={horses} onSelect={onSelect} />);
 
-    const trigger = screen.getByRole('combobox');
-    await user.click(trigger);
+    // defaultOpen で自動的にドロップダウンが開く
     const option = await screen.findByRole('option', { name: 'テスト馬A' });
     await user.click(option);
 
@@ -72,8 +71,6 @@ describe('InlineCellSelect', () => {
     const onSelect = vi.fn();
     render(<InlineCellSelect horses={horses} onSelect={onSelect} />);
 
-    const trigger = screen.getByRole('combobox');
-    await user.click(trigger);
     const option = await screen.findByRole('option', { name: 'テスト馬B' });
     await user.click(option);
 

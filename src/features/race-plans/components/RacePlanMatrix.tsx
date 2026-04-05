@@ -167,7 +167,7 @@ export function InlineCellSelect({
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-      <Select onValueChange={handleValueChange}>
+      <Select defaultOpen onValueChange={handleValueChange}>
         <SelectTrigger className="h-7 text-xs">
           <SelectValue placeholder="馬を選択..." />
         </SelectTrigger>
