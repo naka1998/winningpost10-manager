@@ -288,7 +288,7 @@ export function RacePlanMatrix({
     const isActive = activeCell === key;
     return (
       <>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap gap-1">
           {cellPlans.map((plan) =>
             editingPlanId === plan.id ? (
               <MemoEditInput
