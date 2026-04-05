@@ -115,8 +115,8 @@ export function RacePlanPage() {
 
       <div className="mb-4 rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">操作方法: </span>
-        セルをクリックで馬を追加 / 馬名をドラッグで移動 / 馬名をクリックでメモ編集 /
-        馬名をダブルクリックで削除
+        セルをクリックで馬を追加（検索可能） / 馬名をドラッグで移動 / 馬名をクリックでメモ編集 /
+        馬名をダブルクリックで削除（確認あり）
       </div>
 
       {duplicates.length > 0 && <OverlapWarning duplicates={duplicates} />}

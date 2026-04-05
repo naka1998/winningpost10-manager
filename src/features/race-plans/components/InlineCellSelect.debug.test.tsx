@@ -1,24 +1,11 @@
 /**
- * InlineCellSelect の馬選択フローをテスト。
- * セルクリック後のドロップダウンで馬を選択すると即座に onSelect が呼ばれる。
+ * SearchableHorseSelect の馬選択フローをテスト。
+ * セルクリック後の検索入力 + リストで馬を選択すると即座に onSelect が呼ばれる。
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { InlineCellSelect } from './RacePlanMatrix';
-
-beforeAll(() => {
-  Element.prototype.hasPointerCapture = () => false;
-  Element.prototype.setPointerCapture = () => {};
-  Element.prototype.releasePointerCapture = () => {};
-  Element.prototype.scrollIntoView = () => {};
-
-  globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-});
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SearchableHorseSelect } from './RacePlanMatrix';
 
 afterEach(() => {
   cleanup();
@@ -44,22 +31,21 @@ function makeHorse(id: number, name: string) {
   };
 }
 
-describe('InlineCellSelect', () => {
+describe('SearchableHorseSelect', () => {
   const horses = [makeHorse(10, 'テスト馬A'), makeHorse(20, 'テスト馬B')];
 
-  it('renders a select trigger with placeholder', () => {
-    render(<InlineCellSelect horses={horses} onSelect={vi.fn()} />);
+  it('renders a search input with placeholder', () => {
+    render(<SearchableHorseSelect horses={horses} onSelect={vi.fn()} />);
 
-    expect(screen.getByText('馬を選択...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('馬名で検索...')).toBeInTheDocument();
   });
 
   it('calls onSelect immediately when a horse is selected', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
-    render(<InlineCellSelect horses={horses} onSelect={onSelect} />);
+    render(<SearchableHorseSelect horses={horses} onSelect={onSelect} />);
 
-    // defaultOpen で自動的にドロップダウンが開く
-    const option = await screen.findByRole('option', { name: 'テスト馬A' });
+    const option = screen.getByRole('option', { name: 'テスト馬A' });
     await user.click(option);
 
     expect(onSelect).toHaveBeenCalledTimes(1);
@@ -69,9 +55,9 @@ describe('InlineCellSelect', () => {
   it('calls onSelect with correct id for second horse', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
-    render(<InlineCellSelect horses={horses} onSelect={onSelect} />);
+    render(<SearchableHorseSelect horses={horses} onSelect={onSelect} />);
 
-    const option = await screen.findByRole('option', { name: 'テスト馬B' });
+    const option = screen.getByRole('option', { name: 'テスト馬B' });
     await user.click(option);
 
     expect(onSelect).toHaveBeenCalledTimes(1);

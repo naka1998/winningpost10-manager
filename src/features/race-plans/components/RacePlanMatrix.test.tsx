@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RacePlanWithHorseName } from '../types';
@@ -300,7 +300,7 @@ describe('RacePlanMatrix', () => {
     expect(within(cell).getByText(/馬B/)).toBeInTheDocument();
   });
 
-  it('calls onDelete when horse badge is double-clicked', async () => {
+  it('does not call onDelete immediately on double-click, shows confirmation', async () => {
     const user = userEvent.setup();
     const plans = [
       createTestPlan({
@@ -317,7 +317,96 @@ describe('RacePlanMatrix', () => {
     const badge = screen.getByText(/削除対象馬/);
     await user.dblClick(badge);
 
+    // onDelete should NOT be called immediately
+    expect(mockOnDelete).not.toHaveBeenCalled();
+    // Confirmation UI should appear
+    expect(screen.getByText('削除?')).toBeInTheDocument();
+  });
+
+  it('calls onDelete when confirm button is clicked after double-click', async () => {
+    const user = userEvent.setup();
+    const plans = [
+      createTestPlan({
+        id: 42,
+        country: '日',
+        surface: '芝',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseName: '削除対象馬',
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/削除対象馬/);
+    await user.dblClick(badge);
+
+    // Click confirm button
+    const confirmBtn = screen.getByRole('button', { name: '削除確定' });
+    await user.click(confirmBtn);
+
     expect(mockOnDelete).toHaveBeenCalledWith(42);
+  });
+
+  it('cancels delete when cancel button is clicked', async () => {
+    const user = userEvent.setup();
+    const plans = [
+      createTestPlan({
+        id: 42,
+        country: '日',
+        surface: '芝',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseName: '削除対象馬',
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/削除対象馬/);
+    await user.dblClick(badge);
+
+    // Click cancel button
+    const cancelBtn = screen.getByRole('button', { name: '削除キャンセル' });
+    await user.click(cancelBtn);
+
+    expect(mockOnDelete).not.toHaveBeenCalled();
+    // Badge should return to normal
+    expect(screen.getByText(/削除対象馬/)).toBeInTheDocument();
+    expect(screen.queryByText('削除?')).toBeNull();
+  });
+
+  it('auto-cancels delete confirmation after 3 seconds', async () => {
+    const plans = [
+      createTestPlan({
+        id: 42,
+        country: '日',
+        surface: '芝',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseName: '削除対象馬',
+      }),
+    ];
+    await renderMatrix(plans);
+
+    // Use fake timers after async render
+    vi.useFakeTimers();
+
+    const badge = screen.getByText(/削除対象馬/);
+    // Use fireEvent instead of userEvent to avoid timer conflicts
+    fireEvent.dblClick(badge);
+
+    expect(screen.getByText('削除?')).toBeInTheDocument();
+
+    // Advance time by 3 seconds
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    // Confirmation should auto-cancel
+    expect(screen.queryByText('削除?')).toBeNull();
+    expect(screen.getByText(/削除対象馬/)).toBeInTheDocument();
+    expect(mockOnDelete).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 
   it('shows memo edit input when horse badge is clicked', async () => {
@@ -385,37 +474,124 @@ describe('RacePlanMatrix', () => {
     expect(within(cell).queryByText(/✕/)).toBeNull();
   });
 
-  it('shows inline select on cell click', async () => {
+  it('shows searchable horse select on cell click', async () => {
     const user = userEvent.setup();
     await renderMatrix();
 
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    // Inline select should appear inside the cell
-    expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
+    // Search input should appear inside the cell
+    expect(within(cell).getByPlaceholderText('馬名で検索...')).toBeInTheDocument();
   });
 
-  it('shows inline select on classic cell click', async () => {
+  it('shows searchable horse select on classic cell click', async () => {
     const user = userEvent.setup();
     await renderMatrix();
 
     const cell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
     await user.click(cell);
 
-    expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
+    expect(within(cell).getByPlaceholderText('馬名で検索...')).toBeInTheDocument();
   });
 
-  it('keeps inline select visible after adding a horse for continuous adding', async () => {
+  it('auto-focuses search input when cell is activated', async () => {
     const user = userEvent.setup();
     await renderMatrix();
 
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    // InlineCellSelect should remain visible for continuous adding
-    // (when dropdown is open the trigger is aria-hidden, so we check by text)
-    expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('filters horse list by search query', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([
+      makeHorse(1, 'スピードスター', '牡', 2022),
+      makeHorse(2, 'スタミナキング', '牡', 2022),
+      makeHorse(3, 'マイルチャンプ', '牡', 2022),
+    ]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    // Wait for horse list to load
+    await screen.findByRole('option', { name: 'スピードスター' });
+
+    // Type search query
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    await user.type(input, 'スピード');
+
+    // Only matching horse should be visible
+    expect(screen.getByRole('option', { name: 'スピードスター' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'スタミナキング' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'マイルチャンプ' })).toBeNull();
+  });
+
+  it('shows no-results message when search matches nothing', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([makeHorse(1, 'テスト馬', '牡', 2022)]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    await screen.findByRole('option', { name: 'テスト馬' });
+
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    await user.type(input, '存在しない馬名');
+
+    expect(screen.getByText('該当なし')).toBeInTheDocument();
+    expect(screen.queryByRole('option')).toBeNull();
+  });
+
+  it('filters horse list by hiragana query (hiragana→katakana normalization)', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([
+      makeHorse(1, 'ドゥラメンテ', '牡', 2022),
+      makeHorse(2, 'アイフォン', '牡', 2022),
+    ]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+    await screen.findByRole('option', { name: 'ドゥラメンテ' });
+
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    await user.type(input, 'どぅら');
+
+    expect(screen.getByRole('option', { name: 'ドゥラメンテ' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'アイフォン' })).toBeNull();
+  });
+
+  it('filters horse list by romaji query (romaji→katakana normalization)', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([
+      makeHorse(1, 'ドゥラメンテ', '牡', 2022),
+      makeHorse(2, 'アイフォン', '牡', 2022),
+    ]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+    await screen.findByRole('option', { name: 'アイフォン' });
+
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    await user.type(input, 'ai');
+
+    expect(screen.getByRole('option', { name: 'アイフォン' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'ドゥラメンテ' })).toBeNull();
   });
 
   it('applies correct badge color for 3歳牡馬 (dark blue)', async () => {
@@ -562,6 +738,27 @@ describe('RacePlanMatrix', () => {
       classicPath: undefined,
       grade: 'G1',
     });
+  });
+
+  it('prevents duplicate onAdd when horse option is clicked rapidly', async () => {
+    const user = userEvent.setup();
+    // Make onAdd resolve slowly
+    mockOnAdd.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    mockHorseFindAll.mockResolvedValueOnce([makeHorse(10, 'テスト馬', '牡', 2022)]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    const option = await screen.findByRole('option', { name: 'テスト馬' });
+    // Rapid clicks
+    await user.click(option);
+    await user.click(option);
+    await user.click(option);
+
+    expect(mockOnAdd).toHaveBeenCalledTimes(1);
   });
 
   it('sorts horses: age desc, male first, then name asc', async () => {

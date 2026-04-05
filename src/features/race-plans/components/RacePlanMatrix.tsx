@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toKatakana } from 'wanakana';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { HorseRepository } from '@/features/horses/repository';
 import type { YearlyStatusRepository } from '@/features/horses/yearly-status-repository';
 import type { Horse, YearlyStatus } from '@/features/horses/types';
@@ -21,13 +23,6 @@ import {
 import { hasSurfaceAptitude, hasDistanceAptitude } from '../aptitude-filter';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const FILLY_ONLY_CLASSICS: ClassicPath[] = ['牝馬三冠', 'トリプルティアラ'];
 
@@ -187,32 +182,112 @@ function MemoEditInput({
   );
 }
 
-/** Inline select that appears inside a cell. Selects a horse and adds it immediately. */
-export function InlineCellSelect({
+/** Searchable horse select that appears inside a cell. */
+export function SearchableHorseSelect({
   horses,
   onSelect,
 }: {
   horses: Horse[];
   onSelect: (horseId: number) => void | Promise<void>;
 }) {
-  const handleValueChange = (value: string) => {
-    onSelect(Number(value));
+  const [query, setQuery] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const updateScrollState = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    setCanScrollUp(el.scrollTop > 0);
+    setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+  }, [updateScrollState, query, horses]);
+
+  const scrollBy = (delta: number) => {
+    listRef.current?.scrollBy({ top: delta, behavior: 'smooth' });
   };
 
+  const filtered = query
+    ? horses.filter((h) => {
+        const normalizedName = toKatakana(h.name.toLowerCase());
+        const normalizedQuery = toKatakana(query.toLowerCase());
+        return normalizedName.includes(normalizedQuery);
+      })
+    : horses;
+
   return (
-    <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-      <Select defaultOpen onValueChange={handleValueChange}>
-        <SelectTrigger className="h-7 text-xs">
-          <SelectValue placeholder="馬を選択..." />
-        </SelectTrigger>
-        <SelectContent>
-          {horses.map((horse) => (
-            <SelectItem key={horse.id} value={String(horse.id)}>
+    <div className="mt-1 w-36" onClick={(e) => e.stopPropagation()}>
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder="馬名で検索..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="h-7 w-full rounded border border-input bg-transparent px-2 text-xs shadow-sm focus:ring-1 focus:ring-ring focus:outline-none"
+      />
+      <div className="relative z-50 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+        {canScrollUp && (
+          <button
+            aria-hidden
+            tabIndex={-1}
+            className="flex w-full cursor-default items-center justify-center py-1"
+            onClick={() => scrollBy(-100)}
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        )}
+        <div
+          ref={listRef}
+          role="listbox"
+          className="max-h-48 overflow-y-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={updateScrollState}
+        >
+          {filtered.map((horse) => (
+            <button
+              key={horse.id}
+              role="option"
+              disabled={adding}
+              onClick={async () => {
+                if (adding) return;
+                setAdding(true);
+                try {
+                  await onSelect(horse.id);
+                } finally {
+                  setAdding(false);
+                }
+              }}
+              className={cn(
+                'relative flex w-full cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground',
+                adding && 'pointer-events-none opacity-50',
+              )}
+            >
               {horse.name}
-            </SelectItem>
+            </button>
           ))}
-        </SelectContent>
-      </Select>
+          {filtered.length === 0 && (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">該当なし</div>
+          )}
+        </div>
+        {canScrollDown && (
+          <button
+            aria-hidden
+            tabIndex={-1}
+            className="flex w-full cursor-default items-center justify-center py-1"
+            onClick={() => scrollBy(100)}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -231,9 +306,16 @@ export function RacePlanMatrix({
   const [activeSurface, setActiveSurface] = useState<Surface>('芝');
   const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null);
   const [draggingPlan, setDraggingPlan] = useState<DraggingPlan | null>(null);
   const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (confirmingDeleteId === null) return;
+    const timer = setTimeout(() => setConfirmingDeleteId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmingDeleteId]);
 
   useEffect(() => {
     if (!activeCellTarget) return;
@@ -374,6 +456,35 @@ export function RacePlanMatrix({
                 onSubmit={(notes) => handleMemoSubmit(plan.id, notes)}
                 onCancel={() => setEditingPlanId(null)}
               />
+            ) : confirmingDeleteId === plan.id ? (
+              <Badge
+                key={plan.id}
+                className="border-transparent bg-red-600 text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                削除?
+                <button
+                  className="ml-1 font-bold"
+                  aria-label="削除確定"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmingDeleteId(null);
+                    onDelete(plan.id);
+                  }}
+                >
+                  ✓
+                </button>
+                <button
+                  className="ml-1"
+                  aria-label="削除キャンセル"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmingDeleteId(null);
+                  }}
+                >
+                  ✕
+                </button>
+              </Badge>
             ) : (
               <Badge
                 key={plan.id}
@@ -400,7 +511,7 @@ export function RacePlanMatrix({
                     clearTimeout(clickTimerRef.current);
                     clickTimerRef.current = null;
                   }
-                  onDelete(plan.id);
+                  setConfirmingDeleteId(plan.id);
                 }}
               >
                 {plan.horseName}
@@ -410,7 +521,7 @@ export function RacePlanMatrix({
           )}
         </div>
         {isActive ? (
-          <InlineCellSelect horses={filteredHorses} onSelect={handleHorseSelect} />
+          <SearchableHorseSelect horses={filteredHorses} onSelect={handleHorseSelect} />
         ) : (
           cellPlans.length === 0 && <span className="text-xs text-muted-foreground">+</span>
         )}
