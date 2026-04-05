@@ -86,7 +86,7 @@ function getPlansForClassic(
   );
 }
 
-/** Inline select that appears inside a cell */
+/** Inline select that appears inside a cell. Supports continuous adding via key reset. */
 function InlineCellSelect({
   horses,
   onSelect,
@@ -96,12 +96,20 @@ function InlineCellSelect({
   onSelect: (horseId: number) => void;
   onCancel: () => void;
 }) {
+  const [selectKey, setSelectKey] = useState(0);
+
+  const handleValueChange = (value: string) => {
+    onSelect(Number(value));
+    // Remount Select to reset and allow next selection
+    setSelectKey((k) => k + 1);
+  };
+
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
       <Select
-        onValueChange={(value) => onSelect(Number(value))}
+        key={selectKey}
+        onValueChange={handleValueChange}
         onOpenChange={(open) => !open && onCancel()}
-        defaultOpen
       >
         <SelectTrigger className="h-7 text-xs">
           <SelectValue placeholder="馬を選択..." />
@@ -172,8 +180,7 @@ export function RacePlanMatrix({
       classicPath: activeCellTarget.classicPath,
       grade: activeCellTarget.grade,
     });
-    setActiveCell(null);
-    setActiveCellTarget(null);
+    // セルを開いたままにして連続で馬を追加可能にする
   };
 
   const handleCancel = () => {

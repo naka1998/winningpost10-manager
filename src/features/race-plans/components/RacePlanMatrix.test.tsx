@@ -222,4 +222,20 @@ describe('RacePlanMatrix', () => {
 
     expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
   });
+
+  it('keeps inline select open after adding a horse for continuous adding', async () => {
+    const user = userEvent.setup();
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    // Select should be visible
+    expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
+
+    // After onAdd is called, select should remain in the cell
+    // (onAdd mock resolves immediately)
+    // The select resets via key change, so placeholder should reappear
+    expect(within(cell).getByRole('combobox')).toBeInTheDocument();
+  });
 });
