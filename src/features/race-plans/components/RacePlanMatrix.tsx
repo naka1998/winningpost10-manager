@@ -205,7 +205,7 @@ export function SearchableHorseSelect({
         placeholder="馬名で検索..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="h-7 w-full rounded border border-input bg-transparent px-2 text-xs shadow-sm focus:ring-1 focus:ring-ring focus:outline-none"
+        className="h-7 w-28 rounded border border-input bg-transparent px-2 text-xs shadow-sm focus:ring-1 focus:ring-ring focus:outline-none"
       />
       <div role="listbox" className="mt-1 max-h-48 overflow-y-auto rounded border">
         {filtered.map((horse) => (
