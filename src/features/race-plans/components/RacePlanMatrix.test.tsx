@@ -202,23 +202,24 @@ describe('RacePlanMatrix', () => {
     expect(mockOnDelete).toHaveBeenCalledWith(42);
   });
 
-  it('opens horse select dialog on cell click', async () => {
+  it('shows inline select on cell click', async () => {
     const user = userEvent.setup();
     await renderMatrix();
 
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    expect(screen.getByText(/馬を配置: 日 芝 マイル G1/)).toBeInTheDocument();
+    // Inline select should appear inside the cell
+    expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
   });
 
-  it('opens horse select dialog on classic cell click', async () => {
+  it('shows inline select on classic cell click', async () => {
     const user = userEvent.setup();
     await renderMatrix();
 
     const cell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
     await user.click(cell);
 
-    expect(screen.getByText(/馬を配置: 日 芝 三冠/)).toBeInTheDocument();
+    expect(within(cell).getByText('馬を選択...')).toBeInTheDocument();
   });
 });

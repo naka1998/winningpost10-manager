@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { HorseRepository } from '@/features/horses/repository';
+import type { Horse } from '@/features/horses/types';
 import type {
   RacePlanWithHorseName,
   Country,
@@ -16,7 +17,15 @@ import {
   COUNTRY_CLASSIC_PATHS,
 } from '../types';
 import { Badge } from '@/components/ui/badge';
-import { HorseSelectDialog } from './HorseSelectDialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const FILLY_ONLY_CLASSICS: ClassicPath[] = ['牝馬三冠', 'トリプルティアラ'];
 
 interface RacePlanMatrixProps {
   plans: RacePlanWithHorseName[];
@@ -40,6 +49,10 @@ interface CellTarget {
   distanceBand?: DistanceBand | null;
   classicPath?: ClassicPath | null;
   grade?: Grade | null;
+}
+
+function cellKey(target: CellTarget): string {
+  return `${target.country}-${target.surface}-${target.distanceBand ?? target.classicPath}-${target.grade ?? ''}`;
 }
 
 function getPlansForCell(
@@ -73,6 +86,38 @@ function getPlansForClassic(
   );
 }
 
+/** Inline select that appears inside a cell */
+function InlineCellSelect({
+  horses,
+  onSelect,
+  onCancel,
+}: {
+  horses: Horse[];
+  onSelect: (horseId: number) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+      <Select
+        onValueChange={(value) => onSelect(Number(value))}
+        onOpenChange={(open) => !open && onCancel()}
+        defaultOpen
+      >
+        <SelectTrigger className="h-7 text-xs">
+          <SelectValue placeholder="馬を選択..." />
+        </SelectTrigger>
+        <SelectContent>
+          {horses.map((horse) => (
+            <SelectItem key={horse.id} value={String(horse.id)}>
+              {horse.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function RacePlanMatrix({
   plans,
   horseRepository,
@@ -80,32 +125,96 @@ export function RacePlanMatrix({
   onAdd,
   onDelete,
 }: RacePlanMatrixProps) {
-  const [selectTarget, setSelectTarget] = useState<CellTarget | null>(null);
+  const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [activeCellTarget, setActiveCellTarget] = useState<CellTarget | null>(null);
   const [activeSurface, setActiveSurface] = useState<Surface>('芝');
+  const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
+
+  useEffect(() => {
+    if (!activeCellTarget) return;
+    horseRepository.findAll({ status: '現役' }).then((allHorses) => {
+      if (activeCellTarget.classicPath) {
+        const targetBirthYear = year - 3;
+        const isFillyOnly = FILLY_ONLY_CLASSICS.includes(
+          activeCellTarget.classicPath as ClassicPath,
+        );
+        setFilteredHorses(
+          allHorses.filter((h) => {
+            if (h.birthYear !== targetBirthYear) return false;
+            if (isFillyOnly && h.sex !== '牝') return false;
+            return true;
+          }),
+        );
+      } else {
+        setFilteredHorses(allHorses);
+      }
+    });
+  }, [activeCellTarget, horseRepository, year]);
 
   const handleCellClick = (target: CellTarget) => {
-    setSelectTarget(target);
+    const key = cellKey(target);
+    if (activeCell === key) {
+      setActiveCell(null);
+      setActiveCellTarget(null);
+    } else {
+      setActiveCell(key);
+      setActiveCellTarget(target);
+    }
   };
 
-  const handleHorseSelect = async (horseId: number, notes?: string) => {
-    if (!selectTarget) return;
+  const handleHorseSelect = async (horseId: number) => {
+    if (!activeCellTarget) return;
     await onAdd({
       horseId,
-      country: selectTarget.country,
-      surface: selectTarget.surface,
-      distanceBand: selectTarget.distanceBand,
-      classicPath: selectTarget.classicPath,
-      grade: selectTarget.grade,
-      notes,
+      country: activeCellTarget.country,
+      surface: activeCellTarget.surface,
+      distanceBand: activeCellTarget.distanceBand,
+      classicPath: activeCellTarget.classicPath,
+      grade: activeCellTarget.grade,
     });
-    setSelectTarget(null);
+    setActiveCell(null);
+    setActiveCellTarget(null);
   };
 
-  const cellLabel = selectTarget
-    ? selectTarget.classicPath
-      ? `${selectTarget.country} ${selectTarget.surface} ${selectTarget.classicPath}`
-      : `${selectTarget.country} ${selectTarget.surface} ${selectTarget.distanceBand} ${selectTarget.grade}`
-    : '';
+  const handleCancel = () => {
+    setActiveCell(null);
+    setActiveCellTarget(null);
+  };
+
+  const renderCellContent = (cellPlans: RacePlanWithHorseName[], target: CellTarget) => {
+    const key = cellKey(target);
+    const isActive = activeCell === key;
+    return (
+      <>
+        <div className="flex flex-wrap gap-1">
+          {cellPlans.map((plan) => (
+            <Badge
+              key={plan.id}
+              variant="secondary"
+              className="cursor-pointer"
+              title={plan.notes ?? undefined}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(plan.id);
+              }}
+            >
+              {plan.horseName}
+              {plan.notes && <span className="ml-1 text-xs opacity-70">({plan.notes})</span>} ✕
+            </Badge>
+          ))}
+        </div>
+        {isActive ? (
+          <InlineCellSelect
+            horses={filteredHorses}
+            onSelect={handleHorseSelect}
+            onCancel={handleCancel}
+          />
+        ) : (
+          cellPlans.length === 0 && <span className="text-xs text-muted-foreground">+</span>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -152,43 +261,21 @@ export function RacePlanMatrix({
                       activeSurface,
                       classicPath,
                     );
+                    const target: CellTarget = {
+                      country,
+                      surface: activeSurface,
+                      classicPath,
+                    };
                     return (
                       <div
                         key={classicPath}
                         className="min-w-32 cursor-pointer rounded-md border p-2 hover:bg-muted/50"
-                        onClick={() =>
-                          handleCellClick({
-                            country,
-                            surface: activeSurface,
-                            classicPath,
-                          })
-                        }
+                        onClick={() => handleCellClick(target)}
                         role="gridcell"
                         aria-label={`${country} ${activeSurface} ${classicPath}`}
                       >
                         <div className="mb-1 text-xs font-medium">{classicPath}</div>
-                        <div className="flex flex-wrap gap-1">
-                          {cellPlans.map((plan) => (
-                            <Badge
-                              key={plan.id}
-                              variant="secondary"
-                              className="cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete(plan.id);
-                              }}
-                            >
-                              {plan.horseName}
-                              {plan.notes && (
-                                <span className="ml-1 text-xs opacity-70">({plan.notes})</span>
-                              )}{' '}
-                              ✕
-                            </Badge>
-                          ))}
-                          {cellPlans.length === 0 && (
-                            <span className="text-xs text-muted-foreground">+</span>
-                          )}
-                        </div>
+                        {renderCellContent(cellPlans, target)}
                       </div>
                     );
                   })}
@@ -221,39 +308,21 @@ export function RacePlanMatrix({
                           distanceBand,
                           grade,
                         );
+                        const target: CellTarget = {
+                          country,
+                          surface: activeSurface,
+                          distanceBand,
+                          grade,
+                        };
                         return (
                           <td
                             key={grade}
                             className="min-w-32 cursor-pointer border p-2 align-top hover:bg-muted/50"
-                            onClick={() =>
-                              handleCellClick({
-                                country,
-                                surface: activeSurface,
-                                distanceBand,
-                                grade,
-                              })
-                            }
+                            onClick={() => handleCellClick(target)}
                             role="gridcell"
                             aria-label={`${country} ${activeSurface} ${distanceBand} ${grade}`}
                           >
-                            <div className="flex flex-wrap gap-1">
-                              {cellPlans.map((plan) => (
-                                <Badge
-                                  key={plan.id}
-                                  variant="secondary"
-                                  className="cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete(plan.id);
-                                  }}
-                                >
-                                  {plan.horseName} ✕
-                                </Badge>
-                              ))}
-                            </div>
-                            {cellPlans.length === 0 && (
-                              <span className="text-xs text-muted-foreground">+</span>
-                            )}
+                            {renderCellContent(cellPlans, target)}
                           </td>
                         );
                       })}
@@ -265,16 +334,6 @@ export function RacePlanMatrix({
           </div>
         );
       })}
-
-      <HorseSelectDialog
-        open={selectTarget !== null}
-        onOpenChange={(open) => !open && setSelectTarget(null)}
-        horseRepository={horseRepository}
-        onSelect={handleHorseSelect}
-        cellLabel={cellLabel}
-        classicPath={selectTarget?.classicPath}
-        year={year}
-      />
     </div>
   );
 }
