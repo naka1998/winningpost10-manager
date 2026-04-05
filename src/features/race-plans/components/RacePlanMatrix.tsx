@@ -105,20 +105,16 @@ function getPlansForClassic(
   );
 }
 
-/** Inline select that appears inside a cell. Opens immediately and supports continuous adding. */
+/** Inline select that appears inside a cell. Supports continuous adding. */
 export function InlineCellSelect({
   horses,
   onSelect,
-  onCancel,
 }: {
   horses: Horse[];
   onSelect: (horseId: number, notes?: string) => void | Promise<void>;
-  onCancel: () => void;
 }) {
   const [pendingHorseId, setPendingHorseId] = useState<number | null>(null);
-  const [selectOpen, setSelectOpen] = useState(true);
   const submittedRef = useRef(false);
-  const selectedRef = useRef(false);
   const notesInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -128,20 +124,8 @@ export function InlineCellSelect({
   }, [pendingHorseId]);
 
   const handleValueChange = (value: string) => {
-    selectedRef.current = true;
     submittedRef.current = false;
     setPendingHorseId(Number(value));
-    setSelectOpen(false);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    setSelectOpen(open);
-    if (!open && !selectedRef.current) {
-      onCancel();
-    }
-    if (!open) {
-      selectedRef.current = false;
-    }
   };
 
   const handleNotesSubmit = (notes: string) => {
@@ -149,7 +133,6 @@ export function InlineCellSelect({
     submittedRef.current = true;
     onSelect(pendingHorseId, notes || undefined);
     setPendingHorseId(null);
-    setSelectOpen(true);
   };
 
   if (pendingHorseId !== null) {
@@ -179,7 +162,7 @@ export function InlineCellSelect({
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-      <Select open={selectOpen} onValueChange={handleValueChange} onOpenChange={handleOpenChange}>
+      <Select onValueChange={handleValueChange}>
         <SelectTrigger className="h-7 text-xs">
           <SelectValue placeholder="馬を選択..." />
         </SelectTrigger>
@@ -288,11 +271,6 @@ export function RacePlanMatrix({
     });
   };
 
-  const handleCancel = () => {
-    setActiveCell(null);
-    setActiveCellTarget(null);
-  };
-
   const renderCellContent = (cellPlans: RacePlanWithHorseName[], target: CellTarget) => {
     const key = cellKey(target);
     const isActive = activeCell === key;
@@ -315,11 +293,7 @@ export function RacePlanMatrix({
           ))}
         </div>
         {isActive ? (
-          <InlineCellSelect
-            horses={filteredHorses}
-            onSelect={handleHorseSelect}
-            onCancel={handleCancel}
-          />
+          <InlineCellSelect horses={filteredHorses} onSelect={handleHorseSelect} />
         ) : (
           cellPlans.length === 0 && <span className="text-xs text-muted-foreground">+</span>
         )}

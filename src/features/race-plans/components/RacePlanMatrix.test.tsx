@@ -405,6 +405,10 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
+    // Open the dropdown
+    const trigger = within(cell).getByRole('combobox');
+    await user.click(trigger);
+
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     // ◎, ○, and no-data should be shown; △ and × should be filtered out
@@ -436,6 +440,9 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
+    const trigger = within(cell).getByRole('combobox');
+    await user.click(trigger);
+
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     expect(names).toContain('マイラー');
@@ -461,11 +468,81 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
     await user.click(cell);
 
+    const trigger = within(cell).getByRole('combobox');
+    await user.click(trigger);
+
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     // Both should appear (no distance filter for classic paths)
     expect(names).toContain('スプリンター');
     expect(names).toContain('ステイヤー');
+  });
+
+  it('calls onAdd when a horse is selected and notes submitted via Enter', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([makeHorse(10, 'テスト馬', '牡', 2022)]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    // 1. セルをクリック
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    // 2. ドロップダウンを開いて馬を選択
+    const trigger = within(cell).getByRole('combobox');
+    await user.click(trigger);
+    const option = await screen.findByRole('option', { name: 'テスト馬' });
+    await user.click(option);
+
+    // 3. メモ入力欄が表示される
+    const notesInput = await screen.findByPlaceholderText(/メモを入力/);
+    expect(notesInput).toBeInTheDocument();
+
+    // 4. メモを入力して Enter
+    await user.type(notesInput, 'テストメモ{Enter}');
+
+    // 5. onAdd が正しい引数で呼ばれる
+    expect(mockOnAdd).toHaveBeenCalledTimes(1);
+    expect(mockOnAdd).toHaveBeenCalledWith({
+      horseId: 10,
+      country: '日',
+      surface: '芝',
+      distanceBand: 'マイル',
+      classicPath: undefined,
+      grade: 'G1',
+      notes: 'テストメモ',
+    });
+  });
+
+  it('calls onAdd with empty notes when Enter pressed without typing', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([makeHorse(10, 'テスト馬', '牡', 2022)]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    const trigger = within(cell).getByRole('combobox');
+    await user.click(trigger);
+    const option = await screen.findByRole('option', { name: 'テスト馬' });
+    await user.click(option);
+
+    await screen.findByPlaceholderText(/メモを入力/);
+    await user.keyboard('{Enter}');
+
+    expect(mockOnAdd).toHaveBeenCalledTimes(1);
+    expect(mockOnAdd).toHaveBeenCalledWith({
+      horseId: 10,
+      country: '日',
+      surface: '芝',
+      distanceBand: 'マイル',
+      classicPath: undefined,
+      grade: 'G1',
+      notes: undefined,
+    });
   });
 
   it('sorts horses: age desc, male first, then name asc', async () => {
@@ -483,7 +560,10 @@ describe('RacePlanMatrix', () => {
     const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    // Wait for options to appear (dropdown opens automatically)
+    // Open the dropdown manually
+    const trigger = within(cell).getByRole('combobox');
+    await user.click(trigger);
+
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     expect(names).toEqual(['A', 'B', 'C', 'D']);
