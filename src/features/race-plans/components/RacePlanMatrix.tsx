@@ -195,10 +195,10 @@ export function RacePlanMatrix({
   useEffect(() => {
     if (!activeCellTarget) return;
 
-    Promise.all([
-      horseRepository.findAll({ status: '現役' }),
-      yearlyStatusRepository.findByYear(year),
-    ]).then(([allHorses, yearlyStatuses]) => {
+    // wa-sqlite does not support concurrent queries on the same connection,
+    // so we must run them sequentially
+    horseRepository.findAll({ status: '現役' }).then(async (allHorses) => {
+      const yearlyStatuses = await yearlyStatusRepository.findByYear(year);
       const statusByHorseId = new Map<number, YearlyStatus>();
       for (const s of yearlyStatuses) {
         statusByHorseId.set(s.horseId, s);
