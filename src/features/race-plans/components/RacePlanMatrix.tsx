@@ -171,6 +171,9 @@ function InlineCellSelect({
               handleNotesSubmit('');
             }
           }}
+          onBlur={(e) => {
+            handleNotesSubmit(e.target.value);
+          }}
         />
       </div>
     );
