@@ -52,25 +52,13 @@ export const useImportStore = create<ImportState>((set, get) => ({
   },
 
   setInputMode(mode: InputMode) {
-    if (mode === 'text') {
-      set({
-        inputMode: mode,
-        file: null,
-        parseResult: null,
-        preview: null,
-        result: null,
-        error: null,
-      });
-    } else {
-      set({
-        inputMode: mode,
-        textContent: '',
-        parseResult: null,
-        preview: null,
-        result: null,
-        error: null,
-      });
-    }
+    set({
+      inputMode: mode,
+      parseResult: null,
+      preview: null,
+      result: null,
+      error: null,
+    });
   },
 
   setFile(file: File | null) {

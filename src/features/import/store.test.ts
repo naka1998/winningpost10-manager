@@ -15,24 +15,23 @@ describe('useImportStore', () => {
   });
 
   describe('setInputMode', () => {
-    it('clears file when switching to text mode', () => {
-      const store = useImportStore.getState();
-      store.setFile(new File(['test'], 'test.txt'));
+    it('preserves file when switching to text mode', () => {
+      useImportStore.getState().setInputMode('file');
+      useImportStore.getState().setFile(new File(['test'], 'test.txt'));
       expect(useImportStore.getState().file).not.toBeNull();
 
       useImportStore.getState().setInputMode('text');
       expect(useImportStore.getState().inputMode).toBe('text');
-      expect(useImportStore.getState().file).toBeNull();
+      expect(useImportStore.getState().file).not.toBeNull();
     });
 
-    it('clears textContent when switching to file mode', () => {
-      useImportStore.getState().setInputMode('text');
+    it('preserves textContent when switching to file mode', () => {
       useImportStore.getState().setTextContent('some content');
       expect(useImportStore.getState().textContent).toBe('some content');
 
       useImportStore.getState().setInputMode('file');
       expect(useImportStore.getState().inputMode).toBe('file');
-      expect(useImportStore.getState().textContent).toBe('');
+      expect(useImportStore.getState().textContent).toBe('some content');
     });
 
     it('clears downstream state when switching mode', () => {
