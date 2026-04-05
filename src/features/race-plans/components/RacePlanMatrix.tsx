@@ -21,13 +21,6 @@ import {
 import { hasSurfaceAptitude, hasDistanceAptitude } from '../aptitude-filter';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const FILLY_ONLY_CLASSICS: ClassicPath[] = ['牝馬三冠', 'トリプルティアラ'];
 
@@ -187,32 +180,46 @@ function MemoEditInput({
   );
 }
 
-/** Inline select that appears inside a cell. Selects a horse and adds it immediately. */
-export function InlineCellSelect({
+/** Searchable horse select that appears inside a cell. */
+export function SearchableHorseSelect({
   horses,
   onSelect,
 }: {
   horses: Horse[];
   onSelect: (horseId: number) => void | Promise<void>;
 }) {
-  const handleValueChange = (value: string) => {
-    onSelect(Number(value));
-  };
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const filtered = query ? horses.filter((h) => h.name.includes(query)) : horses;
 
   return (
     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-      <Select defaultOpen onValueChange={handleValueChange}>
-        <SelectTrigger className="h-7 text-xs">
-          <SelectValue placeholder="馬を選択..." />
-        </SelectTrigger>
-        <SelectContent>
-          {horses.map((horse) => (
-            <SelectItem key={horse.id} value={String(horse.id)}>
-              {horse.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder="馬名で検索..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="h-7 w-full rounded border border-input bg-transparent px-2 text-xs shadow-sm focus:ring-1 focus:ring-ring focus:outline-none"
+      />
+      <div role="listbox" className="mt-1 max-h-48 overflow-y-auto rounded border">
+        {filtered.map((horse) => (
+          <button
+            key={horse.id}
+            role="option"
+            onClick={() => onSelect(horse.id)}
+            className="w-full cursor-pointer px-2 py-1 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+          >
+            {horse.name}
+          </button>
+        ))}
+        {filtered.length === 0 && <div className="p-2 text-xs text-muted-foreground">該当なし</div>}
+      </div>
     </div>
   );
 }
@@ -231,9 +238,16 @@ export function RacePlanMatrix({
   const [activeSurface, setActiveSurface] = useState<Surface>('芝');
   const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null);
   const [draggingPlan, setDraggingPlan] = useState<DraggingPlan | null>(null);
   const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (confirmingDeleteId === null) return;
+    const timer = setTimeout(() => setConfirmingDeleteId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmingDeleteId]);
 
   useEffect(() => {
     if (!activeCellTarget) return;
@@ -374,6 +388,35 @@ export function RacePlanMatrix({
                 onSubmit={(notes) => handleMemoSubmit(plan.id, notes)}
                 onCancel={() => setEditingPlanId(null)}
               />
+            ) : confirmingDeleteId === plan.id ? (
+              <Badge
+                key={plan.id}
+                className="border-transparent bg-red-600 text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                削除?
+                <button
+                  className="ml-1 font-bold"
+                  aria-label="削除確定"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmingDeleteId(null);
+                    onDelete(plan.id);
+                  }}
+                >
+                  ✓
+                </button>
+                <button
+                  className="ml-1"
+                  aria-label="削除キャンセル"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmingDeleteId(null);
+                  }}
+                >
+                  ✕
+                </button>
+              </Badge>
             ) : (
               <Badge
                 key={plan.id}
@@ -400,7 +443,7 @@ export function RacePlanMatrix({
                     clearTimeout(clickTimerRef.current);
                     clickTimerRef.current = null;
                   }
-                  onDelete(plan.id);
+                  setConfirmingDeleteId(plan.id);
                 }}
               >
                 {plan.horseName}
@@ -410,7 +453,7 @@ export function RacePlanMatrix({
           )}
         </div>
         {isActive ? (
-          <InlineCellSelect horses={filteredHorses} onSelect={handleHorseSelect} />
+          <SearchableHorseSelect horses={filteredHorses} onSelect={handleHorseSelect} />
         ) : (
           cellPlans.length === 0 && <span className="text-xs text-muted-foreground">+</span>
         )}
