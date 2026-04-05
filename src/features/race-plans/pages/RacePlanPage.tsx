@@ -16,7 +16,8 @@ import {
 const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => 2020 + i);
 
 export function RacePlanPage() {
-  const { year } = useParams({ strict: false }) as { year: number };
+  const params = useParams({ strict: false }) as { year: string };
+  const year = Number(params.year);
   const navigate = useNavigate();
   const { racePlanRepository, horseRepository, yearlyStatusRepository } = useRepositoryContext();
   const plans = useRacePlanStore((s) => s.plans);
