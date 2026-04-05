@@ -1,16 +1,34 @@
 export type Country = '日' | '米' | '欧';
+export type Surface = '芝' | 'ダート';
 export type DistanceBand = '短距離' | 'マイル' | '中距離' | '中長距離' | '長距離';
+export type ClassicPath = '三冠' | '牝馬三冠' | 'マイル' | 'トリプルティアラ' | 'その他三冠';
 export type Grade = 'G1' | 'G2' | 'G3' | 'OP';
 
 export const COUNTRIES: Country[] = ['日', '米', '欧'];
+export const SURFACES: Surface[] = ['芝', 'ダート'];
 export const DISTANCE_BANDS: DistanceBand[] = ['短距離', 'マイル', '中距離', '中長距離', '長距離'];
 export const GRADES: Grade[] = ['G1', 'G2', 'G3', 'OP'];
+
+/** 国ごとに使える馬場 */
+export const COUNTRY_SURFACES: Record<Country, Surface[]> = {
+  日: ['芝', 'ダート'],
+  米: ['芝', 'ダート'],
+  欧: ['芝'],
+};
+
+/** 国ごとの3歳クラシック路線 */
+export const COUNTRY_CLASSIC_PATHS: Record<Country, ClassicPath[]> = {
+  日: ['三冠', '牝馬三冠', 'マイル'],
+  米: ['三冠', 'トリプルティアラ'],
+  欧: ['三冠', 'その他三冠'],
+};
 
 export interface RacePlan {
   id: number;
   horseId: number;
   year: number;
   country: Country | null;
+  surface: Surface | null;
   distanceBand: DistanceBand | null;
   grade: Grade | null;
   notes: string | null;
@@ -26,16 +44,20 @@ export interface RacePlanCreateInput {
   horseId: number;
   year: number;
   country: Country;
-  distanceBand: DistanceBand;
-  grade: Grade;
+  surface: Surface;
+  distanceBand?: DistanceBand | null;
+  classicPath?: ClassicPath | null;
+  grade?: Grade | null;
   notes?: string | null;
 }
 
 export interface RacePlanUpdateInput {
   horseId?: number;
   country?: Country;
-  distanceBand?: DistanceBand;
-  grade?: Grade;
+  surface?: Surface;
+  distanceBand?: DistanceBand | null;
+  classicPath?: ClassicPath | null;
+  grade?: Grade | null;
   notes?: string | null;
 }
 
@@ -44,8 +66,17 @@ export interface RacePlanFilter {
   horseId?: number;
 }
 
+/** セル位置の情報 */
+export interface CellLocation {
+  country: Country;
+  surface: Surface;
+  distanceBand?: DistanceBand | null;
+  classicPath?: ClassicPath | null;
+  grade?: Grade | null;
+}
+
 export interface DuplicateHorseWarning {
   horseId: number;
   horseName: string;
-  cells: { country: Country; distanceBand: DistanceBand; grade: Grade }[];
+  cells: CellLocation[];
 }

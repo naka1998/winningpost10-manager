@@ -42,11 +42,12 @@ describe('RacePlanRepository', () => {
   });
 
   describe('create and findById', () => {
-    it('creates a plan and returns it with horse name', async () => {
+    it('creates a plan with surface and returns it with horse name', async () => {
       const plan = await repo.create({
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -55,9 +56,38 @@ describe('RacePlanRepository', () => {
       expect(plan.horseId).toBe(horseId1);
       expect(plan.year).toBe(2026);
       expect(plan.country).toBe('日');
+      expect(plan.surface).toBe('芝');
       expect(plan.distanceBand).toBe('マイル');
       expect(plan.grade).toBe('G1');
       expect(plan.horseName).toBe('テスト馬1');
+    });
+
+    it('creates a dirt plan', async () => {
+      const plan = await repo.create({
+        horseId: horseId1,
+        year: 2026,
+        country: '米',
+        surface: 'ダート',
+        distanceBand: '中距離',
+        grade: 'G1',
+      });
+
+      expect(plan.surface).toBe('ダート');
+      expect(plan.country).toBe('米');
+    });
+
+    it('creates a classic path plan without grade', async () => {
+      const plan = await repo.create({
+        horseId: horseId1,
+        year: 2026,
+        country: '日',
+        surface: '芝',
+        classicPath: '三冠',
+      });
+
+      expect(plan.distanceBand).toBeNull();
+      expect(plan.grade).toBeNull();
+      expect(plan.notes).toContain('三冠');
     });
 
     it('findById returns plan with horse name', async () => {
@@ -65,6 +95,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: '中距離',
         grade: 'G2',
       });
@@ -72,6 +103,7 @@ describe('RacePlanRepository', () => {
 
       expect(found).not.toBeNull();
       expect(found!.id).toBe(created.id);
+      expect(found!.surface).toBe('芝');
       expect(found!.horseName).toBe('テスト馬1');
     });
 
@@ -85,6 +117,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '米',
+        surface: 'ダート',
         distanceBand: '長距離',
         grade: 'G1',
         notes: 'BCクラシック狙い',
@@ -100,6 +133,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -107,6 +141,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId2,
         year: 2026,
         country: '欧',
+        surface: '芝',
         distanceBand: '中距離',
         grade: 'G1',
       });
@@ -114,6 +149,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2027,
         country: '日',
+        surface: 'ダート',
         distanceBand: '短距離',
         grade: 'G3',
       });
@@ -124,6 +160,7 @@ describe('RacePlanRepository', () => {
 
       const plans2027 = await repo.findByYear(2027);
       expect(plans2027).toHaveLength(1);
+      expect(plans2027[0].surface).toBe('ダート');
     });
 
     it('returns empty array for year with no plans', async () => {
@@ -133,21 +170,24 @@ describe('RacePlanRepository', () => {
   });
 
   describe('update', () => {
-    it('updates fields and returns updated plan with horse name', async () => {
+    it('updates fields including surface and returns updated plan', async () => {
       const created = await repo.create({
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
 
       const updated = await repo.update(created.id, {
+        surface: 'ダート',
         country: '米',
         grade: 'G2',
         notes: '路線変更',
       });
 
+      expect(updated.surface).toBe('ダート');
       expect(updated.country).toBe('米');
       expect(updated.grade).toBe('G2');
       expect(updated.notes).toBe('路線変更');
@@ -160,12 +200,14 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
 
       const updated = await repo.update(created.id, {});
       expect(updated.country).toBe('日');
+      expect(updated.surface).toBe('芝');
     });
 
     it('throws for non-existent id', async () => {
@@ -179,6 +221,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -195,6 +238,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -202,6 +246,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2027,
         country: '米',
+        surface: 'ダート',
         distanceBand: '中距離',
         grade: 'G2',
       });
@@ -209,6 +254,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId2,
         year: 2026,
         country: '欧',
+        surface: '芝',
         distanceBand: '長距離',
         grade: 'G1',
       });
@@ -229,7 +275,7 @@ describe('RacePlanRepository', () => {
     it('filters by combined criteria', async () => {
       const plans = await repo.findAll({ year: 2026, horseId: horseId1 });
       expect(plans).toHaveLength(1);
-      expect(plans[0].country).toBe('日');
+      expect(plans[0].surface).toBe('芝');
     });
 
     it('returns all plans without filter', async () => {
@@ -244,6 +290,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -251,6 +298,7 @@ describe('RacePlanRepository', () => {
         horseId: horseId1,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: '中距離',
         grade: 'G2',
       });

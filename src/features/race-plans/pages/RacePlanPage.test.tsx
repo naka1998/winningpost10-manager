@@ -23,6 +23,7 @@ function createTestPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
     horseId: 10,
     year: 2026,
     country: '日',
+    surface: '芝',
     distanceBand: 'マイル',
     grade: 'G1',
     notes: null,
@@ -100,12 +101,13 @@ vi.mock('@tanstack/react-router', () => ({
 
 describe('RacePlanPage', () => {
   const testPlans = [
-    createTestPlan({ id: 1, horseName: 'スピードスター' }),
+    createTestPlan({ id: 1, horseName: 'スピードスター', surface: '芝' }),
     createTestPlan({
       id: 2,
       horseId: 20,
       horseName: 'パワーランナー',
       country: '米',
+      surface: 'ダート',
       distanceBand: '中距離',
       grade: 'G2',
     }),
@@ -147,6 +149,13 @@ describe('RacePlanPage', () => {
     expect(screen.getByText('年度:')).toBeInTheDocument();
   });
 
+  it('芝/ダートタブが表示される', async () => {
+    await renderAndWait();
+
+    expect(screen.getByRole('tab', { name: '芝' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'ダート' })).toBeInTheDocument();
+  });
+
   it('マトリクスが表示される', async () => {
     await renderAndWait();
 
@@ -159,7 +168,6 @@ describe('RacePlanPage', () => {
     await renderAndWait();
 
     expect(screen.getByText(/スピードスター/)).toBeInTheDocument();
-    expect(screen.getByText(/パワーランナー/)).toBeInTheDocument();
   });
 
   it('ローディング状態が表示される', async () => {
@@ -168,7 +176,6 @@ describe('RacePlanPage', () => {
     const { RacePlanPage } = await import('./RacePlanPage');
     render(<RacePlanPage />);
 
-    // loadPlans sets isLoading=true before the promise resolves
     await screen.findByText('読み込み中...', {}, { timeout: 3000 });
   });
 
@@ -188,6 +195,7 @@ describe('RacePlanPage', () => {
         horseId: 10,
         horseName: '重複馬',
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       }),
@@ -196,6 +204,7 @@ describe('RacePlanPage', () => {
         horseId: 10,
         horseName: '重複馬',
         country: '日',
+        surface: '芝',
         distanceBand: '中距離',
         grade: 'G2',
       }),

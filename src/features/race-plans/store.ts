@@ -5,6 +5,7 @@ import type {
   RacePlanUpdateInput,
   RacePlanWithHorseName,
   DuplicateHorseWarning,
+  CellLocation,
 } from './types';
 
 export interface RacePlanState {
@@ -61,24 +62,23 @@ export const useRacePlanStore = create<RacePlanState>((set, get) => ({
 
   getDuplicateHorses(): DuplicateHorseWarning[] {
     const { plans } = get();
-    const horseMap = new Map<
-      number,
-      { horseName: string; cells: DuplicateHorseWarning['cells'] }
-    >();
+    const horseMap = new Map<number, { horseName: string; cells: CellLocation[] }>();
 
     for (const plan of plans) {
-      if (!plan.country || !plan.distanceBand || !plan.grade) continue;
+      if (!plan.country || !plan.surface) continue;
+      const cell: CellLocation = {
+        country: plan.country,
+        surface: plan.surface,
+        distanceBand: plan.distanceBand,
+        grade: plan.grade,
+      };
       const existing = horseMap.get(plan.horseId);
       if (existing) {
-        existing.cells.push({
-          country: plan.country,
-          distanceBand: plan.distanceBand,
-          grade: plan.grade,
-        });
+        existing.cells.push(cell);
       } else {
         horseMap.set(plan.horseId, {
           horseName: plan.horseName,
-          cells: [{ country: plan.country, distanceBand: plan.distanceBand, grade: plan.grade }],
+          cells: [cell],
         });
       }
     }

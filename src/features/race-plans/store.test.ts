@@ -9,6 +9,7 @@ function createMockPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
     horseId: 10,
     year: 2026,
     country: '日',
+    surface: '芝',
     distanceBand: 'マイル',
     grade: 'G1',
     notes: null,
@@ -83,12 +84,13 @@ describe('useRacePlanStore', () => {
   });
 
   describe('createPlan', () => {
-    it('creates a plan and reloads list', async () => {
+    it('creates a plan with surface and reloads list', async () => {
       const repo = createMockRepo();
       await useRacePlanStore.getState().createPlan(repo, {
         horseId: 10,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -97,6 +99,7 @@ describe('useRacePlanStore', () => {
         horseId: 10,
         year: 2026,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
       });
@@ -140,6 +143,7 @@ describe('useRacePlanStore', () => {
             horseId: 10,
             horseName: '馬A',
             country: '日',
+            surface: '芝',
             distanceBand: 'マイル',
             grade: 'G1',
           }),
@@ -148,6 +152,7 @@ describe('useRacePlanStore', () => {
             horseId: 20,
             horseName: '馬B',
             country: '米',
+            surface: 'ダート',
             distanceBand: '中距離',
             grade: 'G1',
           }),
@@ -166,6 +171,7 @@ describe('useRacePlanStore', () => {
             horseId: 10,
             horseName: '馬A',
             country: '日',
+            surface: '芝',
             distanceBand: 'マイル',
             grade: 'G1',
           }),
@@ -174,6 +180,7 @@ describe('useRacePlanStore', () => {
             horseId: 10,
             horseName: '馬A',
             country: '日',
+            surface: '芝',
             distanceBand: '中距離',
             grade: 'G2',
           }),
@@ -182,6 +189,7 @@ describe('useRacePlanStore', () => {
             horseId: 20,
             horseName: '馬B',
             country: '米',
+            surface: 'ダート',
             distanceBand: '長距離',
             grade: 'G1',
           }),
@@ -193,6 +201,7 @@ describe('useRacePlanStore', () => {
       expect(duplicates[0].horseId).toBe(10);
       expect(duplicates[0].horseName).toBe('馬A');
       expect(duplicates[0].cells).toHaveLength(2);
+      expect(duplicates[0].cells[0].surface).toBe('芝');
     });
 
     it('detects multiple horses with duplicates', () => {
@@ -203,6 +212,7 @@ describe('useRacePlanStore', () => {
             horseId: 10,
             horseName: '馬A',
             country: '日',
+            surface: '芝',
             distanceBand: 'マイル',
             grade: 'G1',
           }),
@@ -211,6 +221,7 @@ describe('useRacePlanStore', () => {
             horseId: 10,
             horseName: '馬A',
             country: '米',
+            surface: '芝',
             distanceBand: '中距離',
             grade: 'G2',
           }),
@@ -219,6 +230,7 @@ describe('useRacePlanStore', () => {
             horseId: 20,
             horseName: '馬B',
             country: '欧',
+            surface: '芝',
             distanceBand: '長距離',
             grade: 'G1',
           }),
@@ -227,6 +239,7 @@ describe('useRacePlanStore', () => {
             horseId: 20,
             horseName: '馬B',
             country: '日',
+            surface: 'ダート',
             distanceBand: '短距離',
             grade: 'G3',
           }),

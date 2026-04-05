@@ -9,14 +9,14 @@ describe('OverlapWarning', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders alert with duplicate horse info', () => {
+  it('renders alert with duplicate horse info including surface', () => {
     const duplicates: DuplicateHorseWarning[] = [
       {
         horseId: 1,
         horseName: 'スピードスター',
         cells: [
-          { country: '日', distanceBand: 'マイル', grade: 'G1' },
-          { country: '日', distanceBand: '中距離', grade: 'G2' },
+          { country: '日', surface: '芝', distanceBand: 'マイル', grade: 'G1' },
+          { country: '日', surface: '芝', distanceBand: '中距離', grade: 'G2' },
         ],
       },
     ];
@@ -27,8 +27,8 @@ describe('OverlapWarning', () => {
     expect(screen.getByText('重複配置の警告')).toBeInTheDocument();
     expect(screen.getByText('スピードスター')).toBeInTheDocument();
     expect(screen.getByText(/2 箇所/)).toBeInTheDocument();
-    expect(screen.getByText(/日\/マイル\/G1/)).toBeInTheDocument();
-    expect(screen.getByText(/日\/中距離\/G2/)).toBeInTheDocument();
+    expect(screen.getByText(/日\/芝\/マイル\/G1/)).toBeInTheDocument();
+    expect(screen.getByText(/日\/芝\/中距離\/G2/)).toBeInTheDocument();
   });
 
   it('renders multiple duplicate horses', () => {
@@ -37,16 +37,16 @@ describe('OverlapWarning', () => {
         horseId: 1,
         horseName: '馬A',
         cells: [
-          { country: '日', distanceBand: 'マイル', grade: 'G1' },
-          { country: '米', distanceBand: '中距離', grade: 'G1' },
+          { country: '日', surface: '芝', distanceBand: 'マイル', grade: 'G1' },
+          { country: '米', surface: 'ダート', distanceBand: '中距離', grade: 'G1' },
         ],
       },
       {
         horseId: 2,
         horseName: '馬B',
         cells: [
-          { country: '欧', distanceBand: '長距離', grade: 'G1' },
-          { country: '欧', distanceBand: '中長距離', grade: 'G2' },
+          { country: '欧', surface: '芝', distanceBand: '長距離', grade: 'G1' },
+          { country: '欧', surface: '芝', distanceBand: '中長距離', grade: 'G2' },
         ],
       },
     ];

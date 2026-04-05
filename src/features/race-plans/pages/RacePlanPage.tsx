@@ -4,6 +4,7 @@ import { useRepositoryContext } from '@/app/repository-context';
 import { useRacePlanStore } from '../store';
 import { RacePlanMatrix } from '../components/RacePlanMatrix';
 import { OverlapWarning } from '../components/OverlapWarning';
+import type { Country, Surface, DistanceBand, Grade, ClassicPath } from '../types';
 import {
   Select,
   SelectContent,
@@ -35,15 +36,19 @@ export function RacePlanPage() {
   const handleCreate = async (data: {
     horseId: number;
     country: string;
-    distanceBand: string;
-    grade: string;
+    surface: string;
+    distanceBand?: string | null;
+    classicPath?: string | null;
+    grade?: string | null;
   }) => {
     await useRacePlanStore.getState().createPlan(racePlanRepository, {
       horseId: data.horseId,
       year,
-      country: data.country as '日' | '米' | '欧',
-      distanceBand: data.distanceBand as '短距離' | 'マイル' | '中距離' | '中長距離' | '長距離',
-      grade: data.grade as 'G1' | 'G2' | 'G3' | 'OP',
+      country: data.country as Country,
+      surface: data.surface as Surface,
+      distanceBand: (data.distanceBand as DistanceBand) ?? undefined,
+      classicPath: (data.classicPath as ClassicPath) ?? undefined,
+      grade: (data.grade as Grade) ?? undefined,
     });
   };
 

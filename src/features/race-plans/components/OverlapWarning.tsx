@@ -4,6 +4,13 @@ interface OverlapWarningProps {
   duplicates: DuplicateHorseWarning[];
 }
 
+function formatCellLocation(c: DuplicateHorseWarning['cells'][number]): string {
+  if (c.distanceBand && c.grade) {
+    return `${c.country}/${c.surface}/${c.distanceBand}/${c.grade}`;
+  }
+  return `${c.country}/${c.surface}/${c.classicPath ?? ''}`;
+}
+
 export function OverlapWarning({ duplicates }: OverlapWarningProps) {
   if (duplicates.length === 0) return null;
 
@@ -20,9 +27,7 @@ export function OverlapWarning({ duplicates }: OverlapWarningProps) {
           <li key={dup.horseId}>
             <span className="font-medium">{dup.horseName}</span> が {dup.cells.length}{' '}
             箇所に配置されています:
-            <span className="ml-1">
-              {dup.cells.map((c) => `${c.country}/${c.distanceBand}/${c.grade}`).join('、')}
-            </span>
+            <span className="ml-1">{dup.cells.map(formatCellLocation).join('、')}</span>
           </li>
         ))}
       </ul>

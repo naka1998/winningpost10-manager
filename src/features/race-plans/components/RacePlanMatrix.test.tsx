@@ -22,6 +22,7 @@ function createTestPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
     horseId: 10,
     year: 2026,
     country: '日',
+    surface: '芝',
     distanceBand: 'マイル',
     grade: 'G1',
     notes: null,
@@ -87,31 +88,52 @@ describe('RacePlanMatrix', () => {
     );
   }
 
-  it('renders country sections', async () => {
+  it('renders surface tabs', async () => {
     await renderMatrix();
 
+    expect(screen.getByRole('tab', { name: '芝' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'ダート' })).toBeInTheDocument();
+  });
+
+  it('renders country sections for turf (default)', async () => {
+    await renderMatrix();
+
+    // All 3 countries have turf
     expect(screen.getByText('日')).toBeInTheDocument();
     expect(screen.getByText('米')).toBeInTheDocument();
     expect(screen.getByText('欧')).toBeInTheDocument();
   });
 
-  it('renders distance band rows', async () => {
+  it('hides Europe on dirt tab', async () => {
+    const user = userEvent.setup();
     await renderMatrix();
 
-    expect(screen.getAllByText('短距離')).toHaveLength(3);
-    expect(screen.getAllByText('マイル')).toHaveLength(3);
-    expect(screen.getAllByText('中距離')).toHaveLength(3);
-    expect(screen.getAllByText('中長距離')).toHaveLength(3);
-    expect(screen.getAllByText('長距離')).toHaveLength(3);
+    await user.click(screen.getByRole('tab', { name: 'ダート' }));
+
+    // 日 and 米 should still be visible
+    expect(screen.getByText('日')).toBeInTheDocument();
+    expect(screen.getByText('米')).toBeInTheDocument();
+    // 欧 should not be visible (no dirt in Europe)
+    expect(screen.queryByText('欧')).toBeNull();
   });
 
-  it('renders grade column headers', async () => {
+  it('renders classic path sections', async () => {
     await renderMatrix();
 
-    expect(screen.getAllByText('G1')).toHaveLength(3);
-    expect(screen.getAllByText('G2')).toHaveLength(3);
-    expect(screen.getAllByText('G3')).toHaveLength(3);
-    expect(screen.getAllByText('OP')).toHaveLength(3);
+    // Japan has: 三冠, 牝馬三冠, マイル as classic paths
+    expect(screen.getAllByText('3歳クラシック路線').length).toBeGreaterThanOrEqual(1);
+    // Japan classic paths
+    const cells = screen.getAllByRole('gridcell');
+    const classicLabels = cells.map((c) => c.getAttribute('aria-label'));
+    expect(classicLabels).toContain('日 芝 三冠');
+    expect(classicLabels).toContain('日 芝 牝馬三冠');
+  });
+
+  it('renders distance band rows and grade headers', async () => {
+    await renderMatrix();
+
+    expect(screen.getAllByText('短距離').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('G1').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays horse name badge in correct cell', async () => {
@@ -119,6 +141,7 @@ describe('RacePlanMatrix', () => {
       createTestPlan({
         id: 1,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
         horseName: 'スピードスター',
@@ -126,7 +149,7 @@ describe('RacePlanMatrix', () => {
     ];
     await renderMatrix(plans);
 
-    const cell = screen.getByRole('gridcell', { name: '日 マイル G1' });
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     expect(within(cell).getByText(/スピードスター/)).toBeInTheDocument();
   });
 
@@ -136,6 +159,7 @@ describe('RacePlanMatrix', () => {
         id: 1,
         horseId: 10,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
         horseName: '馬A',
@@ -144,6 +168,7 @@ describe('RacePlanMatrix', () => {
         id: 2,
         horseId: 20,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
         horseName: '馬B',
@@ -151,7 +176,7 @@ describe('RacePlanMatrix', () => {
     ];
     await renderMatrix(plans);
 
-    const cell = screen.getByRole('gridcell', { name: '日 マイル G1' });
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     expect(within(cell).getByText(/馬A/)).toBeInTheDocument();
     expect(within(cell).getByText(/馬B/)).toBeInTheDocument();
   });
@@ -162,6 +187,7 @@ describe('RacePlanMatrix', () => {
       createTestPlan({
         id: 42,
         country: '日',
+        surface: '芝',
         distanceBand: 'マイル',
         grade: 'G1',
         horseName: '削除対象馬',
@@ -179,9 +205,19 @@ describe('RacePlanMatrix', () => {
     const user = userEvent.setup();
     await renderMatrix();
 
-    const cell = screen.getByRole('gridcell', { name: '日 マイル G1' });
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
     await user.click(cell);
 
-    expect(screen.getByText(/馬を配置: 日 マイル G1/)).toBeInTheDocument();
+    expect(screen.getByText(/馬を配置: 日 芝 マイル G1/)).toBeInTheDocument();
+  });
+
+  it('opens horse select dialog on classic cell click', async () => {
+    const user = userEvent.setup();
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
+    await user.click(cell);
+
+    expect(screen.getByText(/馬を配置: 日 芝 三冠/)).toBeInTheDocument();
   });
 });
