@@ -4,7 +4,14 @@ import { useRepositoryContext } from '@/app/repository-context';
 import { useRacePlanStore } from '../store';
 import { RacePlanMatrix } from '../components/RacePlanMatrix';
 import { OverlapWarning } from '../components/OverlapWarning';
-import type { Country, Surface, DistanceBand, Grade, ClassicPath } from '../types';
+import type {
+  Country,
+  Surface,
+  DistanceBand,
+  Grade,
+  ClassicPath,
+  RacePlanUpdateInput,
+} from '../types';
 import {
   Select,
   SelectContent,
@@ -55,7 +62,7 @@ export function RacePlanPage() {
     });
   };
 
-  const handleUpdate = async (id: number, data: { notes: string }) => {
+  const handleUpdate = async (id: number, data: RacePlanUpdateInput) => {
     await useRacePlanStore.getState().updatePlan(racePlanRepository, id, data);
   };
 
@@ -108,7 +115,8 @@ export function RacePlanPage() {
 
       <div className="mb-4 rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">操作方法: </span>
-        セルをクリックで馬を追加 / 馬名をクリックでメモ編集 / 馬名をダブルクリックで削除
+        セルをクリックで馬を追加 / 馬名をドラッグで移動 / 馬名をクリックでメモ編集 /
+        馬名をダブルクリックで削除
       </div>
 
       {duplicates.length > 0 && <OverlapWarning duplicates={duplicates} />}
