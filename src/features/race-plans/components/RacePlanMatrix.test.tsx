@@ -82,6 +82,7 @@ describe('RacePlanMatrix', () => {
       <RacePlanMatrix
         plans={plans}
         horseRepository={mockHorseRepo}
+        year={2026}
         onAdd={mockOnAdd}
         onDelete={mockOnDelete}
       />,

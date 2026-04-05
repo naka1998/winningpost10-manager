@@ -21,6 +21,7 @@ import { HorseSelectDialog } from './HorseSelectDialog';
 interface RacePlanMatrixProps {
   plans: RacePlanWithHorseName[];
   horseRepository: HorseRepository;
+  year: number;
   onAdd: (data: {
     horseId: number;
     country: string;
@@ -28,6 +29,7 @@ interface RacePlanMatrixProps {
     distanceBand?: string | null;
     classicPath?: string | null;
     grade?: string | null;
+    notes?: string;
   }) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }
@@ -66,13 +68,18 @@ function getPlansForClassic(
     (p) =>
       p.country === country &&
       p.surface === surface &&
-      p.distanceBand === null &&
-      p.grade === null &&
-      p.notes === classicPath,
+      p.distanceBand === classicPath &&
+      p.grade === null,
   );
 }
 
-export function RacePlanMatrix({ plans, horseRepository, onAdd, onDelete }: RacePlanMatrixProps) {
+export function RacePlanMatrix({
+  plans,
+  horseRepository,
+  year,
+  onAdd,
+  onDelete,
+}: RacePlanMatrixProps) {
   const [selectTarget, setSelectTarget] = useState<CellTarget | null>(null);
   const [activeSurface, setActiveSurface] = useState<Surface>('芝');
 
@@ -80,7 +87,7 @@ export function RacePlanMatrix({ plans, horseRepository, onAdd, onDelete }: Race
     setSelectTarget(target);
   };
 
-  const handleHorseSelect = async (horseId: number) => {
+  const handleHorseSelect = async (horseId: number, notes?: string) => {
     if (!selectTarget) return;
     await onAdd({
       horseId,
@@ -89,6 +96,7 @@ export function RacePlanMatrix({ plans, horseRepository, onAdd, onDelete }: Race
       distanceBand: selectTarget.distanceBand,
       classicPath: selectTarget.classicPath,
       grade: selectTarget.grade,
+      notes,
     });
     setSelectTarget(null);
   };
@@ -170,7 +178,11 @@ export function RacePlanMatrix({ plans, horseRepository, onAdd, onDelete }: Race
                                 onDelete(plan.id);
                               }}
                             >
-                              {plan.horseName} ✕
+                              {plan.horseName}
+                              {plan.notes && (
+                                <span className="ml-1 text-xs opacity-70">({plan.notes})</span>
+                              )}{' '}
+                              ✕
                             </Badge>
                           ))}
                           {cellPlans.length === 0 && (
@@ -260,6 +272,8 @@ export function RacePlanMatrix({ plans, horseRepository, onAdd, onDelete }: Race
         horseRepository={horseRepository}
         onSelect={handleHorseSelect}
         cellLabel={cellLabel}
+        classicPath={selectTarget?.classicPath}
+        year={year}
       />
     </div>
   );

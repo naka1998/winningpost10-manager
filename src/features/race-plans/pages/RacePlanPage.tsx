@@ -40,6 +40,7 @@ export function RacePlanPage() {
     distanceBand?: string | null;
     classicPath?: string | null;
     grade?: string | null;
+    notes?: string;
   }) => {
     await useRacePlanStore.getState().createPlan(racePlanRepository, {
       horseId: data.horseId,
@@ -49,6 +50,7 @@ export function RacePlanPage() {
       distanceBand: (data.distanceBand as DistanceBand) ?? undefined,
       classicPath: (data.classicPath as ClassicPath) ?? undefined,
       grade: (data.grade as Grade) ?? undefined,
+      notes: data.notes,
     });
   };
 
@@ -104,6 +106,7 @@ export function RacePlanPage() {
       <RacePlanMatrix
         plans={plans}
         horseRepository={horseRepository}
+        year={year}
         onAdd={handleCreate}
         onDelete={handleDelete}
       />

@@ -76,7 +76,7 @@ describe('RacePlanRepository', () => {
       expect(plan.country).toBe('米');
     });
 
-    it('creates a classic path plan without grade', async () => {
+    it('creates a classic path plan with classicPath in distanceBand', async () => {
       const plan = await repo.create({
         horseId: horseId1,
         year: 2026,
@@ -85,9 +85,24 @@ describe('RacePlanRepository', () => {
         classicPath: '三冠',
       });
 
-      expect(plan.distanceBand).toBeNull();
+      expect(plan.distanceBand).toBe('三冠');
       expect(plan.grade).toBeNull();
-      expect(plan.notes).toContain('三冠');
+      expect(plan.notes).toBeNull();
+    });
+
+    it('creates a classic path plan with user notes', async () => {
+      const plan = await repo.create({
+        horseId: horseId1,
+        year: 2026,
+        country: '欧',
+        surface: '芝',
+        classicPath: 'その他三冠',
+        notes: 'フランス三冠',
+      });
+
+      expect(plan.distanceBand).toBe('その他三冠');
+      expect(plan.grade).toBeNull();
+      expect(plan.notes).toBe('フランス三冠');
     });
 
     it('findById returns plan with horse name', async () => {

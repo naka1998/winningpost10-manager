@@ -36,16 +36,15 @@ function racePlanToColumns(
     columns.year = (data as RacePlanCreateInput).year;
   if (data.country !== undefined) columns.country = data.country;
   if (data.surface !== undefined) columns.surface = data.surface;
-  if (data.distanceBand !== undefined) columns.distance_band = data.distanceBand;
-  if (data.grade !== undefined) columns.grade = data.grade;
   if (data.notes !== undefined) columns.notes = data.notes;
-  // classicPath is stored in notes for now (distance_band and grade are null for classics)
+  // classicPath: stored in distance_band, grade is null
   if ('classicPath' in data && data.classicPath) {
-    columns.notes = data.classicPath;
-    // classics don't use distance_band/grade
-    if (!('distanceBand' in data)) columns.distance_band = null;
+    columns.distance_band = data.classicPath;
     if (!('grade' in data)) columns.grade = null;
+  } else if (data.distanceBand !== undefined) {
+    columns.distance_band = data.distanceBand;
   }
+  if (data.grade !== undefined) columns.grade = data.grade;
   return columns;
 }
 
