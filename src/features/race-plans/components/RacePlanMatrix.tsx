@@ -214,18 +214,23 @@ export function SearchableHorseSelect({
         onChange={(e) => setQuery(e.target.value)}
         className="h-7 w-full rounded border border-input bg-transparent px-2 text-xs shadow-sm focus:ring-1 focus:ring-ring focus:outline-none"
       />
-      <div role="listbox" className="mt-1 max-h-48 overflow-y-auto rounded border">
+      <div
+        role="listbox"
+        className="relative z-50 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      >
         {filtered.map((horse) => (
           <button
             key={horse.id}
             role="option"
             onClick={() => onSelect(horse.id)}
-            className="w-full cursor-pointer px-2 py-1 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+            className="relative flex w-full cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground"
           >
             {horse.name}
           </button>
         ))}
-        {filtered.length === 0 && <div className="p-2 text-xs text-muted-foreground">該当なし</div>}
+        {filtered.length === 0 && (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">該当なし</div>
+        )}
       </div>
     </div>
   );
