@@ -35,12 +35,13 @@ function createTestPlan(overrides: Partial<RacePlanWithHorseName> = {}): RacePla
 
 const mockOnAdd = vi.fn();
 const mockOnDelete = vi.fn();
-const mockHorseFindAll = vi.fn().mockResolvedValue([
-  {
-    id: 10,
-    name: 'テスト馬',
-    sex: '牡',
-    birthYear: 2022,
+
+function makeHorse(id: number, name: string, sex: '牡' | '牝', birthYear: number) {
+  return {
+    id,
+    name,
+    sex,
+    birthYear,
     status: '現役',
     country: '日',
     isHistorical: false,
@@ -52,8 +53,10 @@ const mockHorseFindAll = vi.fn().mockResolvedValue([
     notes: null,
     createdAt: '2026-01-01',
     updatedAt: '2026-01-01',
-  },
-]);
+  };
+}
+
+const mockHorseFindAll = vi.fn().mockResolvedValue([makeHorse(10, 'テスト馬', '牡', 2022)]);
 
 const mockHorseRepo = {
   findById: vi.fn(),
@@ -237,5 +240,31 @@ describe('RacePlanMatrix', () => {
     // (onAdd mock resolves immediately)
     // The select resets via key change, so placeholder should reappear
     expect(within(cell).getByRole('combobox')).toBeInTheDocument();
+  });
+
+  it('sorts horses: age desc, male first, then name asc', async () => {
+    const user = userEvent.setup();
+    // 5歳牝馬C, 5歳牡馬A, 5歳牡馬B, 4歳牡馬D → 5歳牡馬A, 5歳牡馬B, 5歳牝馬C, 4歳牡馬D
+    mockHorseFindAll.mockResolvedValueOnce([
+      makeHorse(1, 'D', '牡', 2022), // 4歳 (2026-2022=4)
+      makeHorse(2, 'C', '牝', 2021), // 5歳
+      makeHorse(3, 'B', '牡', 2021), // 5歳
+      makeHorse(4, 'A', '牡', 2021), // 5歳
+    ]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+
+    // Wait for horses to load
+    await screen.findByText('馬を選択...');
+
+    // Open the select to see options
+    await user.click(within(cell).getByRole('combobox'));
+
+    const options = screen.getAllByRole('option');
+    const names = options.map((o) => o.textContent);
+    expect(names).toEqual(['A', 'B', 'C', 'D']);
   });
 });

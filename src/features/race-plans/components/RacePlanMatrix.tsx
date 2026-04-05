@@ -141,20 +141,35 @@ export function RacePlanMatrix({
   useEffect(() => {
     if (!activeCellTarget) return;
     horseRepository.findAll({ status: '現役' }).then((allHorses) => {
+      const sortHorses = (horses: Horse[]) =>
+        [...horses].sort((a, b) => {
+          // 1. 馬齢降順（birthYear昇順 = 年上が先）
+          const aBirth = a.birthYear ?? 0;
+          const bBirth = b.birthYear ?? 0;
+          if (aBirth !== bBirth) return aBirth - bBirth;
+          // 2. 牡馬が先、牝馬が後
+          const sexOrder = (sex: string | null) => (sex === '牡' ? 0 : 1);
+          if (a.sex !== b.sex) return sexOrder(a.sex) - sexOrder(b.sex);
+          // 3. 馬名あいうえお順
+          return a.name.localeCompare(b.name, 'ja');
+        });
+
       if (activeCellTarget.classicPath) {
         const targetBirthYear = year - 3;
         const isFillyOnly = FILLY_ONLY_CLASSICS.includes(
           activeCellTarget.classicPath as ClassicPath,
         );
         setFilteredHorses(
-          allHorses.filter((h) => {
-            if (h.birthYear !== targetBirthYear) return false;
-            if (isFillyOnly && h.sex !== '牝') return false;
-            return true;
-          }),
+          sortHorses(
+            allHorses.filter((h) => {
+              if (h.birthYear !== targetBirthYear) return false;
+              if (isFillyOnly && h.sex !== '牝') return false;
+              return true;
+            }),
+          ),
         );
       } else {
-        setFilteredHorses(allHorses);
+        setFilteredHorses(sortHorses(allHorses));
       }
     });
   }, [activeCellTarget, horseRepository, year]);
@@ -193,7 +208,7 @@ export function RacePlanMatrix({
     const isActive = activeCell === key;
     return (
       <>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-col gap-1">
           {cellPlans.map((plan) => (
             <Badge
               key={plan.id}
