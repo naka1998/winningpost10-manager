@@ -552,6 +552,48 @@ describe('RacePlanMatrix', () => {
     expect(screen.queryByRole('option')).toBeNull();
   });
 
+  it('filters horse list by hiragana query (hiragana→katakana normalization)', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([
+      makeHorse(1, 'ドゥラメンテ', '牡', 2022),
+      makeHorse(2, 'アイフォン', '牡', 2022),
+    ]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+    await screen.findByRole('option', { name: 'ドゥラメンテ' });
+
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    await user.type(input, 'どぅら');
+
+    expect(screen.getByRole('option', { name: 'ドゥラメンテ' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'アイフォン' })).toBeNull();
+  });
+
+  it('filters horse list by romaji query (romaji→katakana normalization)', async () => {
+    const user = userEvent.setup();
+    mockHorseFindAll.mockResolvedValueOnce([
+      makeHorse(1, 'ドゥラメンテ', '牡', 2022),
+      makeHorse(2, 'アイフォン', '牡', 2022),
+    ]);
+    mockYearlyStatusFindLatestByYear.mockResolvedValueOnce([]);
+
+    await renderMatrix();
+
+    const cell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    await user.click(cell);
+    await screen.findByRole('option', { name: 'アイフォン' });
+
+    const input = within(cell).getByPlaceholderText('馬名で検索...');
+    await user.type(input, 'ai');
+
+    expect(screen.getByRole('option', { name: 'アイフォン' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'ドゥラメンテ' })).toBeNull();
+  });
+
   it('applies correct badge color for 3歳牡馬 (dark blue)', async () => {
     const plans = [
       createTestPlan({

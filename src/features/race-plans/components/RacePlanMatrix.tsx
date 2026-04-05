@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { toKatakana } from 'wanakana';
 import type { HorseRepository } from '@/features/horses/repository';
 import type { YearlyStatusRepository } from '@/features/horses/yearly-status-repository';
 import type { Horse, YearlyStatus } from '@/features/horses/types';
@@ -195,7 +196,13 @@ export function SearchableHorseSelect({
     inputRef.current?.focus();
   }, []);
 
-  const filtered = query ? horses.filter((h) => h.name.includes(query)) : horses;
+  const filtered = query
+    ? horses.filter((h) => {
+        const normalizedName = toKatakana(h.name.toLowerCase());
+        const normalizedQuery = toKatakana(query.toLowerCase());
+        return normalizedName.includes(normalizedQuery);
+      })
+    : horses;
 
   return (
     <div className="mt-1 w-36" onClick={(e) => e.stopPropagation()}>
