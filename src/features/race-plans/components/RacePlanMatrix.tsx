@@ -4,6 +4,7 @@ import type { YearlyStatusRepository } from '@/features/horses/yearly-status-rep
 import type { Horse, YearlyStatus } from '@/features/horses/types';
 import type {
   RacePlanWithHorseName,
+  RacePlanUpdateInput,
   Country,
   Surface,
   DistanceBand,
@@ -18,6 +19,7 @@ import {
   COUNTRY_SURFACE_CLASSIC_PATHS,
 } from '../types';
 import { hasSurfaceAptitude, hasDistanceAptitude } from '../aptitude-filter';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -28,6 +30,38 @@ import {
 } from '@/components/ui/select';
 
 const FILLY_ONLY_CLASSICS: ClassicPath[] = ['牝馬三冠', 'トリプルティアラ'];
+
+interface DraggingPlan {
+  planId: number;
+  horseSex: string | null;
+  horseBirthYear: number | null;
+  sourceCellKey: string;
+}
+
+function isDropAllowed(
+  target: CellTarget,
+  horseSex: string | null,
+  horseBirthYear: number | null,
+  year: number,
+): boolean {
+  if (target.classicPath) {
+    if (horseBirthYear !== year - 3) return false;
+    if (FILLY_ONLY_CLASSICS.includes(target.classicPath) && horseSex !== '牝') return false;
+  }
+  return true;
+}
+
+function cellTargetToUpdateInput(target: CellTarget, surface: Surface): RacePlanUpdateInput {
+  if (target.classicPath) {
+    return { country: target.country, surface, classicPath: target.classicPath };
+  }
+  return {
+    country: target.country,
+    surface,
+    distanceBand: target.distanceBand ?? undefined,
+    grade: target.grade ?? undefined,
+  };
+}
 
 function getBadgeClassName(
   horseSex: string | null,
@@ -60,7 +94,7 @@ interface RacePlanMatrixProps {
     notes?: string;
   }) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
-  onUpdate: (id: number, data: { notes: string }) => Promise<void>;
+  onUpdate: (id: number, data: RacePlanUpdateInput) => Promise<void>;
 }
 
 interface CellTarget {
@@ -197,6 +231,8 @@ export function RacePlanMatrix({
   const [activeSurface, setActiveSurface] = useState<Surface>('芝');
   const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
   const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const [draggingPlan, setDraggingPlan] = useState<DraggingPlan | null>(null);
+  const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -278,6 +314,47 @@ export function RacePlanMatrix({
     });
   };
 
+  const handleDragStart = (e: React.DragEvent, plan: RacePlanWithHorseName, target: CellTarget) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/json', JSON.stringify({ planId: plan.id }));
+    setDraggingPlan({
+      planId: plan.id,
+      horseSex: plan.horseSex,
+      horseBirthYear: plan.horseBirthYear,
+      sourceCellKey: cellKey(target),
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDraggingPlan(null);
+    setDragOverCellKey(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, target: CellTarget) => {
+    if (!draggingPlan) return;
+    if (!isDropAllowed(target, draggingPlan.horseSex, draggingPlan.horseBirthYear, year)) return;
+    e.preventDefault();
+    setDragOverCellKey(cellKey(target));
+  };
+
+  const handleDragLeave = (e: React.DragEvent, target: CellTarget) => {
+    // Ignore leave events when moving to a child element within the same cell
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (dragOverCellKey === cellKey(target)) {
+      setDragOverCellKey(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, target: CellTarget) => {
+    e.preventDefault();
+    setDragOverCellKey(null);
+    if (!draggingPlan) return;
+    // Skip if dropped on the same cell
+    if (draggingPlan.sourceCellKey === cellKey(target)) return;
+    onUpdate(draggingPlan.planId, cellTargetToUpdateInput(target, activeSurface));
+    setDraggingPlan(null);
+  };
+
   const handleMemoSubmit = (planId: number, notes: string) => {
     setEditingPlanId(null);
     onUpdate(planId, { notes });
@@ -300,7 +377,13 @@ export function RacePlanMatrix({
             ) : (
               <Badge
                 key={plan.id}
-                className={getBadgeClassName(plan.horseSex, plan.horseBirthYear, year)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, plan, target)}
+                onDragEnd={handleDragEnd}
+                className={cn(
+                  getBadgeClassName(plan.horseSex, plan.horseBirthYear, year),
+                  draggingPlan?.planId === plan.id && 'opacity-50',
+                )}
                 title={plan.notes ?? undefined}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -388,8 +471,14 @@ export function RacePlanMatrix({
                     return (
                       <div
                         key={classicPath}
-                        className="min-w-32 cursor-pointer rounded-md border p-2 hover:bg-muted/50"
+                        className={cn(
+                          'min-w-32 cursor-pointer rounded-md border p-2 hover:bg-muted/50',
+                          dragOverCellKey === cellKey(target) && 'bg-accent/30 ring-2 ring-accent',
+                        )}
                         onClick={() => handleCellClick(target)}
+                        onDragOver={(e) => handleDragOver(e, target)}
+                        onDragLeave={(e) => handleDragLeave(e, target)}
+                        onDrop={(e) => handleDrop(e, target)}
                         role="gridcell"
                         aria-label={`${country} ${activeSurface} ${classicPath}`}
                       >
@@ -436,8 +525,15 @@ export function RacePlanMatrix({
                         return (
                           <td
                             key={grade}
-                            className="min-w-32 cursor-pointer border p-2 align-top hover:bg-muted/50"
+                            className={cn(
+                              'min-w-32 cursor-pointer border p-2 align-top hover:bg-muted/50',
+                              dragOverCellKey === cellKey(target) &&
+                                'bg-accent/30 ring-2 ring-accent',
+                            )}
                             onClick={() => handleCellClick(target)}
+                            onDragOver={(e) => handleDragOver(e, target)}
+                            onDragLeave={(e) => handleDragLeave(e, target)}
+                            onDrop={(e) => handleDrop(e, target)}
                             role="gridcell"
                             aria-label={`${country} ${activeSurface} ${distanceBand} ${grade}`}
                           >

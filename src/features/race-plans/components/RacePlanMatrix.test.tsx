@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RacePlanWithHorseName } from '../types';
@@ -584,5 +584,226 @@ describe('RacePlanMatrix', () => {
     const options = await screen.findAllByRole('option');
     const names = options.map((o) => o.textContent);
     expect(names).toEqual(['A', 'B', 'C', 'D']);
+  });
+});
+
+describe('drag and drop', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  function createMockDataTransfer(data: Record<string, string> = {}) {
+    const store = new Map(Object.entries(data));
+    return {
+      setData: vi.fn((key: string, val: string) => store.set(key, val)),
+      getData: vi.fn((key: string) => store.get(key) ?? ''),
+      get types() {
+        return [...store.keys()];
+      },
+      effectAllowed: 'move' as string,
+      dropEffect: 'none' as string,
+    };
+  }
+
+  async function renderMatrix(plans: RacePlanWithHorseName[] = []) {
+    const { RacePlanMatrix } = await import('./RacePlanMatrix');
+    render(
+      <RacePlanMatrix
+        plans={plans}
+        horseRepository={mockHorseRepo}
+        yearlyStatusRepository={mockYearlyStatusRepo}
+        year={2026}
+        onAdd={mockOnAdd}
+        onDelete={mockOnDelete}
+        onUpdate={mockOnUpdate}
+      />,
+    );
+  }
+
+  it('badge has draggable attribute', async () => {
+    const plans = [createTestPlan({ id: 1, horseName: 'ドラッグ馬' })];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/ドラッグ馬/);
+    expect(badge.closest('[draggable]')).not.toBeNull();
+  });
+
+  it('badge gets opacity class while dragging', async () => {
+    const plans = [createTestPlan({ id: 1, horseName: 'ドラッグ馬' })];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/ドラッグ馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    expect(badge.className).toMatch(/opacity-50/);
+
+    fireEvent.dragEnd(badge);
+    expect(badge.className).not.toMatch(/opacity-50/);
+  });
+
+  it('valid drop target highlights on dragOver', async () => {
+    const plans = [createTestPlan({ id: 1, country: '日', distanceBand: 'マイル', grade: 'G1' })];
+    await renderMatrix(plans);
+
+    // Start drag
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    // Drag over a different cell
+    const targetCell = screen.getByRole('gridcell', { name: '日 芝 中距離 G2' });
+    fireEvent.dragOver(targetCell, { dataTransfer: dt });
+
+    expect(targetCell.className).toMatch(/ring-2/);
+  });
+
+  it('dragLeave removes highlight', async () => {
+    const plans = [createTestPlan({ id: 1, country: '日', distanceBand: 'マイル', grade: 'G1' })];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    const targetCell = screen.getByRole('gridcell', { name: '日 芝 中距離 G2' });
+    fireEvent.dragOver(targetCell, { dataTransfer: dt });
+    expect(targetCell.className).toMatch(/ring-2/);
+
+    fireEvent.dragLeave(targetCell, { relatedTarget: document.body });
+    expect(targetCell.className).not.toMatch(/ring-2/);
+  });
+
+  it('drop calls onUpdate with correct target (same country)', async () => {
+    const plans = [createTestPlan({ id: 42, country: '日', distanceBand: 'マイル', grade: 'G1' })];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    const targetCell = screen.getByRole('gridcell', { name: '日 芝 中距離 G2' });
+    fireEvent.dragOver(targetCell, { dataTransfer: dt });
+    fireEvent.drop(targetCell, { dataTransfer: dt });
+
+    expect(mockOnUpdate).toHaveBeenCalledTimes(1);
+    expect(mockOnUpdate).toHaveBeenCalledWith(42, {
+      country: '日',
+      surface: '芝',
+      distanceBand: '中距離',
+      grade: 'G2',
+    });
+  });
+
+  it('drop calls onUpdate with correct country (cross-country)', async () => {
+    const plans = [createTestPlan({ id: 42, country: '日', distanceBand: 'マイル', grade: 'G1' })];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    const targetCell = screen.getByRole('gridcell', { name: '米 芝 マイル G1' });
+    fireEvent.dragOver(targetCell, { dataTransfer: dt });
+    fireEvent.drop(targetCell, { dataTransfer: dt });
+
+    expect(mockOnUpdate).toHaveBeenCalledWith(42, {
+      country: '米',
+      surface: '芝',
+      distanceBand: 'マイル',
+      grade: 'G1',
+    });
+  });
+
+  it('drop onto classic path cell sets classicPath', async () => {
+    // 3歳牡馬 → 三冠路線にドロップ可能
+    const plans = [
+      createTestPlan({
+        id: 42,
+        country: '日',
+        distanceBand: 'マイル',
+        grade: 'G1',
+        horseSex: '牡',
+        horseBirthYear: 2023, // 3歳 in 2026
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    const classicCell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
+    fireEvent.dragOver(classicCell, { dataTransfer: dt });
+    fireEvent.drop(classicCell, { dataTransfer: dt });
+
+    expect(mockOnUpdate).toHaveBeenCalledWith(42, {
+      country: '日',
+      surface: '芝',
+      classicPath: '三冠',
+    });
+  });
+
+  it('rejects drop for non-3-year-old on classic path cell', async () => {
+    // 4歳馬 → クラシック路線にドロップ不可
+    const plans = [
+      createTestPlan({
+        id: 42,
+        horseSex: '牡',
+        horseBirthYear: 2022, // 4歳 in 2026
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    const classicCell = screen.getByRole('gridcell', { name: '日 芝 三冠' });
+    fireEvent.dragOver(classicCell, { dataTransfer: dt });
+
+    // ハイライトされない
+    expect(classicCell.className).not.toMatch(/ring-2/);
+  });
+
+  it('rejects drop for male horse on filly-only classic path', async () => {
+    // 3歳牡馬 → 牝馬三冠にドロップ不可
+    const plans = [
+      createTestPlan({
+        id: 42,
+        horseSex: '牡',
+        horseBirthYear: 2023, // 3歳 in 2026
+      }),
+    ];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    const classicCell = screen.getByRole('gridcell', { name: '日 芝 牝馬三冠' });
+    fireEvent.dragOver(classicCell, { dataTransfer: dt });
+
+    expect(classicCell.className).not.toMatch(/ring-2/);
+  });
+
+  it('skips update when dropped on same cell', async () => {
+    const plans = [createTestPlan({ id: 42, country: '日', distanceBand: 'マイル', grade: 'G1' })];
+    await renderMatrix(plans);
+
+    const badge = screen.getByText(/テスト馬/).closest('[draggable]')!;
+    const dt = createMockDataTransfer();
+    fireEvent.dragStart(badge, { dataTransfer: dt });
+
+    // Drop on the same cell
+    const sameCell = screen.getByRole('gridcell', { name: '日 芝 マイル G1' });
+    fireEvent.dragOver(sameCell, { dataTransfer: dt });
+    fireEvent.drop(sameCell, { dataTransfer: dt });
+
+    expect(mockOnUpdate).not.toHaveBeenCalled();
   });
 });
