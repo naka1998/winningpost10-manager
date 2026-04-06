@@ -10,6 +10,7 @@ import { createHorseService } from '@/features/horses/service';
 import { createLineageService } from '@/features/lineages/service';
 import { createSettingsService } from '@/features/settings/service';
 import { createBreedingRecordService } from '@/features/breeding-records/service';
+import { createRacePlanRepository } from '@/features/race-plans/repository';
 import type { RepositoryContextValue } from './repository-context';
 import type { ServiceContextValue } from './service-context';
 
@@ -27,6 +28,7 @@ export function createRepositories(db: DatabaseConnection): RepositoryContextVal
     settingsRepository: createSettingsRepository(db),
     breedingRecordRepository: createBreedingRecordRepository(db),
     broodmareRepository: createBroodmareRepository(db),
+    racePlanRepository: createRacePlanRepository(db),
   };
 }
 

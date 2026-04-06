@@ -36,7 +36,7 @@ describe('migrations', () => {
     );
     const indexNames = indexes.map((i) => i.name);
 
-    expect(indexNames).toHaveLength(14);
+    expect(indexNames).toHaveLength(15);
     expect(indexNames).toContain('idx_horses_name');
     expect(indexNames).toContain('idx_horses_status');
     expect(indexNames).toContain('idx_horses_lineage');
@@ -53,13 +53,13 @@ describe('migrations', () => {
     expect(indexNames).toContain('idx_race_plans_year');
   });
 
-  it('sets db_version to 2', async () => {
+  it('sets db_version to 3', async () => {
     await runMigrations(db);
 
     const row = await db.get<{ value: string }>(
       "SELECT value FROM game_settings WHERE key = 'db_version'",
     );
-    expect(row?.value).toBe('2');
+    expect(row?.value).toBe('3');
   });
 
   it('inserts initial game settings', async () => {
@@ -396,6 +396,6 @@ describe('migrations', () => {
     const version = await db.get<{ value: string }>(
       "SELECT value FROM game_settings WHERE key = 'db_version'",
     );
-    expect(version?.value).toBe('2');
+    expect(version?.value).toBe('3');
   });
 });
