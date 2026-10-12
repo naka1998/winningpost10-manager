@@ -67,15 +67,22 @@ const mockRepoContext = {
     getDamLineDistribution: mockGetDamLineDistribution,
     getStallionDistribution: mockGetStallionDistribution,
   },
-  horseRepository: {},
-  yearlyStatusRepository: {},
-  lineageRepository: {},
-  settingsRepository: { getAll: vi.fn(), get: vi.fn(), set: vi.fn() },
-  breedingRecordRepository: {},
+};
+
+const mockSettingsService = {
+  getAll: vi.fn(),
+  updateCurrentYear: vi.fn(),
+  updatePedigreeDepth: vi.fn(),
 };
 
 vi.mock('@/app/repository-context', () => ({
   useRepositoryContext: () => mockRepoContext,
+}));
+
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => ({
+    settingsService: mockSettingsService,
+  }),
 }));
 
 // Mock recharts to avoid rendering issues in jsdom
@@ -139,6 +146,12 @@ describe('BroodmareListPage', () => {
       isLoading: false,
       error: null,
       filter: {},
+    });
+    mockSettingsService.getAll.mockResolvedValue({
+      currentYear: 2026,
+      pedigreeDepth: 4,
+      rankSystem: [],
+      dbVersion: 1,
     });
     useSettingsStore.setState({
       settings: { currentYear: 2026, pedigreeDepth: 4, rankSystem: [], dbVersion: 1 },

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BreedingRecordRepository } from './repository';
+import type { BreedingRecordService } from './service';
 import type {
   BreedingRecordCreateInput,
   BreedingRecordFilter,
@@ -13,14 +13,14 @@ export interface BreedingRecordState {
   error: string | null;
   filter: BreedingRecordFilter;
 
-  loadRecords: (repo: BreedingRecordRepository) => Promise<void>;
-  createRecord: (repo: BreedingRecordRepository, data: BreedingRecordCreateInput) => Promise<void>;
+  loadRecords: (service: BreedingRecordService) => Promise<void>;
+  createRecord: (service: BreedingRecordService, data: BreedingRecordCreateInput) => Promise<void>;
   updateRecord: (
-    repo: BreedingRecordRepository,
+    service: BreedingRecordService,
     id: number,
     data: BreedingRecordUpdateInput,
   ) => Promise<void>;
-  deleteRecord: (repo: BreedingRecordRepository, id: number) => Promise<void>;
+  deleteRecord: (service: BreedingRecordService, id: number) => Promise<void>;
   setFilter: (filter: Partial<BreedingRecordFilter>) => void;
 }
 
@@ -30,10 +30,10 @@ export const useBreedingRecordStore = create<BreedingRecordState>((set, get) => 
   error: null,
   filter: {},
 
-  async loadRecords(repo: BreedingRecordRepository) {
+  async loadRecords(service: BreedingRecordService) {
     set({ isLoading: true, error: null });
     try {
-      const records = await repo.findAll(get().filter);
+      const records = await service.findAll(get().filter);
       set({ records, isLoading: false });
     } catch (err) {
       set({
@@ -43,19 +43,19 @@ export const useBreedingRecordStore = create<BreedingRecordState>((set, get) => 
     }
   },
 
-  async createRecord(repo: BreedingRecordRepository, data: BreedingRecordCreateInput) {
-    await repo.create(data);
-    await get().loadRecords(repo);
+  async createRecord(service: BreedingRecordService, data: BreedingRecordCreateInput) {
+    await service.create(data);
+    await get().loadRecords(service);
   },
 
-  async updateRecord(repo: BreedingRecordRepository, id: number, data: BreedingRecordUpdateInput) {
-    await repo.update(id, data);
-    await get().loadRecords(repo);
+  async updateRecord(service: BreedingRecordService, id: number, data: BreedingRecordUpdateInput) {
+    await service.update(id, data);
+    await get().loadRecords(service);
   },
 
-  async deleteRecord(repo: BreedingRecordRepository, id: number) {
-    await repo.delete(id);
-    await get().loadRecords(repo);
+  async deleteRecord(service: BreedingRecordService, id: number) {
+    await service.delete(id);
+    await get().loadRecords(service);
   },
 
   setFilter(filter: Partial<BreedingRecordFilter>) {

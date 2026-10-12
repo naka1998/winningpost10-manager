@@ -54,43 +54,34 @@ function createTestHierarchy(): LineageNode[] {
   ];
 }
 
-const mockHorseRepo = {
-  findById: vi.fn(),
-  findByName: vi.fn(),
-  findByNameAndBirthYear: vi.fn(),
-  findAncestorByName: vi.fn(),
+const mockHorseService = {
   findAll: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
-  getAncestorRows: vi.fn(),
 };
 
-const mockLineageRepo = {
-  findById: vi.fn(),
-  findByName: vi.fn(),
-  findAll: vi.fn(),
-  getChildren: vi.fn(),
+const mockLineageService = {
   getHierarchy: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
 };
 
-vi.mock('@/app/repository-context', () => ({
-  useRepositoryContext: () => ({
-    horseRepository: mockHorseRepo,
-    lineageRepository: mockLineageRepo,
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => ({
+    horseService: mockHorseService,
+    lineageService: mockLineageService,
   }),
 }));
 
 describe('useHorseListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockHorseRepo.findAll.mockResolvedValue([]);
-    mockHorseRepo.create.mockResolvedValue(createTestHorse({ id: 100 }));
-    mockHorseRepo.update.mockResolvedValue(createTestHorse({ id: 1 }));
-    mockHorseRepo.delete.mockResolvedValue(undefined);
-    mockLineageRepo.getHierarchy.mockResolvedValue(createTestHierarchy());
+    mockHorseService.findAll.mockResolvedValue([]);
+    mockHorseService.create.mockResolvedValue(createTestHorse({ id: 100 }));
+    mockHorseService.update.mockResolvedValue(createTestHorse({ id: 1 }));
+    mockHorseService.delete.mockResolvedValue(undefined);
+    mockLineageService.getHierarchy.mockResolvedValue(createTestHierarchy());
     useHorseStore.setState({
       horses: [],
       isLoading: false,
@@ -162,7 +153,7 @@ describe('useHorseListPage', () => {
     await act(async () => {
       await result.current.handleSubmit({ name: '新しい馬', sex: '牡', birthYear: 2023 });
     });
-    expect(mockHorseRepo.create).toHaveBeenCalledWith(
+    expect(mockHorseService.create).toHaveBeenCalledWith(
       expect.objectContaining({ name: '新しい馬' }),
     );
   });
@@ -172,7 +163,7 @@ describe('useHorseListPage', () => {
     await act(async () => {
       await result.current.handleSubmit({ id: 1, name: '更新馬名' });
     });
-    expect(mockHorseRepo.update).toHaveBeenCalledWith(
+    expect(mockHorseService.update).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ name: '更新馬名' }),
     );
@@ -189,7 +180,7 @@ describe('useHorseListPage', () => {
     await act(async () => {
       await result.current.handleDelete();
     });
-    expect(mockHorseRepo.delete).toHaveBeenCalledWith(3);
+    expect(mockHorseService.delete).toHaveBeenCalledWith(3);
     expect(result.current.deleteTarget).toBeNull();
   });
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRepositoryContext } from '@/app/repository-context';
+import { useServiceContext } from '@/app/service-context';
 import { useHorseStore } from '../store';
 import { useLineageStore } from '@/features/lineages/store';
 import { TAB_DEFINITIONS } from '../constants';
@@ -7,7 +7,7 @@ import type { Horse, HorseCreateInput, HorseUpdateInput } from '../types';
 import type { Lineage } from '@/features/lineages/types';
 
 export function useHorseListPage() {
-  const { horseRepository, lineageRepository } = useRepositoryContext();
+  const { horseService, lineageService } = useServiceContext();
   const horses = useHorseStore((s) => s.horses);
   const isLoading = useHorseStore((s) => s.isLoading);
   const error = useHorseStore((s) => s.error);
@@ -43,19 +43,19 @@ export function useHorseListPage() {
 
   useEffect(() => {
     async function loadData() {
-      await useLineageStore.getState().loadHierarchy(lineageRepository);
-      await useHorseStore.getState().loadHorses(horseRepository);
+      await useLineageStore.getState().loadHierarchy(lineageService);
+      await useHorseStore.getState().loadHorses(horseService);
     }
     loadData();
-  }, [horseRepository, lineageRepository]);
+  }, [horseService, lineageService]);
 
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-    useHorseStore.getState().loadHorses(horseRepository);
-  }, [filter, horseRepository]);
+    useHorseStore.getState().loadHorses(horseService);
+  }, [filter, horseService]);
 
   const handleCreate = () => {
     setEditTarget(null);
@@ -71,15 +71,15 @@ export function useHorseListPage() {
     const store = useHorseStore.getState();
     if ('id' in data) {
       const { id, ...updateData } = data;
-      await store.updateHorse(horseRepository, id, updateData);
+      await store.updateHorse(horseService, id, updateData);
     } else {
-      await store.createHorse(horseRepository, data);
+      await store.createHorse(horseService, data);
     }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await useHorseStore.getState().deleteHorse(horseRepository, deleteTarget.id);
+    await useHorseStore.getState().deleteHorse(horseService, deleteTarget.id);
     setDeleteTarget(null);
   };
 

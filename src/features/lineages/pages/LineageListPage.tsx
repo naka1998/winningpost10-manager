@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useRepositoryContext } from '@/app/repository-context';
+import { useServiceContext } from '@/app/service-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -264,7 +264,7 @@ function LineageParentCard({
 }
 
 export function LineageListPage() {
-  const { lineageRepository } = useRepositoryContext();
+  const { lineageService } = useServiceContext();
   const isLoading = useLineageStore((s) => s.isLoading);
   const error = useLineageStore((s) => s.error);
   const searchQuery = useLineageStore((s) => s.searchQuery);
@@ -275,8 +275,8 @@ export function LineageListPage() {
   const [editTarget, setEditTarget] = useState<Lineage | null>(null);
 
   useEffect(() => {
-    useLineageStore.getState().loadHierarchy(lineageRepository);
-  }, [lineageRepository]);
+    useLineageStore.getState().loadHierarchy(lineageService);
+  }, [lineageService]);
 
   const filteredHierarchy = useMemo(
     () => filterHierarchy(hierarchy, searchQuery),
@@ -297,9 +297,9 @@ export function LineageListPage() {
     const store = useLineageStore.getState();
     if ('id' in data) {
       const { id, ...updateData } = data;
-      await store.updateLineage(lineageRepository, id, updateData);
+      await store.updateLineage(lineageService, id, updateData);
     } else {
-      await store.createLineage(lineageRepository, data);
+      await store.createLineage(lineageService, data);
     }
   };
 

@@ -13,6 +13,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useRepositoryContext } from '@/app/repository-context';
+import { useServiceContext } from '@/app/service-context';
 import { useBroodmareStore } from '../store';
 import { useSettingsStore } from '@/features/settings/store';
 import {
@@ -238,7 +239,8 @@ function BroodmareRow({
 }
 
 export function BroodmareListPage() {
-  const { broodmareRepository, settingsRepository } = useRepositoryContext();
+  const { broodmareRepository } = useRepositoryContext();
+  const { settingsService } = useServiceContext();
   const {
     summaries,
     sireLineDistribution,
@@ -257,13 +259,13 @@ export function BroodmareListPage() {
   useEffect(() => {
     // wa-sqlite は並行アクセスに対応していないため、DB操作を直列化する
     async function loadData() {
-      await useSettingsStore.getState().loadSettings(settingsRepository);
+      await useSettingsStore.getState().loadSettings(settingsService);
       const currentYear = useSettingsStore.getState().settings?.currentYear ?? 2025;
       await loadSummaries(broodmareRepository, currentYear);
       await loadDistributions(broodmareRepository);
     }
     loadData();
-  }, [broodmareRepository, settingsRepository, loadSummaries, loadDistributions]);
+  }, [broodmareRepository, settingsService, loadSummaries, loadDistributions]);
 
   useEffect(() => {
     if (isInitialMount.current) {

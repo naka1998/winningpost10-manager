@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBreedingRecordStore } from './store';
-import type { BreedingRecordRepository } from './repository';
+import type { BreedingRecordService } from './service';
 import type { BreedingRecordWithNames } from './types';
 
 function createMockRecord(
@@ -25,11 +25,10 @@ function createMockRecord(
   };
 }
 
-function createMockRepo(
+function createMockService(
   records: BreedingRecordWithNames[] = [createMockRecord()],
-): BreedingRecordRepository {
+): BreedingRecordService {
   return {
-    findById: vi.fn(),
     findAll: vi.fn().mockResolvedValue(records),
     create: vi.fn().mockResolvedValue(createMockRecord({ id: 100 })),
     update: vi.fn().mockResolvedValue(createMockRecord({ id: 1, evaluation: 'S' })),
@@ -48,11 +47,11 @@ describe('useBreedingRecordStore', () => {
   });
 
   describe('loadRecords', () => {
-    it('loads records from repository', async () => {
+    it('loads records from service', async () => {
       const records = [createMockRecord({ id: 1 }), createMockRecord({ id: 2, evaluation: 'B' })];
-      const repo = createMockRepo(records);
+      const service = createMockService(records);
 
-      await useBreedingRecordStore.getState().loadRecords(repo);
+      await useBreedingRecordStore.getState().loadRecords(service);
 
       const state = useBreedingRecordStore.getState();
       expect(state.records).toHaveLength(2);
@@ -65,10 +64,10 @@ describe('useBreedingRecordStore', () => {
       const pendingPromise = new Promise<BreedingRecordWithNames[]>((resolve) => {
         resolveRecords = resolve;
       });
-      const repo = createMockRepo();
-      repo.findAll = vi.fn().mockReturnValue(pendingPromise);
+      const service = createMockService();
+      service.findAll = vi.fn().mockReturnValue(pendingPromise);
 
-      const loadPromise = useBreedingRecordStore.getState().loadRecords(repo);
+      const loadPromise = useBreedingRecordStore.getState().loadRecords(service);
       expect(useBreedingRecordStore.getState().isLoading).toBe(true);
 
       resolveRecords!([createMockRecord()]);
@@ -77,55 +76,55 @@ describe('useBreedingRecordStore', () => {
     });
 
     it('sets error on failure', async () => {
-      const repo = createMockRepo();
-      repo.findAll = vi.fn().mockRejectedValue(new Error('DB error'));
+      const service = createMockService();
+      service.findAll = vi.fn().mockRejectedValue(new Error('DB error'));
 
-      await useBreedingRecordStore.getState().loadRecords(repo);
+      await useBreedingRecordStore.getState().loadRecords(service);
 
       const state = useBreedingRecordStore.getState();
       expect(state.error).toBe('DB error');
       expect(state.isLoading).toBe(false);
     });
 
-    it('passes current filter to repository', async () => {
-      const repo = createMockRepo();
+    it('passes current filter to service', async () => {
+      const service = createMockService();
       useBreedingRecordStore.setState({ filter: { year: 2024, mareId: 10 } });
 
-      await useBreedingRecordStore.getState().loadRecords(repo);
+      await useBreedingRecordStore.getState().loadRecords(service);
 
-      expect(repo.findAll).toHaveBeenCalledWith({ year: 2024, mareId: 10 });
+      expect(service.findAll).toHaveBeenCalledWith({ year: 2024, mareId: 10 });
     });
   });
 
   describe('createRecord', () => {
     it('creates a record and reloads list', async () => {
-      const repo = createMockRepo();
+      const service = createMockService();
       await useBreedingRecordStore
         .getState()
-        .createRecord(repo, { mareId: 10, sireId: 20, year: 2024 });
+        .createRecord(service, { mareId: 10, sireId: 20, year: 2024 });
 
-      expect(repo.create).toHaveBeenCalledWith({ mareId: 10, sireId: 20, year: 2024 });
-      expect(repo.findAll).toHaveBeenCalledTimes(1);
+      expect(service.create).toHaveBeenCalledWith({ mareId: 10, sireId: 20, year: 2024 });
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('updateRecord', () => {
     it('updates a record and reloads list', async () => {
-      const repo = createMockRepo();
-      await useBreedingRecordStore.getState().updateRecord(repo, 1, { evaluation: 'S' });
+      const service = createMockService();
+      await useBreedingRecordStore.getState().updateRecord(service, 1, { evaluation: 'S' });
 
-      expect(repo.update).toHaveBeenCalledWith(1, { evaluation: 'S' });
-      expect(repo.findAll).toHaveBeenCalledTimes(1);
+      expect(service.update).toHaveBeenCalledWith(1, { evaluation: 'S' });
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('deleteRecord', () => {
     it('deletes a record and reloads list', async () => {
-      const repo = createMockRepo();
-      await useBreedingRecordStore.getState().deleteRecord(repo, 1);
+      const service = createMockService();
+      await useBreedingRecordStore.getState().deleteRecord(service, 1);
 
-      expect(repo.delete).toHaveBeenCalledWith(1);
-      expect(repo.findAll).toHaveBeenCalledTimes(1);
+      expect(service.delete).toHaveBeenCalledWith(1);
+      expect(service.findAll).toHaveBeenCalledTimes(1);
     });
   });
 

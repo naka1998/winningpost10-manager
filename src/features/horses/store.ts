@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { HorseRepository } from './repository';
+import type { HorseService } from './service';
 import type { Horse, HorseCreateInput, HorseFilter, HorseUpdateInput } from './types';
 
 export interface HorseState {
@@ -8,10 +8,10 @@ export interface HorseState {
   error: string | null;
   filter: HorseFilter;
 
-  loadHorses: (repo: HorseRepository) => Promise<void>;
-  createHorse: (repo: HorseRepository, data: HorseCreateInput) => Promise<void>;
-  updateHorse: (repo: HorseRepository, id: number, data: HorseUpdateInput) => Promise<void>;
-  deleteHorse: (repo: HorseRepository, id: number) => Promise<void>;
+  loadHorses: (service: HorseService) => Promise<void>;
+  createHorse: (service: HorseService, data: HorseCreateInput) => Promise<void>;
+  updateHorse: (service: HorseService, id: number, data: HorseUpdateInput) => Promise<void>;
+  deleteHorse: (service: HorseService, id: number) => Promise<void>;
   setFilter: (filter: Partial<HorseFilter>) => void;
 }
 
@@ -21,10 +21,10 @@ export const useHorseStore = create<HorseState>((set, get) => ({
   error: null,
   filter: { status: '現役' },
 
-  async loadHorses(repo: HorseRepository) {
+  async loadHorses(service: HorseService) {
     set({ isLoading: true, error: null });
     try {
-      const horses = await repo.findAll(get().filter);
+      const horses = await service.findAll(get().filter);
       set({ horses, isLoading: false });
     } catch (err) {
       set({
@@ -34,19 +34,19 @@ export const useHorseStore = create<HorseState>((set, get) => ({
     }
   },
 
-  async createHorse(repo: HorseRepository, data: HorseCreateInput) {
-    await repo.create(data);
-    await get().loadHorses(repo);
+  async createHorse(service: HorseService, data: HorseCreateInput) {
+    await service.create(data);
+    await get().loadHorses(service);
   },
 
-  async updateHorse(repo: HorseRepository, id: number, data: HorseUpdateInput) {
-    await repo.update(id, data);
-    await get().loadHorses(repo);
+  async updateHorse(service: HorseService, id: number, data: HorseUpdateInput) {
+    await service.update(id, data);
+    await get().loadHorses(service);
   },
 
-  async deleteHorse(repo: HorseRepository, id: number) {
-    await repo.delete(id);
-    await get().loadHorses(repo);
+  async deleteHorse(service: HorseService, id: number) {
+    await service.delete(id);
+    await get().loadHorses(service);
   },
 
   setFilter(filter: Partial<HorseFilter>) {

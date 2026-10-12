@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useLineageStore, filterHierarchy } from './store';
-import type { LineageRepository } from './repository';
+import type { LineageService } from './service';
 import type { Lineage, LineageNode } from './types';
 
 function createMockLineage(overrides: Partial<Lineage> = {}): Lineage {
@@ -62,12 +62,8 @@ function createMockHierarchy(): LineageNode[] {
   ];
 }
 
-function createMockRepo(hierarchy: LineageNode[] = createMockHierarchy()): LineageRepository {
+function createMockService(hierarchy: LineageNode[] = createMockHierarchy()): LineageService {
   return {
-    findById: vi.fn(),
-    findByName: vi.fn(),
-    findAll: vi.fn(),
-    getChildren: vi.fn(),
     getHierarchy: vi.fn().mockResolvedValue(hierarchy),
     create: vi.fn().mockResolvedValue(createMockLineage({ id: 100, name: '新規系統' })),
     update: vi
@@ -89,9 +85,9 @@ describe('useLineageStore', () => {
   });
 
   describe('loadHierarchy', () => {
-    it('loads hierarchy data from repository', async () => {
-      const repo = createMockRepo();
-      await useLineageStore.getState().loadHierarchy(repo);
+    it('loads hierarchy data from service', async () => {
+      const service = createMockService();
+      await useLineageStore.getState().loadHierarchy(service);
 
       const state = useLineageStore.getState();
       expect(state.hierarchy).toHaveLength(2);
@@ -106,10 +102,10 @@ describe('useLineageStore', () => {
       const pendingPromise = new Promise<LineageNode[]>((resolve) => {
         resolveHierarchy = resolve;
       });
-      const repo = createMockRepo();
-      repo.getHierarchy = vi.fn().mockReturnValue(pendingPromise);
+      const service = createMockService();
+      service.getHierarchy = vi.fn().mockReturnValue(pendingPromise);
 
-      const loadPromise = useLineageStore.getState().loadHierarchy(repo);
+      const loadPromise = useLineageStore.getState().loadHierarchy(service);
       expect(useLineageStore.getState().isLoading).toBe(true);
 
       resolveHierarchy!(createMockHierarchy());
@@ -118,10 +114,10 @@ describe('useLineageStore', () => {
     });
 
     it('sets error on failure', async () => {
-      const repo = createMockRepo();
-      repo.getHierarchy = vi.fn().mockRejectedValue(new Error('DB error'));
+      const service = createMockService();
+      service.getHierarchy = vi.fn().mockRejectedValue(new Error('DB error'));
 
-      await useLineageStore.getState().loadHierarchy(repo);
+      await useLineageStore.getState().loadHierarchy(service);
 
       const state = useLineageStore.getState();
       expect(state.error).toBe('DB error');
@@ -129,8 +125,8 @@ describe('useLineageStore', () => {
     });
 
     it('extracts parentLineages from hierarchy', async () => {
-      const repo = createMockRepo();
-      await useLineageStore.getState().loadHierarchy(repo);
+      const service = createMockService();
+      await useLineageStore.getState().loadHierarchy(service);
 
       const state = useLineageStore.getState();
       expect(state.parentLineages).toHaveLength(2);
@@ -141,23 +137,23 @@ describe('useLineageStore', () => {
 
   describe('createLineage', () => {
     it('creates a lineage and reloads hierarchy', async () => {
-      const repo = createMockRepo();
+      const service = createMockService();
       await useLineageStore
         .getState()
-        .createLineage(repo, { name: '新規系統', lineageType: 'parent' });
+        .createLineage(service, { name: '新規系統', lineageType: 'parent' });
 
-      expect(repo.create).toHaveBeenCalledWith({ name: '新規系統', lineageType: 'parent' });
-      expect(repo.getHierarchy).toHaveBeenCalledTimes(1);
+      expect(service.create).toHaveBeenCalledWith({ name: '新規系統', lineageType: 'parent' });
+      expect(service.getHierarchy).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('updateLineage', () => {
     it('updates a lineage and reloads hierarchy', async () => {
-      const repo = createMockRepo();
-      await useLineageStore.getState().updateLineage(repo, 1, { spStType: 'ST' });
+      const service = createMockService();
+      await useLineageStore.getState().updateLineage(service, 1, { spStType: 'ST' });
 
-      expect(repo.update).toHaveBeenCalledWith(1, { spStType: 'ST' });
-      expect(repo.getHierarchy).toHaveBeenCalledTimes(1);
+      expect(service.update).toHaveBeenCalledWith(1, { spStType: 'ST' });
+      expect(service.getHierarchy).toHaveBeenCalledTimes(1);
     });
   });
 

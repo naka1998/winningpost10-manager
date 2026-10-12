@@ -4,13 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSettingsStore } from '../store';
 
-const mockGetAll = vi.fn<() => Promise<Record<string, string>>>();
-const mockSet = vi.fn<(key: string, value: string) => Promise<void>>();
+const mockGetAll = vi.fn();
+const mockUpdateCurrentYear = vi.fn();
+const mockUpdatePedigreeDepth = vi.fn();
 
-const mockSettingsRepo = {
-  get: vi.fn(),
+const mockSettingsService = {
   getAll: mockGetAll,
-  set: mockSet,
+  updateCurrentYear: mockUpdateCurrentYear,
+  updatePedigreeDepth: mockUpdatePedigreeDepth,
 };
 
 const mockExportDatabase = vi.fn();
@@ -77,20 +78,17 @@ vi.mock('@/app/database-context', () => ({
   useDatabaseContext: () => ({ db: mockDb }),
 }));
 
-vi.mock('@/app/repository-context', () => ({
-  useRepositoryContext: () => ({
-    horseRepository: {},
-    yearlyStatusRepository: {},
-    lineageRepository: {},
-    settingsRepository: mockSettingsRepo,
+vi.mock('@/app/service-context', () => ({
+  useServiceContext: () => ({
+    settingsService: mockSettingsService,
   }),
 }));
 
-const defaultRaw: Record<string, string> = {
-  current_year: '2025',
-  pedigree_depth: '4',
-  rank_system: '{"ranks":["S+","S","A+","A","B+","B","C+","C","D+","D","E+","E"]}',
-  db_version: '1',
+const defaultSettings = {
+  currentYear: 2025,
+  pedigreeDepth: 4 as 4 | 5,
+  rankSystem: ['S+', 'S', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E+', 'E'],
+  dbVersion: 1,
 };
 
 async function renderAndWait() {
@@ -102,8 +100,14 @@ async function renderAndWait() {
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetAll.mockResolvedValue({ ...defaultRaw });
-    mockSet.mockResolvedValue(undefined);
+    const currentSettings = { ...defaultSettings };
+    mockGetAll.mockImplementation(async () => ({ ...currentSettings }));
+    mockUpdateCurrentYear.mockImplementation(async (year: number) => {
+      currentSettings.currentYear = year;
+    });
+    mockUpdatePedigreeDepth.mockImplementation(async (depth: 4 | 5) => {
+      currentSettings.pedigreeDepth = depth;
+    });
     mockSeedTestHorses.mockResolvedValue(10);
     mockExportDatabase.mockResolvedValue({
       blob: new Blob(['backup']),
@@ -151,7 +155,7 @@ describe('SettingsPage', () => {
 
     await user.click(screen.getByRole('button', { name: '保存' }));
 
-    expect(mockSet).toHaveBeenCalledWith('current_year', '2030');
+    expect(mockUpdateCurrentYear).toHaveBeenCalledWith(2030);
   });
 
   it('血統表示世代数を切り替えられる', async () => {
@@ -161,7 +165,7 @@ describe('SettingsPage', () => {
     fireEvent.change(select, { target: { value: '5' } });
 
     await vi.waitFor(() => {
-      expect(mockSet).toHaveBeenCalledWith('pedigree_depth', '5');
+      expect(mockUpdatePedigreeDepth).toHaveBeenCalledWith(5);
     });
   });
 

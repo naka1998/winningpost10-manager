@@ -1,6 +1,6 @@
 import { createTestDatabase } from '@/database/connection.test-utils';
 import { runMigrations } from '@/database/migrations';
-import { createRepositories, type AppContainer } from './container';
+import { createRepositories, createServices, type AppContainer } from './container';
 import type { RepositoryContextValue } from './repository-context';
 
 export interface TestAppContainerOptions {
@@ -17,5 +17,6 @@ export async function createTestAppContainer(
     ...defaults,
     ...options?.repositoryOverrides,
   };
-  return { db, repositories };
+  const services = createServices(repositories);
+  return { db, repositories, services };
 }
