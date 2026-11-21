@@ -248,7 +248,7 @@ export function SearchableHorseSelect({
         <div
           ref={listRef}
           role="listbox"
-          className="max-h-48 overflow-y-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="max-h-48 [scrollbar-width:none] overflow-y-auto p-1 [&::-webkit-scrollbar]:hidden"
           onScroll={updateScrollState}
         >
           {filtered.map((horse) => (
